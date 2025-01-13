@@ -27,9 +27,10 @@ huggingface_api_Key = os.getenv('API_KEY')
 
 # LLM 모델 로드
 llm = HuggingFaceEndpoint(
-    repo_id="tiiuae/falcon-7b-instruct",
+    endpoint_url="https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct",
     huggingfacehub_api_token=huggingface_api_Key,
-    model_kwargs={"temperature": 0.7, "max_length": 256},
+    temperature=0.7,  # 명시적으로 설정
+    max_length=256    # 명시적으로 설정
 )
 
 # 프롬프트 템플릿 정의
@@ -43,10 +44,13 @@ prompt = PromptTemplate(template=template, input_variables=["query"])
 
 # RAG 체인 생성
 rag_chain = RetrievalQA.from_chain_type(
-    chain_type="llm",
+    retriever=lodging_store.as_retriever(),
     llm=llm,
-    vector_store=lodging_store,
-    prompt_template=prompt,
+    chain_type="stuff",
+    chain_type_kwargs={
+        "document_variable_name": "query",
+        "prompt": prompt
+    }
 )
 
 # 테스트 질의
