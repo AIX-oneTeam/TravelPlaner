@@ -98,3 +98,7 @@ uvicorn==0.34.0
 websockets==14.1
 wheel==0.44.0
 yarl==1.18.3
+fastapi
+uvicorn
+httpx
+python-dotenv
