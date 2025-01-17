@@ -54,6 +54,9 @@ def handle_google_callback(request_url: str, db: Session):
 
         # Decode ID token to get user info
         decoded_token = jwt.decode(credentials.id_token, options={"verify_signature": False})
+        print("-------------")
+        print(decoded_token) # sub가 구글이 주는 id임
+        print("-------------")
         name = decoded_token.get("family_name") + decoded_token.get("given_name")
         email = decoded_token.get("email")
         picture = decoded_token.get("picture", None)
