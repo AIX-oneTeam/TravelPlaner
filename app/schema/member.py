@@ -19,17 +19,20 @@ class Member(BaseModel):
     id: int
     name: str
     email: EmailStr # 이메일 형식 유효성 검사(pydantic)
-    password: str
+    # password: str
     nickname: str
-    age: int
+    birth_day: int
     address: Address
     phone_number: str
-    voice: str #논의 필요
+    # voice: str #논의 필요
     credit: CreditCardInfo
+
+    planId: list[int]
 
     role: str
     created_at: datetime
     updated_at: datetime
+
 
     # 전화번호 유효성 검사
     @field_validator("phone_number")
