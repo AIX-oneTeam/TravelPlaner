@@ -17,14 +17,13 @@ class AccomodationType(enum):
     HANOK = "한옥"
     CAMP = "캠핑"
     GLAMPING = "글램핑"
-    
-
+    FULL_VILLA = "풀빌라"
 
 class Accommodation(BaseModel, PlanCommon):
     id: int
-    accommodation_type: AccomodationType
+    accommodation_type: list[AccomodationType]
     phone_number: str
-    business_status: str  # 영업 상태
+    business_status: bool  # 폐업 여부
     business_hours: str  # 영업 시간
 
 

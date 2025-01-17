@@ -33,8 +33,8 @@ __summary__: 여행 일정 스키마입니다. 식별자는 id입니다.
 __description__: 여행 일정은 회원과 N:1 관계를 가집니다.
 """
 class Plan(BaseModel):
+    # 입력 데이터
     id: int
-    memberId: int # 작성자 id
     plan_name: str # 일정명
     start_date: datetime # 시작일
     end_date: datetime # 종료일
@@ -42,9 +42,12 @@ class Plan(BaseModel):
     ages: AgeType # 평균 주요 연령
     companion_count: Dict[CompanionType, int] # 동행인 수
     plan_concepts: dict # 일정 컨셉
-    plan_elements: dict # 일정 요소
 
+    # 외래키
+    check_list_id: int # 체크리스트 1:1 관계
+    member_id: int # 작성자 id
+    plan_elements_id: list[int] # 일정 요소 1:N 관계
+
+    # DB 관리 데이터
     created_at: datetime
     updated_at: datetime
-
-    
