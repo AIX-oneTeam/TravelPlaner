@@ -21,6 +21,15 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
         request_url = str(request.url)
         response_data = handle_google_callback(request_url, db)
-        return response_data
+        
+        # 사용자 정보 포함한 리다이렉트 URL 생성
+        name = response_data["member"]["name"]
+        email = response_data["member"]["email"]
+        
+        # 임시지정, 토큰 관리 어떻게 할지 정하고 수정하기 
+        redirect_url = f"http://localhost:3000/?name={name}&email={email}"
+        
+        return RedirectResponse(url=redirect_url)
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Google OAuth callback failed: {e}")
