@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import RedirectResponse
-from ..services.kakao_oauth_service import get_login_url, get_access_token
+from ..services.kakao_oauth_service import get_login_url, handle_kakao_callback
 
 router = APIRouter()
 
@@ -20,15 +20,12 @@ async def kakao_login():
 @router.get("/kakao/callback")
 async def kakao_callback(code: str = Query(...)):
     """
-    카카오 인증 코드를 받아 액세스 토큰을 요청하고 리다이렉트합니다.
+    카카오 인증 코드를 받아 사용자 정보를 처리합니다.
     :param code: 카카오에서 반환한 인증 코드
     """
     try:
-        # 1. 액세스 토큰 요청
-        access_token = await get_access_token(code)
-
-        # 2. 리다이렉트 URL 생성
-        redirect_url = f"http://localhost:3000/?access_token={access_token}"
-        return RedirectResponse(url=redirect_url)
+        # 카카오 콜백 처리
+        user_info = await handle_kakao_callback(code)
+        return {"message": "User info fetched successfully", "user_info": user_info}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process Kakao callback: {e}")

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .router.kakao_oauth_router import router
+from .routers.kakao_oauth_router import router
 from fastapi.middleware.cors import CORSMiddleware
 # FastAPI 애플리케이션 생성
 app = FastAPI()
