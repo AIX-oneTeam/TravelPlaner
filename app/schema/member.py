@@ -21,8 +21,8 @@ class Member(BaseModel):
     email: EmailStr # 이메일 형식 유효성 검사(pydantic)
     # password: str
     nickname: str
-    age: int
-    # address: Address
+    birth_day: int
+    address: Address
     phone_number: str
     # voice: str #논의 필요
     credit: CreditCardInfo
