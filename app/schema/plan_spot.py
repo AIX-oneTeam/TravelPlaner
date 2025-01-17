@@ -9,7 +9,7 @@ class SpotType(enum):
     CULTURAL = "문화"
     ENTERTAINMENT = "엔터"
     SHOPPING = "쇼핑"
-    FOOD = "음식"
+    FOOD_STREET = "먹자 골목"
     SPORTS = "스포츠"
     LEISURE = "레저"
     RELIGIOUS = "종교"
