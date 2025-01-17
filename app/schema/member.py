@@ -19,9 +19,8 @@ class Member(BaseModel):
     id: int
     name: str
     email: EmailStr # 이메일 형식 유효성 검사(pydantic)
-    password: str
     nickname: str
-    age: int
+    birth_day: int
     address: Address
     phone_number: str
     voice: str #논의 필요
