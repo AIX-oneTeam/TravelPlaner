@@ -1,5 +1,5 @@
 import httpx
-from app.config import settings
+from app.config.naver_oauth_config import settings
 
 NAVER_AUTH_URL = "https://nid.naver.com/oauth2.0/token"
 NAVER_PROFILE_URL = "https://openapi.naver.com/v1/nid/me"

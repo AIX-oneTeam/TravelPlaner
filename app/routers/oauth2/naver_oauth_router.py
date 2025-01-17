@@ -1,7 +1,7 @@
 import secrets
 from fastapi import APIRouter, HTTPException, Request, Response
 from app.utils.naver_utils import get_naver_access_token, get_naver_user_profile
-from app.config import settings
+from app.config.naver_oauth_config import settings
 
 router = APIRouter()
 

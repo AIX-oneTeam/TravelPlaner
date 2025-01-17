@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import RedirectResponse
-from ..services.kakao_oauth_service import get_login_url, handle_kakao_callback
+from services.oauth2.kakao_oauth_service import get_login_url, handle_kakao_callback
 
 router = APIRouter()
 

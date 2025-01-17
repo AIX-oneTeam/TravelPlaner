@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from app.config import settings  # settings.py에서 settings 불러오기
+from app.config.naver_oauth_config import settings  # settings.py에서 settings 불러오기
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.auth.naver import router as naver_router
+from app.routers.naver_oauth_router import router as naver_router
 
 app = FastAPI()
 
