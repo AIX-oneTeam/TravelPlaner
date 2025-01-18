@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import jwt
 import requests
-from models.member import Member
+# from ..models.member import Member
 
 # Load .env variables
 load_dotenv()
