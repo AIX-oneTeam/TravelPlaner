@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.config import settings  # settings.py에서 settings 불러오기
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth.naver import router as naver_router
+from app.api.ai_agents.travel_agent import router as ai_agent_router  # AI 에이전트 라우터 가져오기
 
 app = FastAPI()
 
@@ -16,6 +17,9 @@ app.add_middleware(
 
 # 네이버 로그인 라우터 등록
 app.include_router(naver_router, prefix="/api/auth")
+
+# AI 에이전트 라우터 등록
+app.include_router(ai_agent_router, prefix="/api/ai")
 
 # 루트 경로 추가
 @app.get("/")
