@@ -1,19 +1,21 @@
 import os
+import requests
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.agents import initialize_agent, Tool
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
-from serpapi import GoogleSearch
+from langchain.chains import LLMChain
 
 # .env 파일 로드
 load_dotenv()
 
 # 환경 변수 설정
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
 
-# 프롬프트 템플릿 정의 (한국어 출력)
+# 프롬프트 템플릿 정의
 analysis_prompt = PromptTemplate(
     input_variables=["data", "location"],
     template="""
@@ -38,97 +40,88 @@ analysis_prompt = PromptTemplate(
 """
 )
 
-# Google Search Tool
-def google_search_tool(query: str, num_results: int = 3) -> str:
+# 네이버 검색 API 호출 함수
+def naver_search_tool(query: str, display: int = 5, start: int = 1, sort: str = "random") -> str:
     """
-    Google Search API를 사용해 검색 결과를 가져옵니다.
-    :param query: 검색할 키워드
-    :param num_results: 가져올 검색 결과 개수
-    :return: 검색 결과 요약 문자열
+    네이버 로컬 검색 API를 사용해 데이터를 검색합니다.
     """
-    search = GoogleSearch({
-        "q": query,
-        "num": num_results,
-        "api_key": SERPAPI_API_KEY,
-    })
-    results = search.get_dict().get("organic_results", [])
-    if not results:
-        return "검색 결과가 없습니다."
+    url = "https://openapi.naver.com/v1/search/local.json"
+    headers = {
+        "X-Naver-Client-Id": NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+    }
+    params = {
+        "query": query,
+        "display": display,
+        "start": start,
+        "sort": sort,
+    }
 
-    summaries = []
-    for result in results:
-        title = result.get("title", "제목 없음")
-        link = result.get("link", "링크 없음")
-        snippet = result.get("snippet", "설명 없음")
-        summaries.append(f"제목: {title}\n설명: {snippet}\n링크: {link}\n")
-    
-    return "\n".join(summaries)
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        results = response.json().get("items", [])
+        if not results:
+            return "검색 결과가 없습니다."
+
+        summaries = []
+        for result in results:
+            title = result.get("title", "제목 없음").replace("<b>", "").replace("</b>", "")
+            description = result.get("description", "설명 없음")
+            address = result.get("address", "주소 없음")
+            link = result.get("link", "링크 없음")
+            summaries.append(f"제목: {title}\n설명: {description}\n주소: {address}\n링크: {link}\n")
+
+        return "\n".join(summaries)
+    else:
+        return f"네이버 API 호출 실패: {response.status_code}, {response.text}"
 
 # LLM 분석 함수
-def analyze_google_results(data: str, location: str) -> str:
+def analyze_naver_results(data: str, location: str) -> str:
     """
-    LLM을 사용하여 Google 검색 결과를 분석하고, 프롬프트 형식에 맞춰 결과 반환.
+    LLM을 사용하여 네이버 검색 결과를 분석하고, 프롬프트 형식에 맞춰 결과 반환.
     """
-    llm = ChatOpenAI(model="gpt-4-mini", temperature=0, openai_api_key=OPENAI_API_KEY)
-    formatted_prompt = analysis_prompt.format(data=data, location=location)
-    response = llm.run(formatted_prompt)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=OPENAI_API_KEY)
+    llm_chain = LLMChain(prompt=analysis_prompt, llm=llm)
+    response = llm_chain.run({"data": data, "location": location})
     return response
 
-# Google Search + 분석 함수
-def google_search_and_analyze(query: str, location: str, num_results: int = 3) -> str:
+# 네이버 검색 + 분석 함수
+def naver_search_and_analyze(query: str, location: str, display: int = 5) -> str:
     """
-    Google Search API를 사용해 데이터를 가져오고, 이를 LLM으로 분석하여 결과 반환.
+    네이버 검색 API를 사용해 데이터를 가져오고, 이를 LLM으로 분석하여 결과 반환.
     """
-    # Google Search 실행
-    search = GoogleSearch({
-        "q": query,
-        "num": num_results,
-        "api_key": SERPAPI_API_KEY,
-    })
-    results = search.get_dict().get("organic_results", [])
-    if not results:
-        return "검색 결과가 없습니다."
+    search_results = naver_search_tool(query=query, display=display)
+    if "검색 결과가 없습니다." in search_results or "네이버 API 호출 실패" in search_results:
+        return search_results
 
-    # 검색 결과 요약
-    summaries = []
-    for result in results:
-        title = result.get("title", "제목 없음")
-        link = result.get("link", "링크 없음")
-        snippet = result.get("snippet", "설명 없음")
-        summaries.append(f"제목: {title}\n설명: {snippet}\n링크: {link}\n")
-
-    # 데이터 분석 및 포맷팅
-    raw_data = "\n".join(summaries)
-    return analyze_google_results(raw_data, location)
+    return analyze_naver_results(search_results, location)
 
 # Tool 정의
-google_analysis_tool = Tool(
-    name="GoogleSearchAnalyzer",
-    func=lambda query: google_search_and_analyze(query, "서울"),
-    description="Google 검색을 통해 서울의 관광지를 추천합니다."
+naver_analysis_tool = Tool(
+    name="NaverSearchAnalyzer",
+    func=lambda query: naver_search_and_analyze(query, "서울"),
+    description="네이버 검색을 통해 서울의 관광지를 추천합니다."
 )
 
 # 에이전트 초기화
 agent = initialize_agent(
-    tools=[google_analysis_tool],
+    tools=[naver_analysis_tool],
     llm=ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=OPENAI_API_KEY),
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
+    verbose=False  # 디버깅 로그 비활성화
 )
 
 # 에이전트 실행
-def run_agent_for_query(query: str):
+def run_agent_for_query(query: str) -> str:
     """
     LangChain 에이전트를 사용해 사용자 요청 처리.
-    :param query: 사용자 입력
-    :return: 에이전트 응답
     """
     response = agent.run(query)
     return response
 
 # 테스트 실행
 if __name__ == "__main__":
-    user_query = "서울의 관광지를 추천해주세요."
+    user_query = "축제에 대한 컨셉으로 서울 놀러갈건데 추천해줘."
     print(f"User Query: {user_query}")
     response = run_agent_for_query(user_query)
     print("\nAgent Response:")
