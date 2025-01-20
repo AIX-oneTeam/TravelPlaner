@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from services.google_oauth_service import get_google_authorization_url, handle_google_callback
-from test_db import get_db
+from app.services.google_oauth_service import get_google_authorization_url, handle_google_callback
+
+from app.test_db import get_db
 
 router = APIRouter()
 
