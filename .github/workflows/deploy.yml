@@ -82,9 +82,8 @@ jobs:
              echo "'backend' 컨테이너가 존재하지 않습니다. 중지 및 제거 단계를 건너뜁니다."
             fi
 
-
              echo "기존 Docker 이미지를 정리 중입니다..."
-            existing_images=$(docker images --filter "reference=${{ secrets.ECR_REPOSITORY_URI }}/frontend:latest" --format "{{.ID}}")
+            existing_images=$(docker images --filter "reference=${{ secrets.ECR_REPOSITORY_URI }}/backend:latest" --format "{{.ID}}")
             if [ ! -z "$existing_images" ]; then
               echo "기존 이미지를 삭제합니다..."
               docker rmi -f $existing_images
