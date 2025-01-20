@@ -2,9 +2,13 @@ from google_auth_oauthlib.flow import Flow
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
 import jwt
 import requests
-from models.member import Member
+from app.models.member import Member
+
 
 # Load .env variables
 load_dotenv()
@@ -74,7 +78,7 @@ def handle_google_callback(request_url: str, db: Session):
 
         if response.status_code == 200:
             user_info = response.json()
-            nickname = user_info.get("nicknames", [{}])[0].get("value", None)
+            # nickname = user_info.get("nicknames", [{}])[0].get("value", None)
             # gender = user_info['genders'][0]['value']
             # birthday_year = user_info['birthdays'][0]['date']['year']
             # birthday_month = user_info['birthdays'][0]['date']['month']
