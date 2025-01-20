@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     name: Build and Deploy Backend
     runs-on: ubuntu-latest
 
@@ -53,7 +53,13 @@ jobs:
           docker push ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
 
         # EC2로 배포
-      - name: Deploy to EC2
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: SSH to EC2
         uses: appleboy/ssh-action@v0.1.7 # ssh를 이용하는 오픈소스
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -89,10 +95,11 @@ jobs:
 
   discord_alarm:
     name: Discord Alarm
+    needs: deploy
     runs-on: ubuntu-latest
     steps:
       - name: Send Discord message
         uses: tsickert/discord-webhook@v5.3.0
         with:
-          webhook_url: ${{ secrets.DISCORD_WEB_HOOK_URL }}
-          content: "😊 백엔드 배포가 완료되었습니다."
+          url: ${{ secrets.DISCORD_WEB_HOOK_URL }}
+          message: "😊 백엔드 배포가 완료되었습니다."
