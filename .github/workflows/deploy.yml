@@ -81,3 +81,13 @@ jobs:
             echo "새 컨테이너를 시작합니다..."
             docker run -d --name backend -p 8000:8000 ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
             echo "배포가 성공적으로 완료되었습니다."
+
+  discord_alarm:
+    name: Discord Alarm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord message
+        uses: Ilshidur/action-discord@v2.1.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEB_HOOK_URL }}
+          content: "😊 백엔드 배포가 완료되었습니다."
