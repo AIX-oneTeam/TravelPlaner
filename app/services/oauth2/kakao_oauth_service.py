@@ -4,17 +4,8 @@ from dotenv import load_dotenv
 from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token
 import logging
 
-# 로깅 설정
-logging.basicConfig(level=logging.DEBUG)  # 디버깅 레벨로 설정
-logger = logging.getLogger(__name__)
-
-print("Current working directory:", os.getcwd())
-print(".env file exists:", os.path.exists(".env"))
 # .env 파일 로드
 load_dotenv()
-print("Environment variables after loading:", dict(os.environ))
-os.environ["KAKAO_CLIENT_ID"]="b191ff254b8d95e6f2f69f5ae3b43c7b"
-os.environ["KAKAO_REDIRECT_URI"]="http://127.0.0.1:8000/auth/kakao/callback"
 
 # 환경 변수 설정 후에 변수 할당
 KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")
@@ -25,7 +16,7 @@ logger.debug(f"KAKAO_CLIENT_ID: {KAKAO_CLIENT_ID}")
 logger.debug(f"KAKAO_REDIRECT_URI: {KAKAO_REDIRECT_URI}")
 
 
-
+s
 
 async def get_login_url() -> str:
     """

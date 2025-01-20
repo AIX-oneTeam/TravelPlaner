@@ -1,100 +1,110 @@
-# #from google_auth_oauthlib.flow import Flow
-# from sqlalchemy.orm import Session
-# from dotenv import load_dotenv
-# import os
-# import jwt
-# import requests
-# from models.member import Member
+import os
+from google_auth_oauthlib.flow import Flow
+from dotenv import load_dotenv
+import jwt
+import requests
+import logging
+from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token
 
-# # Load .env variables
-# load_dotenv()
+# 로거 설정
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
-# GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-# GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+# Load .env variables
+load_dotenv()
 
-# # Allow insecure transport (for local development)
-# os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
 
-# # Initialize Google OAuth flow
-# flow = Flow.from_client_config(
-#     {
-#         "web": {
-#             "client_id": GOOGLE_CLIENT_ID,
-#             "client_secret": GOOGLE_CLIENT_SECRET,
-#             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-#             "token_uri": "https://oauth2.googleapis.com/token",
-#         }
-#     },
-#     scopes=[
-#         'openid',
-#         'https://www.googleapis.com/auth/userinfo.email',
-#         'https://www.googleapis.com/auth/userinfo.profile',
-#       # 반환된 scope가 다르면 오류가 나서 추가 정보를 선택할 수 없고, 아예 다 넣거나 빼야함
-#       # 'https://www.googleapis.com/auth/user.gender.read',
-#       # 'https://www.googleapis.com/auth/user.birthday.read' 
-#     ],
-#     redirect_uri=GOOGLE_REDIRECT_URI,
-# )
+# 디버깅 로그 추가
+logger.debug(f"GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID}")
+logger.debug(f"GOOGLE_REDIRECT_URI: {GOOGLE_REDIRECT_URI}")
 
-# def get_google_authorization_url():
-#     """Generate Google authorization URL."""
-#     authorization_url, state = flow.authorization_url(
-#         # 리프레시 토큰 발급할 경우 필요
-#         # access_type="offline", include_granted_scopes="true"
-#     )
-#     return authorization_url
+# Allow insecure transport (for local development)
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-# def handle_google_callback(request_url: str, db: Session):
-#     """Handle Google OAuth callback, fetch user data, and process user."""
-#     try:
-#         # Fetch token from Google
-#         flow.fetch_token(authorization_response=request_url)
-#         credentials = flow.credentials
+# Initialize Google OAuth flow
+flow = Flow.from_client_config(
+    {
+        "web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    },
+    scopes=[
+        'openid',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+    ],
+    redirect_uri=GOOGLE_REDIRECT_URI,
+)
 
-#         # Decode ID token to get user info
-#         decoded_token = jwt.decode(credentials.id_token, options={"verify_signature": False})
-#         print("-------------")
-#         print(decoded_token) # sub가 구글이 주는 id임
-#         print("-------------")
-#         name = decoded_token.get("family_name") + decoded_token.get("given_name")
-#         email = decoded_token.get("email")
-#         picture = decoded_token.get("picture", None)
-#         # refresh_token = credentials.refresh_token
-#         # email_verified = decoded_token.get("email_verified", False)
+async def get_google_authorization_url() -> str:
+    """Generate Google authorization URL."""
+    try:
+        logger.info("Generating Google authorization URL")
+        authorization_url, state = flow.authorization_url()
+        logger.debug(f"Generated authorization URL: {authorization_url}")
+        return authorization_url
+    except Exception as e:
+        logger.error(f"Error generating Google authorization URL: {str(e)}")
+        raise Exception(f"Failed to generate Google authorization URL: {str(e)}")
 
-#         # 추가정보(닉네임, 성별, 생년월일)
-#         access_token = credentials.token
-#         # Access Token을 사용하여 People API 호출
-#         response = requests.get(
-#             "https://people.googleapis.com/v1/people/me",
-#             headers={"Authorization": f"Bearer {access_token}"},
-#             params={"personFields": "nicknames"}  # nicknames 필드 요청
-#         )
+async def handle_google_callback(request_url: str) -> dict:
+    """Handle Google OAuth callback and process user data."""
+    try:
+        logger.info("Starting Google callback handling process")
+        
+        # Fetch token from Google
+        flow.fetch_token(authorization_response=request_url)
+        credentials = flow.credentials
 
-#         if response.status_code == 200:
-#             user_info = response.json()
-#             nickname = user_info.get("nicknames", [{}])[0].get("value", None)
-#             # gender = user_info['genders'][0]['value']
-#             # birthday_year = user_info['birthdays'][0]['date']['year']
-#             # birthday_month = user_info['birthdays'][0]['date']['month']
-#             # birthday_day = user_info['birthdays'][0]['date']['day']
-#         else:
-#             print(f"Failed to fetch nickname: {response.status_code} - {response.text}")
+        # Decode ID token to get user info
+        decoded_token = jwt.decode(credentials.id_token, options={"verify_signature": False})
+        logger.debug(f"Decoded token: {decoded_token}")
 
-#         # Check if user exists in the database
-#         existing_user = db.query(Member).filter(Member.email == email).first()
+        # Extract user information
+        user_info = {
+            "id": decoded_token.get("sub"),
+            "name": decoded_token.get("name"),
+            "email": decoded_token.get("email"),
+            "picture": decoded_token.get("picture")
+        }
 
-#         if not existing_user:
-#             # Add new user to the database
-#             new_member = Member(name=name, email=email)
-#             db.add(new_member)
-#             db.commit()
-#             db.refresh(new_member)
-#             return {"message": "New user added", "member": {"name": new_member.name, "email": new_member.email}}
-#         else:
-#             return {"message": "Existing user logged in", "member": {"name": existing_user.name, "email": existing_user.email}}
+        # Get additional user info using People API
+        try:
+            response = requests.get(
+                "https://people.googleapis.com/v1/people/me",
+                headers={"Authorization": f"Bearer {credentials.token}"},
+                params={"personFields": "nicknames"}
+            )
+            if response.status_code == 200:
+                people_data = response.json()
+                nickname = people_data.get("nicknames", [{}])[0].get("value")
+                if nickname:
+                    user_info["nickname"] = nickname
+        except Exception as e:
+            logger.warning(f"Failed to fetch additional user info: {str(e)}")
 
-#     except Exception as e:
-#         print(f"Error during Google OAuth callback: {e}")
-#         raise e
+        # Create JWT tokens
+        jwt_token = create_token_from_oauth("google", user_info)
+        refresh_token = create_refresh_token(user_info)
+
+        response_data = {
+            "jwt_token": jwt_token,
+            "refresh_token": refresh_token,
+            "user_info": user_info
+        }
+
+        logger.info("Google callback processed successfully")
+        return response_data
+
+    except Exception as e:
+        logger.error(f"Error processing Google callback: {str(e)}", exc_info=True)
+        raise Exception(f"Failed to process Google callback: {str(e)}")
