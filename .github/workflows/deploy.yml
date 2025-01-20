@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build and Deploy Backend
+    name: Build Backend
     runs-on: ubuntu-latest
 
     steps:
@@ -97,13 +97,13 @@ jobs:
             docker run -d --name backend -p 8000:8000 ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
             echo "배포가 성공적으로 완료되었습니다."
 
-  discord_alarm:
-    name: Discord Alarm
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Discord message
-        uses: tsickert/discord-webhook@v5.3.0
-        with:
-          url: ${{ secrets.DISCORD_WEB_HOOK_URL }}
-          message: "😊 백엔드 배포가 완료되었습니다."
+  # discord_alarm:
+  #   name: Discord Alarm
+  #   needs: deploy
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Send Discord message
+  #       uses: tsickert/discord-webhook@v5.3.0
+  #       with:
+  # url: ${{ secrets.DISCORD_WEB_HOOK_URL }}
+  #         message: "😊 백엔드 배포가 완료되었습니다."
