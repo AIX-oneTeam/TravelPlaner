@@ -1,26 +1,53 @@
 import os
 import httpx
 from dotenv import load_dotenv
+from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token
+import logging
 
+# 로깅 설정
+logging.basicConfig(level=logging.DEBUG)  # 디버깅 레벨로 설정
+logger = logging.getLogger(__name__)
+
+print("Current working directory:", os.getcwd())
+print(".env file exists:", os.path.exists(".env"))
 # .env 파일 로드
 load_dotenv()
+print("Environment variables after loading:", dict(os.environ))
+os.environ["KAKAO_CLIENT_ID"]="b191ff254b8d95e6f2f69f5ae3b43c7b"
+os.environ["KAKAO_REDIRECT_URI"]="http://127.0.0.1:8000/auth/kakao/callback"
 
-KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")  # REST API 키
-KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI")  # 리다이렉트 URI
+# 환경 변수 설정 후에 변수 할당
+KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")
+KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI")
+
+# 디버깅 로그 추가
+logger.debug(f"KAKAO_CLIENT_ID: {KAKAO_CLIENT_ID}")
+logger.debug(f"KAKAO_REDIRECT_URI: {KAKAO_REDIRECT_URI}")
 
 
-def get_login_url() -> str:
+
+
+async def get_login_url() -> str:
     """
     카카오 로그인 URL 생성
     :return: 카카오 로그인 URL (str)
     """
-    return (
+    # REST API 키와 Redirect URI 확인
+    if not KAKAO_CLIENT_ID or not KAKAO_REDIRECT_URI:
+        logger.error("Kakao CLIENT_ID or REDIRECT_URI is not configured properly.")
+        raise ValueError("Kakao CLIENT_ID or REDIRECT_URI is missing.")
+    
+    # 카카오 로그인 URL 생성
+    url = (
         f"https://kauth.kakao.com/oauth/authorize"
-        f"?client_id={KAKAO_CLIENT_ID}"
-        f"&redirect_uri={KAKAO_REDIRECT_URI}"
+        f"?client_id={KAKAO_CLIENT_ID}"  # REST API 키
+        f"&redirect_uri={KAKAO_REDIRECT_URI}"  # Redirect URI
         f"&response_type=code"
         f"&prompt=login"
     )
+    logger.info("Kakao login URL generated successfully.")
+    logger.debug(f"Generated login URL: {url}")
+    return url
 
 
 async def get_access_token(code: str) -> str:
@@ -60,35 +87,72 @@ async def fetch_user_info(access_token: str) -> dict:
     headers = {"Authorization": f"Bearer {access_token}"}
 
     try:
+        logger.info("Fetching user info from Kakao.")
         async with httpx.AsyncClient() as client:
             response = await client.get(user_info_url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            user_info = response.json()
+            logger.debug(f"User info received: {user_info}")
+            return user_info
     except httpx.HTTPStatusError as e:
+        logger.error(f"Failed to fetch user info: {e.response.text}")
         raise Exception(f"Failed to fetch user info: {e.response.text}") from e
     except Exception as e:
+        logger.error("An unexpected error occurred while fetching user info")
         raise Exception("An unexpected error occurred while fetching user info") from e
 
 
 async def handle_kakao_callback(code: str) -> dict:
-    """
-    카카오 콜백 처리: 액세스 토큰 가져오고 사용자 정보 반환.
-    :param code: 카카오 로그인 인증 코드
-    :return: 사용자 정보 (dict)
-    """
     try:
-        # 1. 액세스 토큰 가져오기
+        logger.info("Starting Kakao callback handling process")
+        logger.debug(f"Received code: {code}")
+
+        # 액세스 토큰 받기
         access_token = await get_access_token(code)
+        if not access_token:
+            logger.error("Access token is None or empty")
+            raise ValueError("Failed to get access token")
+        logger.debug(f"Access token retrieved successfully: {access_token[:10]}...")
 
-        # 2. 사용자 정보 가져오기
+        # 사용자 정보 받기
         user_info = await fetch_user_info(access_token)
+        if not user_info:
+            logger.error("User info is None or empty")
+            raise ValueError("Failed to get user info")
+        logger.debug(f"User info type: {type(user_info)}")
+        logger.debug(f"User info structure: {user_info.keys() if isinstance(user_info, dict) else 'not a dict'}")
 
-        # 3. 필요한 데이터 반환
-        return {
-            "id": user_info.get("id"),
-            "email": user_info.get("kakao_account", {}).get("email"),
-            "nickname": user_info.get("kakao_account", {}).get("profile", {}).get("nickname"),
-            "profile_image": user_info.get("kakao_account", {}).get("profile", {}).get("profile_image_url"),
+        # JWT 토큰 생성 전 데이터 확인
+        try:
+            jwt_token = create_token_from_oauth("kakao", user_info)
+            logger.debug("JWT token created successfully")
+        except Exception as jwt_error:
+            logger.error(f"JWT token creation failed: {str(jwt_error)}")
+            raise jwt_error
+
+        # Refresh 토큰 생성
+        try:
+            refresh_token = create_refresh_token(user_info)
+            logger.debug("Refresh token created successfully")
+        except Exception as refresh_error:
+            logger.error(f"Refresh token creation failed: {str(refresh_error)}")
+            raise refresh_error
+
+        # 반환할 사용자 정보 구성
+        response_data = {
+            "jwt_token": jwt_token,
+            "refresh_token": refresh_token,
+            "user_info": {
+                "id": str(user_info.get("id", "")),  # id를 문자열로 변환
+                "email": user_info.get("kakao_account", {}).get("email"),
+                "nickname": user_info.get("kakao_account", {}).get("profile", {}).get("nickname"),
+                "profile_image": user_info.get("kakao_account", {}).get("profile", {}).get("profile_image_url"),
+            }
         }
+        
+        logger.debug("Response data prepared successfully")
+        return response_data
+
     except Exception as e:
-        raise Exception(f"Failed to handle Kakao callback: {e}") from e
+        logger.error(f"Kakao callback handling failed: {str(e)}", exc_info=True)
+        raise Exception(f"Failed to handle Kakao callback: {str(e)}") from e
