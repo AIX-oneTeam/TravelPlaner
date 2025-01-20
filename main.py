@@ -6,10 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.utils.common import decode_jwt
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
+from app.services.mysql_service import fetch_data
 
 # FastAPI 애플리케이션 생성
 app = FastAPI()
 
+@app.get("/fetch-data")
+async def get_data():
+    fetch_data()  # MySQL에서 데이터 조회
+    return {"message": "Data fetched successfully"}
 
 @app.get("/")
 def read_root():
