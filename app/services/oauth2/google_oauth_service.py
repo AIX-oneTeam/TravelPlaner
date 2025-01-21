@@ -47,14 +47,9 @@ flow = Flow.from_client_config(
 
 async def get_google_authorization_url() -> str:
     """Generate Google authorization URL."""
-    try:
-        logger.info("Generating Google authorization URL")
-        authorization_url, state = flow.authorization_url()
-        logger.debug(f"Generated authorization URL: {authorization_url}")
-        return authorization_url
-    except Exception as e:
-        logger.error(f"Error generating Google authorization URL: {str(e)}")
-        raise Exception(f"Failed to generate Google authorization URL: {str(e)}")
+    authorization_url, state = flow.authorization_url()
+    return authorization_url
+
 
 async def handle_google_callback(request_url: str) -> dict:
     """Handle Google OAuth callback and process user data."""
@@ -96,14 +91,12 @@ async def handle_google_callback(request_url: str) -> dict:
         jwt_token = create_token_from_oauth("google", user_info)
         refresh_token = create_refresh_token(user_info)
 
-        response_data = {
+        user_data = {
             "jwt_token": jwt_token,
             "refresh_token": refresh_token,
             "user_info": user_info
         }
-
-        logger.info("Google callback processed successfully")
-        return response_data
+        return user_data
 
     except Exception as e:
         logger.error(f"Error processing Google callback: {str(e)}", exc_info=True)

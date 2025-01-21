@@ -4,26 +4,11 @@ from dotenv import load_dotenv
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 import jwt
-import logging
 
 load_dotenv()
 JWT_SECRET_KEY = str(os.getenv("JWT_SECRET_KEY", ""))  # 명시적으로 문자열로 변환
 JWT_REFRESH_SECRET_KEY = str(os.getenv("JWT_REFRESH_SECRET_KEY", ""))
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-def create_jwt_token(payload: dict) -> str:
-    current_time = datetime.datetime.utcnow()
-    exp_time = current_time + datetime.timedelta(days=1)
-    
-    payload.update({
-        'iss': 'EasyTravel',
-        'sub': '1',
-        'exp': int(exp_time.timestamp()),
-        'iat': int(current_time.timestamp())
-    })
-    
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
-    return token
 
 def verify_jwt_token(token: str = Depends(oauth2_scheme)) -> dict:
     try:
@@ -35,44 +20,35 @@ def verify_jwt_token(token: str = Depends(oauth2_scheme)) -> dict:
         raise jwt.InvalidTokenError("유효하지 않은 토큰입니다.")
     except Exception as e:
         raise e
-
+   
+    #refresh token 생성
 def create_refresh_token(payload: dict) -> str:
     current_time = datetime.datetime.utcnow()
-    exp_time = current_time + datetime.timedelta(days=30)
+    exp_time = current_time + datetime.timedelta(days=30)  # 30일 후 만료
     
     payload.update({
-        'iss': 'EasyTravel',
-        'sub': '1',
-        'exp': int(exp_time.timestamp()),
-        'iat': int(current_time.timestamp())
+        'iss': 'EasyTravel',  # 발급자
+        'sub': str(payload.get('sub', '1')),  # 사용자 식별자
+        'exp': int(exp_time.timestamp()),  # 만료 시간
+        'iat': int(current_time.timestamp())  # 발급 시간
     })
     
-    refresh_token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
+    refresh_token = jwt.encode(payload, JWT_REFRESH_SECRET_KEY, algorithm="HS256")
     return refresh_token
 
+    #jwt 토큰 생성
 def create_token_from_oauth(provider: str, auth_info: dict) -> str:
-    logging.debug("Creating OAuth token")
     
-    current_time = datetime.datetime.utcnow()
-    exp_time = current_time + datetime.timedelta(days=1)
+    current_time = datetime.datetime.utcnow()  # 현재 시간
+    exp_time = current_time + datetime.timedelta(days=1)  # 만료 시간
     
     payload = {
-        'iss': 'EasyTravel',
-        'sub': str(auth_info.get('id')),
-        'provider': provider,
-        'exp': int(exp_time.timestamp()),
-        'iat': int(current_time.timestamp())
+        'iss': 'EasyTravel',  # 발급자
+        'sub': str(auth_info.get('id')),  # 사용자 식별자   
+        'provider': provider,   # 소셜 로그인 제공자  예) kakao, google
+        'exp': int(exp_time.timestamp()),  # 만료 시간
+        'iat': int(current_time.timestamp())  # 발급 시간
     }
-    
-    logging.debug(f"Using payload: {payload}")
-    
-    try:
-        if not JWT_SECRET_KEY:
-            raise ValueError("JWT_SECRET_KEY is empty")
             
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
-        return token
-    except Exception as e:
-        logging.error(f"Token creation failed: {e}")
-        raise
-
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
+    return token
