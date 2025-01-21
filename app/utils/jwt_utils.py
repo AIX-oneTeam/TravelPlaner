@@ -69,23 +69,23 @@ def create_refresh_token(user_id: str) -> str:
 
 def create_token_from_oauth(provider: str, auth_info: dict) -> str:
     """
+    Access Token 생성 (사용자 정보 포함)
     """
-    current_time = datetime.datetime.utcnow()
+    current_time = datetime.datetime.utcnow()  # 현재 시간
     exp_time = current_time + datetime.timedelta(days=1)  # 1일 후 만료
 
-    # Payload 생성
+    # 필요한 사용자 정보를 포함한 Access Token 생성
     payload = {
-        'iss': 'EasyTravel',
-        'sub': auth_info.get('id'),
-        'provider': provider,
-        'user_info': auth_info,
-        'exp': int(exp_time.timestamp()),
-        'iat': int(current_time.timestamp())
+        "iss": "EasyTravel",  # 발급자
+        "sub": str(auth_info.get("id")),  # 사용자 식별자
+        "provider": provider,  # 소셜 로그인 제공자
+        "nickname": auth_info.get("properties", {}).get("nickname"),  # 닉네임
+        "email": auth_info.get("kakao_account", {}).get("email"),  # 이메일
+        "profile_image": auth_info.get("properties", {}).get("profile_image"),  # 프로필 이미지
+        "exp": int(exp_time.timestamp()),  # 만료 시간
+        "iat": int(current_time.timestamp())  # 발급 시간
     }
 
-    # Payload 전체를 Base64로 인코딩
-    encoded_payload = base64_encode(payload)
-
-    # JWT 생성
-    token = jwt.encode({"data": encoded_payload}, JWT_SECRET_KEY, algorithm="HS256")
+    print("Access Token Payload:", payload)  # 디버깅: 생성된 payload 확인
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
     return token

@@ -33,7 +33,7 @@ async def kakao_callback(code: str, response: Response):
             response.set_cookie(
                 key="jwt_token",
                 value=user_data["jwt_token"],
-                httponly=True,
+                httponly=False,
                 secure=False,  # HTTPS 환경이 아니라면 False로 설정
                 samesite="Lax",
                 max_age=3600
@@ -49,7 +49,7 @@ async def kakao_callback(code: str, response: Response):
             response.set_cookie(
                 key="refresh_token",
                 value=user_data["refresh_token"],
-                httponly=True,
+                httponly=False,
                 secure=False,
                 samesite="Lax",
                 max_age=30 * 24 * 60 * 60

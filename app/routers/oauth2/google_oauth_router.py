@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
-from ...services.oauth2.google_oauth_service import get_google_authorization_url, handle_google_callback
+from ...services.oauth2.google_oauth_service import handle_google_callback
 
 # 로깅 설정
 router = APIRouter()
