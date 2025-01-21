@@ -19,7 +19,7 @@ def read_root():
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 모든 출처 허용
+    allow_origins=["http://localhost:3000"],  # 모든 출처 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +31,7 @@ async def jwt_auth_middleware(request: Request, call_next):
     """
     JWT 인증 미들웨어
     """
+    print("JWT 인증 미들웨어")
     token = request.cookies.get("access_token")  # 쿠키에서 JWT 가져오기
     if token:
         try:

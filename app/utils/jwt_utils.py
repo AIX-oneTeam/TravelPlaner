@@ -26,6 +26,21 @@ def base64_decode(encoded_data: str) -> dict:
     decoded_bytes = base64.urlsafe_b64decode(encoded_data.encode("utf-8"))
     return json.loads(decoded_bytes.decode("utf-8"))
 
+def decode_jwt(token: str) -> dict:
+    """
+    서명없는 JWT 디코딩
+    """
+    try:
+        # JWT 디코딩
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise jwt.ExpiredSignatureError("토큰이 만료되었습니다.")
+    except jwt.InvalidTokenError:
+        raise jwt.InvalidTokenError("유효하지 않은 토큰입니다.")
+    except Exception as e:
+        raise e
+
 
 def verify_jwt_token(token: str = Depends(oauth2_scheme)) -> dict:
     """
