@@ -35,9 +35,6 @@ async def naver_callback(response: Response, code: str = Query(...), state: str 
         access_token = tokens["access_token"]
         refresh_token = tokens["refresh_token"]
 
-        # 리프레시 토큰 저장
-        REFRESH_TOKENS[user_info["id"]] = refresh_token
-
         # JWT 생성
         jwt_token = create_jwt({"id": user_info["id"], "email": user_info["email"]})
 
@@ -45,13 +42,16 @@ async def naver_callback(response: Response, code: str = Query(...), state: str 
         response.set_cookie(
             key="access_token",
             value=jwt_token,
-            httponly=True,
-            secure=True,
-            samesite="Lax",
+            httponly=True,  # 브라우저에서 접근 불가능하도록 설정
+            secure=True,    # HTTPS를 통해서만 전송되도록 설정 (로컬 테스트 중에는 False로 변경 가능)
+            samesite="Lax", # 쿠키 정책 설정
         )
-        return {"message": "Login successful", "user": user_info}
+
+        # 홈 경로로 리다이렉트 (URL 파라미터 제거)
+        return RedirectResponse(url="http://localhost:3000/")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process Naver callback: {e}")
+
 
 @router.get("/protected")
 async def protected_route(request: Request):
