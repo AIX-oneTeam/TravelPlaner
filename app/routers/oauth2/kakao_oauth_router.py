@@ -9,7 +9,7 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@router.get("/kakao/callback")
+@router.get("/callback")
 async def kakao_callback(code: str, response: Response):
     """
     카카오 인증 콜백: 인증 코드를 받아 JWT와 Refresh Token을 쿠키에 저장.

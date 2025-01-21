@@ -2,13 +2,10 @@ from sqlalchemy import Column, Integer, String
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Column, Integer, String, Date, DateTime
 from app.db import Base
 class Member(Base):
     __tablename__ = "member"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    email = Column(String, nullable=False)
     id = Column(Integer, nullable=False, primary_key=True, index=True)
     name = Column(String(50), nullable=False)
     email = Column(String(255), nullable=False)
@@ -24,8 +21,8 @@ class Member(Base):
     phone_umber = Column(String(20), nullable=True)
     voice = Column(String(255), nullable=True)
     role = Column(String(10), nullable=True)
-    created_at = Column(Date, nullable=True)
-    updated_at = Column(Date, nullable=True)
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
 
 # # # 테이블 생성
 # Base.metadata.create_all(bind=engine)
