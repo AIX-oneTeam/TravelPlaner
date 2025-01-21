@@ -5,6 +5,7 @@ import jwt
 import requests
 import logging
 from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token
+import base64
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -44,11 +45,6 @@ flow = Flow.from_client_config(
     ],
     redirect_uri=GOOGLE_REDIRECT_URI,
 )
-
-async def get_google_authorization_url() -> str:
-    """Generate Google authorization URL."""
-    authorization_url, state = flow.authorization_url()
-    return authorization_url
 
 
 async def handle_google_callback(request_url: str) -> dict:
@@ -91,12 +87,14 @@ async def handle_google_callback(request_url: str) -> dict:
         jwt_token = create_token_from_oauth("google", user_info)
         refresh_token = create_refresh_token(user_info)
 
-        user_data = {
+        response_data = {
             "jwt_token": jwt_token,
             "refresh_token": refresh_token,
             "user_info": user_info
         }
-        return user_data
+
+
+        return response_data
 
     except Exception as e:
         logger.error(f"Error processing Google callback: {str(e)}", exc_info=True)
