@@ -9,6 +9,7 @@ class Member(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
+    email = Column(String, nullable=False)
     id = Column(Integer, nullable=False, primary_key=True, index=True)
     name = Column(String(50), nullable=False)
     email = Column(String(255), nullable=False)
