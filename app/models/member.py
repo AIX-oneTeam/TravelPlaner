@@ -3,8 +3,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from sqlalchemy import Column, Integer, String, Date
-from app.db import Base, engine
-
+from app.db import Base
 class Member(Base):
     __tablename__ = "member"
     id = Column(Integer, primary_key=True, index=True)
