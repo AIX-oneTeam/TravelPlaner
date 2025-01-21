@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,20 @@ from app.routers.kakao_oauth_router import router as kakao_router
 from app.routers.naver_oauth_router import router as naver_router
 from app.utils.common import decode_jwt, refresh_access_token
 from app.config import settings
+
+from fastapi import FastAPI
+from app.config.naver_oauth_config import settings  # settings.py에서 settings 불러오기
+from fastapi.middleware.cors import CORSMiddleware
+from app.routers.naver_oauth_router import router as naver_router
+from fastapi import FastAPI, Request
+from app.routers.google_oauth_router import router as google_router
+from app.routers.kakao_oauth_router import router as kakao_router
+from app.routers.naver_oauth_router import router as naver_router
+from fastapi.middleware.cors import CORSMiddleware
+from app.utils.common import decode_jwt
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
+
 
 # FastAPI 애플리케이션 생성
 app = FastAPI()

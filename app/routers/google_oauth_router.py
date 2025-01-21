@@ -3,11 +3,11 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.services.google_oauth_service import get_google_authorization_url, handle_google_callback
 
-from app.test_db import get_db
+from app.db import get_db
 
 router = APIRouter()
 
-@router.get("/google/login")
+@router.get("/login")
 async def google_login():
     """Redirect user to Google OAuth login page."""
     try:
@@ -16,7 +16,7 @@ async def google_login():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate Google login URL: {e}")
 
-@router.get("/google/callback")
+@router.get("/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Handle Google OAuth callback and process user login."""
     try:
