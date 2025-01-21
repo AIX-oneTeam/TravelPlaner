@@ -1,20 +1,14 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers.google_oauth_router import router as google_router
 from app.routers.kakao_oauth_router import router as kakao_router
 from app.routers.naver_oauth_router import router as naver_router
-from fastapi.middleware.cors import CORSMiddleware
-from app.utils.common import decode_jwt
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import HTTPException
-from app.services.mysql_service import fetch_data
+from app.utils.common import decode_jwt, refresh_access_token
+from app.config import settings
 
 # FastAPI 애플리케이션 생성
 app = FastAPI()
-
-@app.get("/fetch-data")
-async def get_data():
-    fetch_data()  # MySQL에서 데이터 조회
-    return {"message": "Data fetched successfully"}
 
 @app.get("/")
 def read_root():
@@ -41,13 +35,46 @@ async def jwt_auth_middleware(request: Request, call_next):
             user_data = decode_jwt(token)  # JWT 디코딩 및 검증
             request.state.user = user_data  # 사용자 정보를 요청 상태에 저장
         except HTTPException:
-            # 토큰이 유효하지 않으면 사용자 정보를 추가하지 않음
+            # 액세스 토큰이 만료되었으면 리프레시 토큰을 사용하여 새 액세스 토큰을 발급
+            refresh_token = request.cookies.get("refresh_token")
+            if refresh_token:
+                new_access_token = await refresh_access_token(refresh_token)
+                # 새 액세스 토큰을 쿠키에 저장
+                response = await call_next(request)
+                response.set_cookie(
+                    key="access_token",
+                    value=new_access_token,
+                    httponly=True,
+                    secure=True,
+                    samesite="Lax",
+                )
+                return response
             request.state.user = None
     else:
         request.state.user = None  # 쿠키가 없으면 None으로 설정
     response = await call_next(request)
     return response
 
+# 리프레시 토큰을 사용해 액세스 토큰을 갱신하는 엔드포인트
+@app.get("/refresh-token")
+async def refresh_token(request: Request):
+    """
+    리프레시 토큰을 사용하여 새 액세스 토큰을 발급합니다.
+    """
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="Refresh token not found")
+
+    new_access_token = await refresh_access_token(refresh_token)
+    response = {"message": "Token refreshed successfully"}
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+    )
+    return response
 
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
