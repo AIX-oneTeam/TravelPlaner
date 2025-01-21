@@ -15,7 +15,7 @@ KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI")
 
 async def get_access_token(code: str) -> str:
     """
-    카카오로부터 액세스 토큰을 가져옵니다.
+    카카오로부터 액세스 토큰을 가져옵니다.     #
     :param code: 카카오 로그인 인증 코드
     :return: 액세스 토큰 (str)
     """
@@ -29,7 +29,7 @@ async def get_access_token(code: str) -> str:
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as client:   #
             response = await client.post(token_url, data=data, headers=headers)
             response.raise_for_status()
             token_data = response.json()
@@ -89,6 +89,8 @@ async def handle_kakao_callback(code: str) -> dict:
         user_data = {
             "jwt_token": jwt_token,
             "refresh_token": refresh_token,
+
+              
             "user_info": user_info
         }
         

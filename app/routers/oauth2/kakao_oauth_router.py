@@ -26,11 +26,7 @@ async def kakao_callback(code: str, response: Response):
             logger.info(f"[Kakao Callback] 사용자 정보 처리 성공: {user_data}")
         except Exception as e:
             logger.error(f"[Kakao Callback] 사용자 정보 처리 실패: {e}")
-            raise HTTPException(status_code=400, detail=f"카카오 인증 실패: 사용자 정보 처리 중 오류 발생")
-            
-            
-            
-         
+            raise HTTPException(status_code=400, detail=f"카카오 인증 실패: 사용자 정보 처리 중 오류 발생")   
         # 3. JWT 토큰 쿠키 저장
         try:
             logger.info("[Kakao Callback] JWT 토큰 쿠키 저장 시작")

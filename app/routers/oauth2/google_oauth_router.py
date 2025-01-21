@@ -5,11 +5,6 @@ from ...services.oauth2.google_oauth_service import get_google_authorization_url
 # 로깅 설정
 router = APIRouter()
 
-@router.get("/google/login")
-async def google_login():
-    """구글 로그인 페이지로 리다이렉트합니다."""
-    authorization_url = await get_google_authorization_url()
-    return RedirectResponse(authorization_url)
 
 @router.get("/google/callback")
 async def google_callback(request: Request):
