@@ -4,12 +4,9 @@ from dotenv import load_dotenv
 import os
 import jwt
 import requests
-<<<<<<< HEAD:app/services/google_oauth_service.py
-# from ..models.member import Member
-=======
 from app.data_models.member import Member
 
->>>>>>> fe4647cdc2f6e99d3f20d20e04a1861d7f9eabfa:app/services/oauths/google_oauth_service.py
+
 
 # Load .env variables
 load_dotenv()
