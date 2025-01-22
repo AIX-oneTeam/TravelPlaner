@@ -1,12 +1,14 @@
 
 from fastapi import FastAPI, Request
-from app.routers.oauth2.google_oauth_router import router as google_router
-from app.routers.oauth2.kakao_oauth_router import router as kakao_router
-from app.routers.oauth2.naver_oauth_router import router as naver_router
 from fastapi.middleware.cors import CORSMiddleware
-from app.utils.common import decode_jwt
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
+
+from app.routers.oauths.google_oauth_router import router as google_oauth_router
+from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
+from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
+from app.utils.oauths.common import refresh_access_token
+from app.utils.oauths.jwt_utils import decode_jwt
 
 
 # FastAPI 애플리케이션 생성
@@ -90,6 +92,6 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     )
 
 # 라우터 추가
-app.include_router(google_router, prefix="/auth/google", tags=["Google OAuth"])
-app.include_router(kakao_router, prefix="/auth/kakao", tags=["Kakao Login"])
-app.include_router(naver_router, prefix="/auth/naver", tags=["Naver OAuth"])
+app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google OAuth"])
+app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao OAuth"])
+app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver OAuth"])

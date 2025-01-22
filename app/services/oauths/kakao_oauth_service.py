@@ -1,7 +1,8 @@
 import os
 import httpx
 from dotenv import load_dotenv
-from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token, decode_jwt
+
+from app.utils.oauths.jwt_utils import create_refresh_token, create_token_from_oauth, decode_jwt
 
 
 # .env 파일 로드

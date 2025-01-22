@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
-from ...services.oauth2.google_oauth_service import handle_google_callback
+
+from app.services.oauths.google_oauth_service import handle_google_callback
 
 # 로깅 설정
 router = APIRouter()
 
 
-@router.get("/google/callback")
+@router.get("/callback")
 async def google_callback(request: Request):
     """
     구글 인증 코드를 받아 사용자 정보를 처리합니다.

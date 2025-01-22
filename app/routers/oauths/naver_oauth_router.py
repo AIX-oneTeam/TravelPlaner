@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Query, HTTPException, Response, Request
 from fastapi.responses import RedirectResponse
 
+from app.services.oauths.naver_oauth_service import get_login_url, handle_callback
+from app.utils.oauths.common import create_jwt
+from app.utils.oauths.naver_utils import refresh_naver_access_token
 
-from app.services.naver_oauth_service import get_login_url, handle_callback 
 
-
-from app.services.naver_oauth_service import refresh_naver_access_token 
-
-from app.utils.common import create_jwt
 
 router = APIRouter()
 
