@@ -1,7 +1,7 @@
 import datetime
 import os
 from dotenv import load_dotenv
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 import base64
@@ -12,7 +12,10 @@ load_dotenv()
 JWT_SECRET_KEY = str(os.getenv("JWT_SECRET_KEY", ""))
 JWT_REFRESH_SECRET_KEY = str(os.getenv("JWT_REFRESH_SECRET_KEY", ""))
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
+# naver Secret Key 및 Algorithm 설정
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_DAYS = 7  # 리프레시 토큰 유효기간
 
 def base64_encode(data: dict) -> str:
     """딕셔너리를 Base64로 인코딩"""
@@ -63,7 +66,7 @@ def create_refresh_token(user_id: str) -> str:
     """
     Refresh Token 생성
     """
-    current_time = datetime.datetime.utcnow()
+    current_time = datetime.datetime.now()
     exp_time = current_time + datetime.timedelta(days=30)  # 30일 후 만료
 
     # Payload 생성
@@ -81,12 +84,27 @@ def create_refresh_token(user_id: str) -> str:
     refresh_token = jwt.encode({"data": encoded_payload}, JWT_REFRESH_SECRET_KEY, algorithm="HS256")
     return refresh_token
 
+def create_jwt_naver(data: dict, is_refresh: bool = False) -> str:
+    """
+    JWT 생성
+    - is_refresh: True인 경우 리프레시 토큰 생성
+    """
+    to_encode = data.copy()
+    # 만료 시간 설정 (UTC 기준)
+    if is_refresh:
+        expire = datetime.now(datetime.timezone.utc) + datetime.timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    else:
+        expire = datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire})  # 만료 시간 추가
+    token = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
+    return token
 
-def create_token_from_oauth(provider: str, auth_info: dict) -> str:
+def create_jwt_kakao(provider: str, auth_info: dict) -> str:
     """
     Access Token 생성 (사용자 정보 포함)
     """
-    current_time = datetime.datetime.utcnow()  # 현재 시간
+    current_time = datetime.datetime.now()  # 현재 시간
     exp_time = current_time + datetime.timedelta(days=1)  # 1일 후 만료
 
     # 필요한 사용자 정보를 포함한 Access Token 생성
@@ -101,6 +119,51 @@ def create_token_from_oauth(provider: str, auth_info: dict) -> str:
         "iat": int(current_time.timestamp())  # 발급 시간
     }
 
+def create_jwt_google(provider: str, auth_info: dict) -> str:
+    """
+    Access Token 생성 (사용자 정보 포함)
+    """
+    current_time = datetime.datetime.now()  # 현재 시간
+    exp_time = current_time + datetime.timedelta(days=1)  # 1일 후 만료
+
+    # 필요한 사용자 정보를 포함한 Access Token 생성
+    payload = {
+        "iss": "EasyTravel",  # 발급자
+        "sub": str(auth_info.get("id")),  # 사용자 식별자
+        "provider": provider,  # 소셜 로그인 제공자
+        "nickname": auth_info.get("name"),  # 닉네임
+        "email": auth_info.get("email"),  # 이메일
+        "profile_image": auth_info.get("picture"),  # 프로필 이미지
+        "exp": int(exp_time.timestamp()),  # 만료 시간
+        "iat": int(current_time.timestamp())  # 발급 시간
+    }
+
     print("Access Token Payload:", payload)  # 디버깅: 생성된 payload 확인
     token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
     return token
+
+def decode_jwt_naver(token: str) -> dict:
+    """
+    JWT 디코딩 및 검증
+    """
+    try:
+        # JWT 디코딩 및 검증
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def refresh_access_token_naver(refresh_token: str) -> str:
+    """
+    리프레시 토큰으로 새 액세스 토큰 발급
+    """
+    try:
+        # 리프레시 토큰 디코딩
+        payload = decode_jwt(refresh_token)
+        # 새 액세스 토큰 생성
+        new_access_token = create_jwt_naver({"id": payload["id"], "email": payload["email"]})
+        return new_access_token
+    except HTTPException as e:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")

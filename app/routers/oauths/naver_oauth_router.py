@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query, HTTPException, Response, Request
 from fastapi.responses import RedirectResponse
 
-from app.services.oauths.naver_oauth_service import get_login_url, handle_callback
-from app.utils.oauths.naver_utils import refresh_naver_access_token
+from app.services.oauths.naver_oauth_service import get_login_url, handle_callback, refresh_naver_access_token
+from app.utils.oauths.jwt_utils import create_jwt_naver
 
 
 
@@ -78,7 +78,7 @@ async def refresh_token(request: Request, response: Response):
         new_access_token = new_tokens["access_token"]
 
         # 새 JWT 생성 및 저장
-        new_jwt = create_jwt({"id": user["id"], "email": user["email"]})
+        new_jwt = create_jwt_naver({"id": user["id"], "email": user["email"]})
         response.set_cookie(
             key="access_token",
             value=new_jwt,

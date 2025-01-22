@@ -2,7 +2,7 @@ import os
 import httpx
 from dotenv import load_dotenv
 
-from app.utils.oauths.jwt_utils import create_refresh_token, create_token_from_oauth, decode_jwt
+from app.utils.oauths.jwt_utils import create_jwt_kakao, create_refresh_token, decode_jwt
 
 
 # .env 파일 로드
@@ -93,7 +93,7 @@ async def handle_kakao_callback(code: str) -> dict:
             raise ValueError("Failed to get user info")
         # JWT 토큰 생성 
         try:
-            jwt_token = create_token_from_oauth("kakao", user_info)
+            jwt_token = create_jwt_kakao("kakao", user_info)
             print("---------------------------------------")
             print("jwt토큰입니다.", jwt_token)
             print("---------------------------------------")
