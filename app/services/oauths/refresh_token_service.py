@@ -1,7 +1,6 @@
-
-
 import httpx
-from app.config import settings
+
+from app.config.oauth.naver_oauth_config import Settings
 
 NAVER_TOKEN_URL = "https://nid.naver.com/oauth2.0/token"
 
@@ -11,8 +10,8 @@ async def refresh_naver_access_token(refresh_token: str) -> dict:
     """
     params = {
         "grant_type": "refresh_token",
-        "client_id": settings.NAVER_CLIENT_ID,
-        "client_secret": settings.NAVER_CLIENT_SECRET,
+        "client_id": Settings.NAVER_CLIENT_ID,
+        "client_secret": Settings.NAVER_CLIENT_SECRET,
         "refresh_token": refresh_token,
     }
 

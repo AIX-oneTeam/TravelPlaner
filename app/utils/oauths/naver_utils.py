@@ -1,5 +1,6 @@
 import httpx
-from app.config.naver_oauth_config import settings
+
+from app.config.oauth.naver_oauth_config import Settings
 
 NAVER_TOKEN_URL = "https://nid.naver.com/oauth2.0/token"
 NAVER_PROFILE_URL = "https://openapi.naver.com/v1/nid/me"
@@ -10,9 +11,9 @@ async def get_naver_access_token(code: str, state: str) -> dict:
     """
     params = {
         "grant_type": "authorization_code",
-        "client_id": settings.NAVER_CLIENT_ID,
-        "client_secret": settings.NAVER_CLIENT_SECRET,
-        "redirect_uri": settings.NAVER_REDIRECT_URI,
+        "client_id": Settings.NAVER_CLIENT_ID,
+        "client_secret": Settings.NAVER_CLIENT_SECRET,
+        "redirect_uri": Settings.NAVER_REDIRECT_URI,
         "code": code,
         "state": state,
     }
@@ -29,8 +30,8 @@ async def refresh_naver_access_token(refresh_token: str) -> dict:
     """
     params = {
         "grant_type": "refresh_token",
-        "client_id": settings.NAVER_CLIENT_ID,
-        "client_secret": settings.NAVER_CLIENT_SECRET,
+        "client_id": Settings.NAVER_CLIENT_ID,
+        "client_secret": Settings.NAVER_CLIENT_SECRET,
         "refresh_token": refresh_token,
     }
 

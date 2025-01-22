@@ -1,7 +1,7 @@
-from app.utils.naver_utils import get_naver_access_token, get_naver_user_profile
+from app.config.oauth.naver_oauth_config import Settings
+from app.services.oauths.refresh_token_service import refresh_naver_access_token
+from app.utils.oauths.naver_utils import get_naver_access_token, get_naver_user_profile
 import secrets
-from app.config import settings
-from app.services.refresh_token_service import refresh_naver_access_token  # 리프레시 토큰 갱신 함수 임포트
 
 def get_login_url() -> str:
     """
@@ -11,8 +11,8 @@ def get_login_url() -> str:
     return (
         f"https://nid.naver.com/oauth2.0/authorize"
         f"?response_type=code"
-        f"&client_id={settings.NAVER_CLIENT_ID}"
-        f"&redirect_uri={settings.NAVER_REDIRECT_URI}"
+        f"&client_id={Settings.NAVER_CLIENT_ID}"
+        f"&redirect_uri={Settings.NAVER_REDIRECT_URI}"
         f"&state={state}"
     )
 
