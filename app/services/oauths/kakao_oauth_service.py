@@ -14,7 +14,7 @@ KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI")
 
 # 디버깅 로그 추가
 
-async def get_access_token(code: str) -> str:
+async def get_access_token(code: str, state: str) -> str:
     """
     카카오로부터 액세스 토큰을 가져옵니다.     #
     :param code: 카카오 로그인 인증 코드
@@ -29,6 +29,7 @@ async def get_access_token(code: str) -> str:
         "client_id": KAKAO_CLIENT_ID,
         "redirect_uri": KAKAO_REDIRECT_URI,
         "code": code,
+        "state": state
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
@@ -69,13 +70,13 @@ async def fetch_user_info(access_token: str) -> dict:
         raise Exception("An unexpected error occurred while fetching user info") from e
 
 
-async def handle_kakao_callback(code: str) -> dict:
+async def handle_kakao_callback(code: str, state:str) -> dict:
     try:
         print("---------------------------------------")
         print("code", code)
         print("---------------------------------------")
         # 액세스 토큰 받기
-        access_token = await get_access_token(code)
+        access_token = await get_access_token(code, state)
         print("---------------------------------------")
         print("access_token", access_token)
         print("---------------------------------------")
@@ -93,7 +94,7 @@ async def handle_kakao_callback(code: str) -> dict:
             raise ValueError("Failed to get user info")
         # JWT 토큰 생성 
         try:
-            jwt_token = create_jwt_kakao("kakao", user_info)
+            jwt_token = create_jwt_kakao(provider="kakao", auth_info=user_info)
             print("---------------------------------------")
             print("jwt토큰입니다.", jwt_token)
             print("---------------------------------------")

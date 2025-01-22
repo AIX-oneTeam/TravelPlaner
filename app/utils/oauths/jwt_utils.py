@@ -104,7 +104,7 @@ def create_jwt_kakao(provider: str, auth_info: dict) -> str:
     """
     Access Token 생성 (사용자 정보 포함)
     """
-    current_time = datetime.datetime.now()  # 현재 시간
+    current_time = datetime.datetime.utcnow()  # 현재 시간
     exp_time = current_time + datetime.timedelta(days=1)  # 1일 후 만료
 
     # 필요한 사용자 정보를 포함한 Access Token 생성
@@ -118,6 +118,9 @@ def create_jwt_kakao(provider: str, auth_info: dict) -> str:
         "exp": int(exp_time.timestamp()),  # 만료 시간
         "iat": int(current_time.timestamp())  # 발급 시간
     }
+    print("Access Token Payload:", payload)  # 디버깅: 생성된 payload 확인
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
+    return token
 
 def create_jwt_google(provider: str, auth_info: dict) -> str:
     """
