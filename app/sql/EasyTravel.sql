@@ -23,23 +23,17 @@ CREATE TABLE `member` (
 
 CREATE TABLE `plan` (
     `plan_id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `memberId` INT NULL,
     `plan_name` VARCHAR(255) NULL,
     `start_date` DATETIME NULL,
     `end_date` DATETIME NULL,
     `main_location` VARCHAR(50) NULL,
     `ages` INT NULL,
     `companion_count` INT NULL,
-    `plan_concepts` INT NULL,
+    `plan_concepts` VARCHAR(255) NULL,
     `member_id` INT NOT null,
     CONSTRAINT `FK_plan_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`member_id`)
-);
+) 
 
--- 카테고리: 관광지/숙소/맛집/카페
-CREATE TABLE `spot_category` (
-    `spot_category_id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `spot_categoty` VARCHAR(255) NOT NULL
-);
 
 CREATE TABLE `spot_tag` (
     `spot_tag_id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -69,11 +63,10 @@ CREATE TABLE `spot` (
     `satisfaction` FLOAT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
-    `spot_category_id` INT NOT NULL,
+    `spot_category` INT NOT NULL,
     `phone_number` VARCHAR(300) NULL,
     `business_status` BOOL NULL,
-    `business_hours` VARCHAR(255) NULL,
-	CONSTRAINT `FK_spot_category_id` FOREIGN KEY (`spot_category_id`) REFERENCES `spot_category` (`spot_category_id`)
+    `business_hours` VARCHAR(255) NULL
 );
 
 
@@ -81,6 +74,8 @@ CREATE TABLE `spot` (
 CREATE TABLE `plan_spot_map` (
     `plan_id` INT NOT NULL,
     `spot_id` INT NOT NULL,
+    `day_X` INT NOT NULL,
+    `order` INT NOT NULL,
     CONSTRAINT `FK_map_plan_id` FOREIGN KEY (`plan_id`) REFERENCES `plan` (`plan_id`),
  	CONSTRAINT `FK_map_spot_id` FOREIGN KEY (`spot_id`) REFERENCES `spot` (`spot_id`)
 );
