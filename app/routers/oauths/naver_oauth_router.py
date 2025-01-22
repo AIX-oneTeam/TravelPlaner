@@ -2,7 +2,6 @@ from fastapi import APIRouter, Query, HTTPException, Response, Request
 from fastapi.responses import RedirectResponse
 
 from app.services.oauths.naver_oauth_service import get_login_url, handle_callback
-from app.utils.oauths.common import create_jwt
 from app.utils.oauths.naver_utils import refresh_naver_access_token
 
 
@@ -12,19 +11,9 @@ router = APIRouter()
 # 저장소(메모리 기반 예제)
 REFRESH_TOKENS = {}  # 사용자 ID를 키로 하는 리프레시 토큰 저장소
 
-@router.get("/login")
-async def naver_login():
-    """
-    네이버 로그인 URL 생성 후 리다이렉트합니다.
-    """
-    try:
-        login_url = get_login_url()
-        return RedirectResponse(login_url)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate Naver login URL: {e}")
 
 @router.get("/callback")
-async def naver_callback(response: Response, code: str = Query(...), state: str = Query(...)):
+async def naver_callback(code: str, state: str, response: Response ):
     """
     네이버 인증 콜백 처리 및 JWT 쿠키 저장
     """
@@ -33,20 +22,28 @@ async def naver_callback(response: Response, code: str = Query(...), state: str 
         access_token = tokens["access_token"]
         refresh_token = tokens["refresh_token"]
 
-        # JWT 생성
-        jwt_token = create_jwt({"id": user_info["id"], "email": user_info["email"]})
-
         # JWT를 쿠키에 저장
         response.set_cookie(
             key="access_token",
-            value=jwt_token,
+            value=access_token,
             httponly=True,  # 브라우저에서 접근 불가능하도록 설정
-            secure=True,    # HTTPS를 통해서만 전송되도록 설정 (로컬 테스트 중에는 False로 변경 가능)
-            samesite="Lax", # 쿠키 정책 설정
+            secure=False,    # HTTPS를 통해서만 전송되도록 설정 (로컬 테스트 중에는 False로 변경 가능)
+            samesite="None", # 쿠키 정책 설정
         )
 
-        # 홈 경로로 리다이렉트 (URL 파라미터 제거)
-        return RedirectResponse(url="http://localhost:3000/")
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=False,
+            samesite="None",
+        )
+
+        return {"content": "네이버 로그인 성공",
+                    "nickname": user_info["nickname"],
+                    "email":user_info["email"],
+                    "profile_url":user_info["profile_url"],
+                    "roles":user_info["roles"],}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process Naver callback: {e}")
 

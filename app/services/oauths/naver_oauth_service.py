@@ -33,14 +33,17 @@ async def handle_callback(code: str, state: str) -> tuple:
 
     # 사용자 정보 가져오기
     user_profile = await get_naver_user_profile(access_token)
+    print("---------------------------------------")
+    print("user_profile", user_profile)
+    print("---------------------------------------")
 
     # 사용자 정보와 토큰 반환
     return (
         {
-            "id": user_profile.get("response", {}).get("id"),
+            "nickname": user_profile.get("response", {}).get("name"),
             "email": user_profile.get("response", {}).get("email"),
-            "name": user_profile.get("response", {}).get("name"),
-            "profile_image": user_profile.get("response", {}).get("profile_image"),
+            "profile_url": user_profile.get("response", {}).get("profile_image"),
+            "roles": ["USER"],
         },
         {"access_token": access_token, "refresh_token": refresh_token},
     )
