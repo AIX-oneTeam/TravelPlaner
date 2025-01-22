@@ -7,7 +7,8 @@ from sqlalchemy import Column, Integer, String, Date, DateTime
 from sqlalchemy.orm import relationship
 
 class Member(Base):
-    __tablename__ = "member"
+    __tablename__ = 'member'
+    
     member_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), nullable=False)
     email = Column(String(255), nullable=False)
@@ -17,16 +18,14 @@ class Member(Base):
     nickname = Column(String(50), nullable=True)
     sex = Column(String(10), nullable=True)
     picture_url = Column(String(2083), nullable=True)
-    birth = Column(Date, nullable=True)
+    birth = Column(String, nullable=True)
     address = Column(String(255), nullable=True)
     zip = Column(String(10), nullable=True)
     phone_number = Column(String(20), nullable=True)
     voice = Column(String(255), nullable=True)
     role = Column(String(10), nullable=True)
-    created_at = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, nullable=True)
-    plans = relationship("Plan", back_populates="member")
 
+    plans = relationship("Plan", back_populates="member")
 # # # 테이블 생성
 # Base.metadata.create_all(bind=engine)
 

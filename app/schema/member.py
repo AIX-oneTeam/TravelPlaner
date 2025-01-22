@@ -1,38 +1,28 @@
-from datetime import datetime
+"""__summary__ : 회원 스키마입니다. 식별자는 id입니다."""
+from pydantic import BaseModel, Field, EmailStr, HttpUrl
+from typing import Optional
+from datetime import datetime, date
+from pydantic.functional_validators import field_validator
 import phonenumbers
-from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from schema.address import Address
-
-"""_summary_: 카드 정보 스키마입니다. 식별자는 따로 없습니다.
-"""
-class CreditCardInfo(BaseModel):
-    card_number: str
-    expiry_date: str
-    cvv: str
-    cardholder_name: str
-    
-
-"""__summary__ : 회원 스키마입니다. 식별자는 id입니다.
-"""
 class Member(BaseModel):
-    id: int
-    name: str
-    email: EmailStr # 이메일 형식 유효성 검사(pydantic)
-    # password: str
-    nickname: str
-    birth_day: int
-    address: Address
-    phone_number: str
-    # voice: str #논의 필요
-    credit: CreditCardInfo
-
-    planId: list[int]
-
-    role: str
-    created_at: datetime
-    updated_at: datetime
-
+    member_id: Optional[int] = Field(None, description="Member ID")
+    name: str = Field(..., max_length=50, description="Name of the member")
+    email: EmailStr = Field(..., description="Email address")
+    access_token: str = Field(..., max_length=255, description="Access token")
+    refresh_token: str = Field(..., max_length=255, description="Refresh token")
+    oauth: str = Field(..., max_length=255, description="OAuth provider")
+    nickname: Optional[str] = Field(None, max_length=50, description="Nickname")
+    sex: Optional[str] = Field(None, max_length=10, description="Sex")
+    picture_url: Optional[HttpUrl] = Field(None, description="Picture URL")
+    birth: Optional[date] = Field(None, description="Date of birth")
+    address: Optional[str] = Field(None, max_length=255, description="Address")
+    zip: Optional[str] = Field(None, max_length=10, description="Zip code")
+    phone_number: Optional[str] = Field(None, max_length=20, description="Phone number")
+    voice: Optional[str] = Field(None, max_length=255, description="Voice data")
+    role: Optional[str] = Field(None, max_length=10, description="Role")
+    created_at: Optional[datetime] = Field(None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Update timestamp")
 
     # 전화번호 유효성 검사
     @field_validator("phone_number")
@@ -45,7 +35,3 @@ class Member(BaseModel):
         except phonenumbers.phonenumberutil.NumberParseException as e:
             raise ValueError(f"Invalid phone number: {phone_number}") from e
         return values
-
-
-
-
