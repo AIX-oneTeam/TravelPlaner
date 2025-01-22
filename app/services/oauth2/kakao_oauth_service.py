@@ -1,7 +1,7 @@
 import os
 import httpx
 from dotenv import load_dotenv
-from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token
+from ...utils.jwt_utils import create_token_from_oauth, create_refresh_token, decode_jwt
 
 
 # .env 파일 로드
@@ -107,9 +107,15 @@ async def handle_kakao_callback(code: str) -> dict:
         except Exception as refresh_error:
             raise refresh_error
 
+        payload = decode_jwt(jwt_token)
+
         # 반환할 사용자 정보 구성
         user_data = {
-            "jwt_token": jwt_token,
+            "nickname": payload["nickname"], 
+            "email": payload["email"],
+            "profile_url": payload["profile_image"],
+            "roles": ["USER"],
+            "access_token": jwt_token,
             "refresh_token": refresh_token,
 
               
