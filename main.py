@@ -7,6 +7,7 @@ from fastapi.exceptions import HTTPException
 from app.routers.oauths.google_oauth_router import router as google_oauth_router
 from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
+from app.routers.travel_plan_router import router as travel_plan_router
 from app.utils.oauths.common import refresh_access_token
 from app.utils.oauths.jwt_utils import decode_jwt
 
@@ -95,3 +96,4 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
 app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google OAuth"])
 app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao OAuth"])
 app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver OAuth"])
+app.include_router(travel_plan_router, prefix="/api", tags=["TravelPlan"])
