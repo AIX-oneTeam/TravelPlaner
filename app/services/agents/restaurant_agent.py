@@ -1,66 +1,84 @@
 import os
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
+import requests
+import json
 
-# Load .env file
 load_dotenv()
 
-# API Key Setup
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+NAVER_SEARCH_CLIENT_ID = os.getenv("NAVER_SEARCH_CLIENT_ID")
+NAVER_SEARCH_CLIENT_SECRET = os.getenv("NAVER_SEARCH_CLIENT_SECRET")
 
-# Initialize OpenAI
 llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
 
 
-# Function to request restaurant recommendations from GPT
+def search_naver_places(query, display=5):
+    url = "https://openapi.naver.com/v1/search/local.json"
+    headers = {
+        "X-Naver-Client-Id": NAVER_SEARCH_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_SEARCH_CLIENT_SECRET,
+    }
+    params = {"query": query, "display": display}
+
+    response = requests.get(url, headers=headers, params=params)
+    return response.json() if response.status_code == 200 else None
+
+
 def generate_restaurant_recommendations(keywords):
-    """Generate restaurant recommendations based on user data using GPT."""
+    restaurants_data = []
+
+    search_query = f"{keywords['location']} 맛집"
+    places_data = search_naver_places(search_query)
+
+    if places_data and "items" in places_data:
+        restaurants_data = places_data["items"]
+
     user_data_description = f"""
-    You are an expert in Korean cuisine and a recommendation AI. Based on the travel data provided by the user, recommend the most suitable restaurants.
+    당신은 대한민국에 있는 식당에 대한 전문가이자 추천 AI입니다. 사용자의 여행 데이터를 기반으로 여행 일정에 가장 적합한 식당을 추천해주세요.
 
-    The user has provided the following travel plan data:
-    - Location: {keywords['location']}
-    - Travel Dates: {keywords['dates']}
-    - Age Group: {keywords['age_group']}
-    - Group Composition: Adults {keywords['group']['adults']}, Children {keywords['group']['children']}, Pets {keywords['group']['pets']}
-    - Travel Themes: {', '.join(keywords['themes'])}
+    여행 계획 데이터:
+    - 위치: {keywords['location']}
+    - 여행 날짜: {keywords['dates']}
+    - 연령대: {keywords['age_group']}
+    - 그룹 구성: 성인 {keywords['group']['adults']}, 아동 {keywords['group']['children']}, 반려동물 {keywords['group']['pets']}
+    - 여행 테마: {', '.join(keywords['themes'])}
 
-    Based on this data, recommend restaurants in the {keywords['location']} area.
-    Ensure that the recommendations are accurate and realistic. If you cannot find a valid picture URL for a restaurant, return "N/A" for the picture URL.
+    실제 식당 데이터:
+    {json.dumps(restaurants_data, ensure_ascii=False, indent=2)}
 
-    The recommendation schedule must follow these rules:
-    - For full travel days (22nd to 24th January 2025), recommend three restaurants per day (breakfast, lunch, and dinner).
-    - For the last travel day (25th January 2025), recommend two restaurants (breakfast and lunch).
+    위 실제 식당 데이터를 기반으로 {keywords['location']} 지역의 식당을 추천해주세요.
+    제공된 실제 식당 정보만 사용하여 추천해주세요.
 
-    The recommendation results should be formatted in JSON and include the following information for each restaurant:
+    추천 일정 규칙:
+    - 전체 여행일(1월 22일~24일)은 하루 3끼(아침, 점심, 저녁) 추천
+    - 마지막 여행일(1월 25일)은 2끼(아침, 점심) 추천
 
+    다음과 같은 JSON 형식으로 응답해주세요:
     {{
-      "day": "<Day: Day 1, Day 2, etc.>",
-      "order": "<Visit Order: 1, 2, 3, etc.>",
-      "name": "<Restaurant Name>",
-      "description": "<Restaurant Description>",
-      "address": "<Address>",
-      "category": "<Cuisine Category: Korean/Japanese/Western/etc.>",
-      "reason": "<Reason for Recommendation: family-friendly, offers children’s menu, pet-friendly, etc.>",
-      "picture_url": "<Picture URL or 'N/A'>",
-      "place_description": "<Detailed description of the place, including its ambiance, specialty dishes, and suitability for the group.>"
+        "recommendations": [
+            {{
+                "day": "1일차",
+                "order": "1",
+                "name": "식당명",
+                "description": "식당 설명",
+                "address": "주소",
+                "category": "음식 종류",
+                "reason": "추천 이유",
+                "place_description": "장소 상세 설명"
+            }}
+        ]
     }}
-
-    The recommendation results must be in Korean and include information about which restaurants to visit on each day and in which order. Ensure the output is clear, concise, and easy for the user to understand.
     """
+
     try:
         response = llm.predict(user_data_description)
-        if isinstance(response, str):
-            return response.strip()
-        else:
-            print("Invalid response type from GPT.")
-            return "추천 실패: GPT 응답 오류."
+        return response.strip()
     except Exception as e:
         print(f"GPT 호출 오류: {e}")
         return "추천 실패: GPT 호출 중 문제가 발생했습니다."
 
 
-# User keyword input
 keywords = {
     "location": "부산 해운대",
     "dates": "2025년 1월 22일 ~ 2025년 1월 25일",
@@ -69,9 +87,6 @@ keywords = {
     "group": {"adults": 2, "children": 1, "pets": 1},
 }
 
-# Generate recommendation
 recommendation = generate_restaurant_recommendations(keywords)
-
-# Output result
 print("\n=== 추천 맛집 ===")
 print(recommendation)
