@@ -1,13 +1,12 @@
-
-
 from datetime import datetime
 from typing import List, Optional
 
 from pydantic import Field
-from sqlmodel import Relationship
+from sqlmodel import Relationship, SQLModel
 
-from travelPlaner_BackEnd.app.data_models.member import Member
-
+from app.data_models.checklist import Checklist
+from app.data_models.member import Member
+from app.data_models.plan_spot_map import PlanSpotMap
 
 class Plan(SQLModel, table=True):
     plan_id: Optional[int] = Field(default=None, primary_key=True)

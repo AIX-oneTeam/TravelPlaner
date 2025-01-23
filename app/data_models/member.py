@@ -6,22 +6,26 @@ import phonenumbers
 
 class Member(SQLModel, table=True):
     member_id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(sa_column_kwargs={"length": 50})  # VARCHAR(50)
-    email: str = Field(sa_column_kwargs={"length": 255})  # VARCHAR(255)
-    access_token: str = Field(sa_column_kwargs={"length": 255})
-    refresh_token: str = Field(sa_column_kwargs={"length": 255})
-    oauth: str = Field(sa_column_kwargs={"length": 255})
-    nickname: Optional[str] = Field(default=None, sa_column_kwargs={"length": 50})
-    sex: Optional[str] = Field(default=None, sa_column_kwargs={"length": 10})
-    picture_url: Optional[str] = Field(default=None, sa_column_kwargs={"length": 2083})
+    name: str = Field(..., max_length=50, nullable=False)  # VARCHAR(50)
+    email: str = Field(..., max_length=255)  # VARCHAR(255)
+    access_token: str = Field(max_length=255)
+    refresh_token: str = Field(max_length=255)
+    oauth: str = Field(max_length=50)
+    nickname: Optional[str] = Field(default=None, max_length=50)
+    sex: Optional[str] = Field(default=None, max_length=10)
+    picture_url: Optional[str] = Field(default=None, max_length=2083)
     birth: Optional[datetime] = None
-    address: Optional[str] = Field(default=None, sa_column_kwargs={"length": 255})
-    zip: Optional[str] = Field(default=None, sa_column_kwargs={"length": 10})
-    phone_number: Optional[str] = Field(default=None, sa_column_kwargs={"length": 20})
-    voice: Optional[str] = Field(default=None, sa_column_kwargs={"length": 255})
-    role: Optional[str] = Field(default=None, sa_column_kwargs={"length": 10})
+    address: Optional[str] = Field(default=None, max_length=255)
+    zip: Optional[str] = Field(default=None, max_length=10)
+    phone_number: Optional[str] = Field(default=None, max_length=20)
+    voice: Optional[str] = Field(default=None, max_length=255)
+    role: Optional[str] = Field(default=None, max_length=10)
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    name: Optional[str]
+    name: str | None
+
 
     # 전화번호 유효성 검사
     @field_validator("phone_number")

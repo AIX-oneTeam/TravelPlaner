@@ -1,10 +1,10 @@
+from datetime import time
 from typing import Optional
 from pydantic import Field
-from sqlmodel import Relationship
-from datetime import time
+from sqlmodel import Relationship, SQLModel
 
-from travelPlaner_BackEnd.app.data_models.plan import Plan
-from travelPlaner_BackEnd.app.data_models.spot import Spot
+from app.data_models.plan import Plan
+from app.data_models.spot import Spot
 
 
 class PlanSpotMap(SQLModel, table=True):
@@ -12,7 +12,7 @@ class PlanSpotMap(SQLModel, table=True):
     spot_id: int = Field(foreign_key="spot.spot_id", primary_key=True)
     day_x: int = Field(...)
     order: int = Field(...)
-    time: Optional[time] = Field(default=None)  # 시간 필드 추가
+    spot_time: Optional[time] = Field(default=None)  # 시간 필드 추가
 
     plan: Plan = Relationship(back_populates="plan_spots")
     spot: Spot = Relationship(back_populates="plan_spots")

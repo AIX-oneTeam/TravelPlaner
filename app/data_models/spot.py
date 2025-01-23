@@ -2,7 +2,10 @@ from datetime import datetime
 from typing import List, Optional
 
 from pydantic import Field
-from sqlmodel import Relationship
+from sqlmodel import Relationship, SQLModel
+
+from app.data_models.plan_spot_map import PlanSpotMap
+from app.data_models.plan_spot_tag_map import PlanSpotTagMap
 
 
 class Spot(SQLModel, table=True):
