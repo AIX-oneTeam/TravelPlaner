@@ -2,6 +2,8 @@ import logging
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.data_models.data_model import Member
+from app.repository.members.mebmer_repository import is_exist_member_by_email, save_member
 from app.services.oauths.kakao_oauth_service import handle_kakao_callback
 
 router = APIRouter()
@@ -58,7 +60,17 @@ async def kakao_callback(code: str, state: str, response: Response):
         except Exception as e:
             logger.error(f"[Kakao Callback] Refresh Token 쿠키 저장 실패: {e}")
             raise HTTPException(status_code=500, detail="Refresh Token 쿠키 저장 중 오류 발생")
-            
+        
+        # member 정보 DB 저장
+        if not is_exist_member_by_email(user_data["email"]):
+            # 새 회원이면 DB저장
+            new_member = Member(
+                name=user_data["nickname"],
+                email=user_data["email"],
+                picture_url=user_data["profile_url"],
+                oauth="kakao"
+            )
+            save_member(new_member)
 
         # 5. 프론트엔드로 리다이렉트
         try:
