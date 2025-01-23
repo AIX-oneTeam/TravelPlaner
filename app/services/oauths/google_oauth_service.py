@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 import requests
-from app.data_models.member import Member
 from app.utils.oauths.jwt_utils import create_jwt_google, create_jwt_kakao, create_refresh_token, decode_jwt
 
 

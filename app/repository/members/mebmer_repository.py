@@ -1,8 +1,7 @@
 
 from fastapi import Depends
 from sqlmodel import Session
-from app.data_models import member
-from app.data_models.member import Member
+from app.data_models.data_model import Member
 from app.repository.db import get_session_sync
 
 

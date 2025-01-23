@@ -1,9 +1,11 @@
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 
+from app.repository.db import drop_table_by_SQLModel, init_table_by_SQLModel
 from app.routers.members.member_router import router as member_router
 from app.routers.oauths.google_oauth_router import router as google_oauth_router
 from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
@@ -14,9 +16,6 @@ from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 # FastAPI 애플리케이션 생성
 app = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello, world!"}
 
 # CORS 설정
 app.add_middleware(
@@ -70,7 +69,7 @@ async def refresh_token(request: Request):
     if not refresh_token:
         raise HTTPException(status_code=400, detail="Refresh token not found")
 
-    new_access_token = await refresh_access_token(refresh_token)
+    new_access_token = await refresh_access_token_naver(refresh_token)
     response = {"message": "Token refreshed successfully"}
     response.set_cookie(
         key="access_token",
@@ -96,3 +95,6 @@ app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google O
 app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao Oauth"])
 app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver Oauth"])
 app.include_router(member_router, prefix="/members", tags=["members"])
+
+
+init_table_by_SQLModel()

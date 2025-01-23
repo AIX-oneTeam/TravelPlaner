@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Response
 
+from app.data_models.data_model import Member
+from app.repository.members.mebmer_repository import is_exist_member_by_email, save_member
 from app.services.oauths.google_oauth_service import handle_google_callback
 
 router = APIRouter()
@@ -36,6 +38,16 @@ async def google_callback(code:str, state:str, response: Response):
         secure=False,
         httponly=True
     )
+
+    # member 정보 DB 저장
+    if not is_exist_member_by_email(user_data["email"]):
+        # 새 회원이면 DB저장
+        save_member(Member(
+            name=user_data["nickname"],
+            email=user_data["email"],
+            picture_url=user_data["profile_url"],
+            oauth="google"
+        ))
 
     return {"message": "구글 로그인이 성공적으로 처리되었습니다.",
             "email": user_data["email"],
