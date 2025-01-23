@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager, contextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
 from sqlalchemy import create_engine
 from sqlmodel import Session
@@ -13,6 +13,7 @@ from app.routers.members.member_router import router as member_router
 from app.routers.oauths.google_oauth_router import router as google_oauth_router
 from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
+from app.routers.plans.plan_router import router as plan_router
 from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 
 import os
@@ -67,6 +68,25 @@ app.add_middleware(
 #     response = await call_next(request)
 #     return response
 
+@app.get("/")
+async def root():
+    return HTMLResponse(
+        """
+        <html lang="ko">
+        <head>
+            <meta charset="UTF-8">
+            <title>EasyTravel Server</title>
+        </head>
+        <body>
+            <h1>EasyTravel Server</h1>
+            <p>API 서버가 정상적으로 작동 중입니다.</p>
+        </body>
+        </html>
+        """
+    
+    )
+
+
 # 리프레시 토큰을 사용해 액세스 토큰을 갱신하는 엔드포인트
 @app.get("/refresh-token")
 async def refresh_token(request: Request):
@@ -103,5 +123,4 @@ app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google O
 app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao Oauth"])
 app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver Oauth"])
 app.include_router(member_router, prefix="/members", tags=["members"])
-
-init_table_by_SQLModel()
+app.include_router(plan_router, prefix="/plans", tags=["plans"])

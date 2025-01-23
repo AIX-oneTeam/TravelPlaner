@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.schema.plan import Plan
-from app.services.plans.plans_service import reg_plan
+from app.services.plans.plan_service import reg_plan
 
 
 router = APIRouter()
