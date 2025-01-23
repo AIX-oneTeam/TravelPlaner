@@ -1,267 +1,108 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Dict
 import os
-import re
 from dotenv import load_dotenv
+from langchain_community.chat_models import ChatOpenAI
+import googlemaps
+import json
 
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.chat_models import ChatOpenAI
-
-# 환경 변수 로드
 load_dotenv()
 
-app = FastAPI()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 
+llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
+gmaps = googlemaps.Client(key=GOOGLE_MAP_API_KEY)
 
-class UserInput(BaseModel):
-    location: str
-    date: str
-    days: int
-    age_group: str
-    companions: Dict[str, int]
-    purposes: List[str]
-
-
-class Recommendation(BaseModel):
-    picture_url: str
-    name: str
-    description: str
-    order: int
-    day: int
-
-
-# ---------------------------
-# 1) 사용자 조건 분석 -> 주요 테마 추출
-# ---------------------------
-condition_prompt = PromptTemplate(
-    input_variables=["location", "days", "age_group", "purposes"],
-    template="""
-    당신은 대한민국의 식당 추천 전문가입니다. 다음 사용자 조건을 간단히 분석하여
-    주요 테마(예: 한식, 양식, 디저트 등)를 2~3개로 짧게 추출하세요.
-
-    - 위치: {location}
-    - 여행일수: {days}일
-    - 연령대: {age_group}
-    - 여행 목적: {purposes}
-
-    예) "한식, 디저트, 패밀리 레스토랑"
-    """,
-)
-
-condition_chain = LLMChain(
-    llm=ChatOpenAI(
-        openai_api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0
-    ),
-    prompt=condition_prompt,
-)
-
-# ---------------------------
-# 2) 날짜별로 "정확히 3개"씩 식당 추천
-# ---------------------------
-recommendation_prompt = PromptTemplate(
-    input_variables=["themes", "location", "days"],
-    template="""
-    다음 조건에 맞춰 {days}일 동안 매일 **정확히 3개의 식당**을 제안해 주세요.
-    - 지역: {location}
-    - 테마: {themes}
-
-    각 식당은 아래 형식을 따르며, 다른 설명이나 문장은 작성하지 마세요:
-
-    1일차
-    1. 식당 이름
-    2. 식당 이름
-    3. 식당 이름
-
-    2일차
-    1. 식당 이름
-    2. 식당 이름
-    3. 식당 이름
-
-    다른 설명은 작성하지 마세요.
-    """,
-)
-
-recommendation_chain = LLMChain(
-    llm=ChatOpenAI(
-        openai_api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0
-    ),
-    prompt=recommendation_prompt,
-)
-
-# ---------------------------
-# 3) 식당별 간단 상세 (1~2줄 + URL)
-# ---------------------------
-details_prompt = PromptTemplate(
-    input_variables=["restaurant"],
-    template="""
-    아래 형식으로 {restaurant}에 대한 정보를 간단히 작성하세요(한국어).
-    다른 문장은 절대 추가하지 마세요.
-
-    이름: {restaurant}
-    설명: 1~2줄로 간단히
-    이미지 URL: https://phoko.visitkorea.or.kr/media/mediaList.kto?keyword={restaurant}
-    """,
-)
-
-details_chain = LLMChain(
-    llm=ChatOpenAI(
-        openai_api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0
-    ),
-    prompt=details_prompt,
-)
-
-
-# ---------------------------
-# Helper: 부족한 식당을 채우는 함수
-# ---------------------------
-def fill_missing_restaurants(restaurants, required_count=3):
-    """
-    만약 한 날짜에 3개 미만의 식당이 나오면 "미정"으로 채워넣습니다.
-    """
-    default_rest = ["미정"]
-    missing_count = required_count - len(restaurants)
-    if missing_count > 0:
-        restaurants += default_rest * missing_count
-        restaurants = restaurants[:required_count]  # 정확히 3개만
+def search_google_places(location, radius=1500):
+    geocode_result = gmaps.geocode(location)
+    if not geocode_result:
+        return None
+    
+    lat = geocode_result[0]['geometry']['location']['lat']
+    lng = geocode_result[0]['geometry']['location']['lng']
+    
+    result = gmaps.places(
+        f"{location} 맛집",
+        location=(lat, lng),
+        radius=radius,
+        language='ko'
+    )
+    
+    restaurants = []
+    for place in result['results'][:15]:
+        details = gmaps.place(
+            place['place_id'],
+            fields=['name', 'rating', 'user_ratings_total', 'formatted_address', 
+                   'price_level'],
+            language='ko'
+        )['result']
+        
+        if details.get('rating', 0) >= 4.0 and details.get('user_ratings_total', 0) >= 100:
+            restaurants.append({
+                'name': details.get('name'),
+                'address': details.get('formatted_address'),
+                'rating': details.get('rating'),
+                'reviews_count': details.get('user_ratings_total'),
+                'price_level': details.get('price_level')
+            })
+    
+    restaurants.sort(key=lambda x: (x['rating'], x['reviews_count']), reverse=True)
     return restaurants
 
+def generate_restaurant_recommendations(keywords):
+   restaurants_data = search_google_places(keywords['location'])
+   
+   if not restaurants_data:
+       return "식당 정보를 찾을 수 없습니다."
 
-@app.post("/recommendations/", response_model=List[Recommendation])
-async def get_recommendations(user_input: UserInput):
-    """
-    1) 사용자 입력을 받아 테마를 추출
-    2) 날짜별 3개씩 식당 목록을 생성
-    3) 각 식당에 대해 상세정보(1~2줄+URL)를 생성
-    4) 최종 결과를 Recommendation 리스트로 반환
-    """
-    try:
-        # 1) 사용자 조건 분석 -> 테마
-        purpose_str = ", ".join(user_input.purposes)
-        condition_summary = condition_chain.run(
-            {
-                "location": user_input.location,
-                "days": user_input.days,
-                "age_group": user_input.age_group,
-                "purposes": purpose_str,
-            }
-        )
-        themes = condition_summary.strip()
+   user_data_description = f"""
+   당신은 식당 추천 전문가입니다. 다음 여행 정보를 바탕으로 최적의 식당을 추천해주세요:
+   - 위치: {keywords['location']}
+   - 날짜: {keywords['dates']}
+   - 연령대: {keywords['age_group']}
+   - 그룹: 성인 {keywords['group']['adults']}, 아동 {keywords['group']['children']}, 반려동물 {keywords['group']['pets']}
+   - 테마: {', '.join(keywords['themes'])}
 
-        # 2) 날짜별 식당 추천
-        raw_recommendations = recommendation_chain.run(
-            {"themes": themes, "location": user_input.location, "days": user_input.days}
-        )
+   실제 식당 데이터:
+   {json.dumps(restaurants_data, ensure_ascii=False, indent=2)}
 
-        # ----------------------------
-        # 줄 단위로 파싱: "N일차" 라인을 만나면 day = N
-        #               "숫자. 장소" 라인을 만나면 해당 day에 장소 추가
-        # ----------------------------
-        lines = raw_recommendations.split("\n")
-        current_day = 0
-        day_restaurants_map = dict()
+   다음 규칙을 따라 추천해주세요:
+   - 전체 여행일(1월 22일~24일)은 하루 3끼 추천
+   - 마지막 여행일(1월 25일)은 2끼 추천
+   - 평점과 리뷰가 많은 순으로 우선 추천
+   - 아이와 반려동물 동반 가능한 곳 우선 추천
 
-        for line in lines:
-            line_str = line.strip()
-            if not line_str:
-                continue  # 빈 줄은 무시
+   다음 JSON 형식으로 응답해주세요:
+   {{
+       "recommendations": [
+           {{
+               "day": "1일차",
+               "order": "1",
+               "name": "식당명",
+               "description": "설명",
+               "address": "주소",
+               "rating": "평점",
+               "photo_url": "사진URL",
+               "reason": "추천이유"
+           }}
+       ]
+   }}
+   """
 
-            # N일차 -> day 설정
-            m_day = re.match(r"^(\d+)일차$", line_str)
-            if m_day:
-                current_day = int(m_day.group(1))
-                day_restaurants_map[current_day] = []
+   try:
+       response = llm.predict(user_data_description)
+       return response.strip()
+   except Exception as e:
+       print(f"오류 발생: {e}")
+       return "추천 실패"
 
-                continue
+keywords = {
+   "location": "부산 해운대",
+   "dates": "2025년 1월 22일 ~ 2025년 1월 25일",
+   "age_group": "10대 미만",
+   "themes": ["가족 여행", "리조트"],
+   "group": {"adults": 2, "children": 1, "pets": 1},
+}
 
-            # "숫자. 장소" 형식 -> parse
-            m_place = re.match(r"^(\d+)\.\s*(.*)$", line_str)
-            if m_place:
-                rest_name = m_place.group(2).strip()
-
-                if current_day not in day_restaurants_map:
-                    day_restaurants_map[current_day] = []
-                day_restaurants_map[current_day].append(rest_name)
-                continue
-
-        # 이제 day_restaurants_map에 날짜별 식당 리스트가 있다.
-        # 3) 각 날짜별 3개 미만이면 채우고, details_chain 호출
-        detailed_recommendations: List[Recommendation] = []
-        for day_num in range(1, user_input.days + 1):
-            day_list = day_restaurants_map.get(day_num, [])
-            day_list = fill_missing_restaurants(day_list)
-
-            order = 1
-            for restaurant in day_list:
-                if restaurant == "미정":
-                    # 미정 데이터면 바로 기본값
-                    detailed_recommendations.append(
-                        Recommendation(
-                            picture_url="https://via.placeholder.com/300",
-                            name="미정",
-                            description="정보를 가져오는 데 실패했습니다.",
-                            order=order,
-                            day=day_num,
-                        )
-                    )
-                else:
-                    try:
-                        detail_text = details_chain.run({"restaurant": restaurant})
-                    except Exception as e:
-                        detail_text = (
-                            f"이름: {restaurant}\n"
-                            "설명: 정보를 가져오는 데 실패했습니다.\n"
-                            "이미지 URL: https://via.placeholder.com/300"
-                        )
-
-                    # 파싱
-                    lines_detail = detail_text.split("\n")
-                    name_line = next(
-                        (
-                            l.split(": ", 1)[-1].strip()
-                            for l in lines_detail
-                            if l.startswith("이름:")
-                        ),
-                        restaurant,
-                    )
-                    desc_line = next(
-                        (
-                            l.split(": ", 1)[-1].strip()
-                            for l in lines_detail
-                            if l.startswith("설명:")
-                        ),
-                        "정보 없음",
-                    )
-                    url_line = next(
-                        (
-                            l.split(": ", 1)[-1].strip()
-                            for l in lines_detail
-                            if l.startswith("이미지 URL:")
-                        ),
-                        "https://via.placeholder.com/300",
-                    )
-
-                    detailed_recommendations.append(
-                        Recommendation(
-                            picture_url=url_line,
-                            name=name_line,
-                            description=desc_line,
-                            order=order,
-                            day=day_num,
-                        )
-                    )
-                order += 1
-
-        return detailed_recommendations
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error generating recommendations: {str(e)}"
-        )
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+recommendation = generate_restaurant_recommendations(keywords)
+print("\n=== 추천 맛집 ===")
+print(recommendation)
