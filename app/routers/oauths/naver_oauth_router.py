@@ -41,15 +41,6 @@ async def naver_callback(code: str, state: str, response: Response ):
             samesite="None",
         )
 
-        # member정보 DB 저장
-        if not is_exist_member_by_email(user_info["email"]):
-            # 새 회원이면 DB저장
-            save_member(Member(
-                name=user_info["nickname"],
-                email=user_info["email"],
-                picture_url=user_info["profile_url"],
-                oauth="naver"
-            ))
 
         return {"content": "네이버 로그인 성공",
                     "nickname": user_info["nickname"],
