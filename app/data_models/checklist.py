@@ -1,8 +1,8 @@
 from typing import Optional
 from pydantic import Field
-from sqlmodel import Relationship
+from sqlmodel import Relationship, SQLModel
 
-from travelPlaner_BackEnd.app.data_models.plan import Plan
+from app.data_models.plan import Plan
 
 
 class Checklist(SQLModel, table=True):

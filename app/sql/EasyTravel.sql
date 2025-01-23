@@ -68,8 +68,8 @@ CREATE TABLE `spot` (
     `map_url` VARCHAR(2083) NOT NULL,
     `likes` INT NULL,
     `satisfaction` FLOAT NULL,
-    `created_at` DATETIME NOT NULL,
-    `updated_at` DATETIME NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `spot_category` INT NOT NULL,
     `phone_number` VARCHAR(300) NULL,
     `business_status` BOOL NULL,
@@ -83,7 +83,7 @@ CREATE TABLE `plan_spot_map` (
     `spot_id` INT NOT NULL,
     `day_x` INT NOT NULL,
     `order` INT NOT NULL,
-    `time` TIME NULL,
+    `spot_time` TIME NULL,
     CONSTRAINT `FK_map_plan_id` FOREIGN KEY (`plan_id`) REFERENCES `plan` (`plan_id`),
  	CONSTRAINT `FK_map_spot_id` FOREIGN KEY (`spot_id`) REFERENCES `spot` (`spot_id`)
 );

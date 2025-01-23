@@ -1,4 +1,7 @@
 
+import enum
+
+
 class AccomodationType(enum):
     HOTEL = "호텔"
     MOTEL = "모텔"

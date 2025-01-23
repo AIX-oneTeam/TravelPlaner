@@ -1,8 +1,8 @@
 from pydantic import Field
-from sqlmodel import Relationship
+from sqlmodel import Relationship, SQLModel
 
-from travelPlaner_BackEnd.app.data_models.spot import Spot
-from travelPlaner_BackEnd.app.data_models.spot_tag import SpotTag
+from app.data_models.spot import Spot
+from app.data_models.spot_tag import SpotTag
 
 
 class PlanSpotTagMap(SQLModel, table=True):
