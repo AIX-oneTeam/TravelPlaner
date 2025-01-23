@@ -1,16 +1,13 @@
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from app.repository.db import Base
+from typing import Optional
+from pydantic import Field
+from sqlmodel import Relationship
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
+from travelPlaner_BackEnd.app.data_models.plan import Plan
 
-class Checklist(Base):
-    __tablename__ = 'checklist'
-    
-    plan_id = Column(Integer, ForeignKey('plan.plan_id'), primary_key=True)
-    item = Column(String(255), nullable=True)
-    state = Column(Boolean, nullable=True)
 
-    plan = relationship("Plan", back_populates="checklist")
+class Checklist(SQLModel, table=True):
+    plan_id: int = Field(primary_key=True, foreign_key="plan.plan_id")
+    item: Optional[str] = Field(default=None, sa_column_kwargs={"length": 255})
+    state: Optional[bool] = None
+
+    plan: Plan = Relationship(back_populates="checklist")

@@ -1,13 +1,13 @@
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from app.repository.db import Base
+from pydantic import Field
+from sqlmodel import Relationship
 
-from sqlalchemy import Column, Integer, ForeignKey
-from sqlalchemy.orm import relationship
+from travelPlaner_BackEnd.app.data_models.spot import Spot
+from travelPlaner_BackEnd.app.data_models.spot_tag import SpotTag
 
-class PlanSpotTagMap(Base):
-    __tablename__ = 'plan_spot_tag_map'
-    
-    spot_id = Column(Integer, ForeignKey('spot.spot_id'), primary_key=True)
-    spot_tag_id = Column(Integer, ForeignKey('spot_tag.spot_tag_id'), primary_key=True)
+
+class PlanSpotTagMap(SQLModel, table=True):
+    spot_id: int = Field(foreign_key="spot.spot_id", primary_key=True)
+    spot_tag_id: int = Field(foreign_key="spot_tag.spot_tag_id", primary_key=True)
+
+    spot: Spot = Relationship(back_populates="spot_tags")
+    spot_tag: SpotTag = Relationship(back_populates="spot_tags")

@@ -1,32 +1,36 @@
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from app.repository.db import Base
+from sqlmodel import SQLModel, Field
+from typing import Optional
+from datetime import datetime, date
+from pydantic.functional_validators import field_validator
+import phonenumbers
 
-from sqlalchemy import Column, Integer, String, Date, DateTime
-from sqlalchemy.orm import relationship
+class Member(SQLModel, table=True):
+    member_id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(sa_column_kwargs={"length": 50})  # VARCHAR(50)
+    email: str = Field(sa_column_kwargs={"length": 255})  # VARCHAR(255)
+    access_token: str = Field(sa_column_kwargs={"length": 255})
+    refresh_token: str = Field(sa_column_kwargs={"length": 255})
+    oauth: str = Field(sa_column_kwargs={"length": 255})
+    nickname: Optional[str] = Field(default=None, sa_column_kwargs={"length": 50})
+    sex: Optional[str] = Field(default=None, sa_column_kwargs={"length": 10})
+    picture_url: Optional[str] = Field(default=None, sa_column_kwargs={"length": 2083})
+    birth: Optional[datetime] = None
+    address: Optional[str] = Field(default=None, sa_column_kwargs={"length": 255})
+    zip: Optional[str] = Field(default=None, sa_column_kwargs={"length": 10})
+    phone_number: Optional[str] = Field(default=None, sa_column_kwargs={"length": 20})
+    voice: Optional[str] = Field(default=None, sa_column_kwargs={"length": 255})
+    role: Optional[str] = Field(default=None, sa_column_kwargs={"length": 10})
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-class Member(Base):
-    __tablename__ = 'member'
-    
-    member_id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), nullable=False)
-    email = Column(String(255), nullable=False)
-    access_token = Column(String(255), nullable=False)
-    refresh_token = Column(String(255), nullable=False)
-    oauth = Column(String(255), nullable=False)
-    nickname = Column(String(50), nullable=True)
-    sex = Column(String(10), nullable=True)
-    picture_url = Column(String(2083), nullable=True)
-    birth = Column(String, nullable=True)
-    address = Column(String(255), nullable=True)
-    zip = Column(String(10), nullable=True)
-    phone_number = Column(String(20), nullable=True)
-    voice = Column(String(255), nullable=True)
-    role = Column(String(10), nullable=True)
-
-    plans = relationship("Plan", back_populates="member")
-# # # 테이블 생성
-# Base.metadata.create_all(bind=engine)
-
-# print("테이블 생성 완료!")
+    # 전화번호 유효성 검사
+    @field_validator("phone_number")
+    def check_phone_number(cls, values):
+        phone_number = values.get('phone_number')
+        try:
+            parsed_number = phonenumbers.is_valid_number(phone_number)
+            if not parsed_number:
+                raise ValueError(f"Invalid phone number: {phone_number}")
+        except phonenumbers.phonenumberutil.NumberParseException as e:
+            raise ValueError(f"Invalid phone number: {phone_number}") from e
+        return values

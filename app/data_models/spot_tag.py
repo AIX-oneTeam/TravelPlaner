@@ -1,13 +1,11 @@
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from app.repository.db import Base
+from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import relationship
+from pydantic import Field
+from sqlmodel import Relationship
 
-class SpotTag(Base):
-    __tablename__ = 'spot_tag'
-    
-    spot_tag_id = Column(Integer, primary_key=True, autoincrement=True)
-    spot_tag = Column(String(255), nullable=False)
+
+class SpotTag(SQLModel, table=True):
+    spot_tag_id: Optional[int] = Field(default=None, primary_key=True)
+    spot_tag: str = Field(sa_column_kwargs={"length": 255})
+
+    spot_tags: List["PlanSpotTagMap"] = Relationship(back_populates="spot_tag")
