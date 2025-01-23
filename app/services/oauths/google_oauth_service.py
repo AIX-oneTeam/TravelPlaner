@@ -1,10 +1,12 @@
+from fastapi import HTTPException
 from google_auth_oauthlib.flow import Flow
+import httpx
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
-import jwt
 import requests
 from app.data_models.member import Member
+from app.utils.oauths.jwt_utils import create_jwt_google, create_jwt_kakao, create_refresh_token, decode_jwt
 
 
 
@@ -14,89 +16,64 @@ load_dotenv()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-# Allow insecure transport (for local development)
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-# Initialize Google OAuth flow
-flow = Flow.from_client_config(
-    {
-        "web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }
-    },
-    scopes=[
-        'openid',
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile',
-      # 반환된 scope가 다르면 오류가 나서 추가 정보를 선택할 수 없고, 아예 다 넣거나 빼야함
-      # 'https://www.googleapis.com/auth/user.gender.read',
-      # 'https://www.googleapis.com/auth/user.birthday.read' 
-    ],
-    redirect_uri=GOOGLE_REDIRECT_URI,
-)
+async def handle_google_callback(code: str, state: str):
 
-def get_google_authorization_url():
-    """Generate Google authorization URL."""
-    authorization_url, state = flow.authorization_url(
-        # 리프레시 토큰 발급할 경우 필요
-        # access_type="offline", include_granted_scopes="true"
-    )
-    return authorization_url
+    if not code:
+        raise HTTPException(status_code=400, detail="인가 코드가 필요합니다.")
 
-def handle_google_callback(request_url: str, db: Session):
-    """Handle Google OAuth callback, fetch user data, and process user."""
+    # 액세스 토큰 요청 데이터
+    data = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+        "state": state
+    }
+
     try:
-        # Fetch token from Google
-        flow.fetch_token(authorization_response=request_url)
-        credentials = flow.credentials
+        # Google 토큰 엔드포인트로 요청
+        async with httpx.AsyncClient() as client:
+            response = await client.post(GOOGLE_TOKEN_URL, data=data)
+            response.raise_for_status()
+            token_data = response.json()
 
-        # Decode ID token to get user info
-        decoded_token = jwt.decode(credentials.id_token, options={"verify_signature": False})
-        print("-------------")
-        print(decoded_token) # sub가 구글이 주는 id임
-        print("-------------")
-        name = decoded_token.get("family_name") + decoded_token.get("given_name")
-        email = decoded_token.get("email")
-        picture = decoded_token.get("picture", None)
-        # refresh_token = credentials.refresh_token
-        # email_verified = decoded_token.get("email_verified", False)
+        # 응답 데이터 확인
+        access_token = token_data.get("access_token")
+        id_token = token_data.get("id_token")
 
-        # 추가정보(닉네임, 성별, 생년월일)
-        access_token = credentials.token
-        # Access Token을 사용하여 People API 호출
-        response = requests.get(
-            "https://people.googleapis.com/v1/people/me",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={"personFields": "nicknames"}  # nicknames 필드 요청
+        if not access_token or not id_token:
+            raise HTTPException(status_code=500, detail="액세스 토큰을 가져오는데 실패했습니다.")
+
+        # ID 토큰 디코딩
+        user_info = decode_jwt(id_token)
+        print("-------------------google_oauth_service.py-------------------")
+        print(user_info)
+        print("------------------------------------------------------------")
+
+        access_token_google = create_jwt_google(provider="google", auth_info=user_info)
+        refresh_token_google = create_refresh_token(user_info.get("email"))
+        print("access_token_google", access_token_google)
+        print("refresh_token_google", refresh_token_google)
+
+        return ({
+            "email": user_info.get("email"),
+            "nickname": user_info.get("name"),
+            "profile_url": user_info.get("picture"),
+            "roles": ["USER"],
+            "access_token": access_token_google,
+            "refresh_token": refresh_token_google
+            }
         )
 
-        if response.status_code == 200:
-            user_info = response.json()
-            nickname = user_info.get("nicknames", [{}])[0].get("value", None)
-            # gender = user_info['genders'][0]['value']
-            # birthday_year = user_info['birthdays'][0]['date']['year']
-            # birthday_month = user_info['birthdays'][0]['date']['month']
-            # birthday_day = user_info['birthdays'][0]['date']['day']
-        else:
-            print(f"Failed to fetch nickname: {response.status_code} - {response.text}")
-
-        # Check if user exists in the database
-        existing_user = db.query(Member).filter(Member.email == email).first()
-
-        if not existing_user:
-            # Add new user to the database
-            new_member = Member(name=name, email=email)
-            db.add(new_member)
-            db.commit()
-            db.refresh(new_member)
-            return {"message": "New user added", "member": {"name": new_member.name, "email": new_member.email}}
-        else:
-            return {"message": "Existing user logged in", "member": {"name": existing_user.name, "email": existing_user.email}}
-
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Error exchanging code for token: {e.response.text}"
+        )
     except Exception as e:
-        print(f"Error during Google OAuth callback: {e}")
-        raise e
+        raise HTTPException(status_code=500, detail=str(e))
+    

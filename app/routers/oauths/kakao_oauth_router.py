@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @router.get("/callback")
-async def kakao_callback(code: str, response: Response):
+async def kakao_callback(code: str, state: str, response: Response):
     """
     카카오 인증 콜백: 인증 코드를 받아 JWT와 Refresh Token을 쿠키에 저장.
     """
@@ -22,7 +22,7 @@ async def kakao_callback(code: str, response: Response):
 
         # 2. 인증 코드 처리 및 사용자 정보 가져오기
         try:
-            user_data = await handle_kakao_callback(code)
+            user_data = await handle_kakao_callback(code, state)
             logger.info(f"[Kakao Callback] 사용자 정보 처리 성공: {user_data}")
         except Exception as e:
             logger.error(f"[Kakao Callback] 사용자 정보 처리 실패: {e}")

@@ -4,11 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 
+from app.routers.members.member_router import router as member_router
 from app.routers.oauths.google_oauth_router import router as google_oauth_router
 from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
-from app.utils.oauths.common import refresh_access_token
-from app.utils.oauths.jwt_utils import decode_jwt
+from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 
 
 # FastAPI 애플리케이션 생성
@@ -43,7 +43,7 @@ async def jwt_auth_middleware(request: Request, call_next):
             # 액세스 토큰이 만료되었으면 리프레시 토큰을 사용하여 새 액세스 토큰을 발급
             refresh_token = request.cookies.get("refresh_token")
             if refresh_token:
-                new_access_token = await refresh_access_token(refresh_token)
+                new_access_token = await refresh_access_token_naver(refresh_token)
                 # 새 액세스 토큰을 쿠키에 저장
                 response = await call_next(request)
                 response.set_cookie(
@@ -92,6 +92,7 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     )
 
 # 라우터 추가
-app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google OAuth"])
-app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao OAuth"])
-app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver OAuth"])
+app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google Oauth"])
+app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao Oauth"])
+app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver Oauth"])
+app.include_router(member_router, prefix="/members", tags=["members"])
