@@ -11,18 +11,21 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 Base = declarative_base()
 
-def get_db():
+# 동기식 연결
+# SQLAlchemy 세션을 생성하고 반환하는 제너레이터 함수
+def get_session_sync():
     # SQLAlchemy 엔진 생성
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL, )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     # 데이터베이스 세션 생성
-    db = SessionLocal()  
+    session = SessionLocal()  
     try:
-        yield db  # 세션 객체를 반환하고 대기
+        yield session  # 세션 객체를 반환하고 대기
     except OperationalError as e:
         print(f"DB 연결 실패: {e}")
     finally:
-        db.close()  # 작업이 끝난 후 세션을 닫음
+        if(session):
+            session.close()  # 작업이 끝난 후 세션을 닫음
 
 if __name__ == "__main__":
     print("MySQL 연결 테스트를 시작합니다...")
