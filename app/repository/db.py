@@ -29,11 +29,14 @@ def get_session_sync():
 
 def drop_table_by_SQLModel():
     print("테이블을 삭제합니다.")
+    SQLModel.metadata.drop_all(connection)
     print("테이블 삭제 완료")
 
 def init_table_by_SQLModel(): 
     with engine.connect() as connection:
-        drop_table_by_SQLModel()
+        print("테이블을 삭제합니다.")
+        SQLModel.metadata.drop_all(connection)
+        print("테이블 삭제 완료")
         print("테이블을 생성합니다.")
         SQLModel.metadata.create_all(connection)
         print("테이블 생성 완료")
