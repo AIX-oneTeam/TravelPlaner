@@ -37,14 +37,16 @@ async def google_callback(code:str, state:str, response: Response, request: Requ
         httponly=True
     )
 
-    if not is_exist_member_by_email(user_data["email"], request):
-        # 이미 가입된 회원이면 회원 정보를 업데이트
+    if not is_exist_member_by_email(user_data["email"], "google", request):
         save_member(Member(
             email=user_data["email"],
+            name=user_data["nickname"],
             nickname=user_data["nickname"],
             picture_url=user_data["profile_url"],
-            roles=user_data["roles"]
-        ), request)
+            roles=user_data["roles"],
+            access_token=user_data["access_token"],
+            refresh_token=user_data["refresh_token"],
+            oauth="google"), request)
 
 
     return {"message": "구글 로그인이 성공적으로 처리되었습니다.",

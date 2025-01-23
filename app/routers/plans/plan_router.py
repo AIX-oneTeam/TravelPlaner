@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Response
 
-from app.data_models.plan import Plan
+from app.data_models.data_model import Plan
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.services.plans.plans_service import reg_plan
 
@@ -10,7 +10,7 @@ router = APIRouter()
 
 # 일정 저장
 @router.post("/plans")
-async def create_plan(plan: Plan, member_id: int):
+async def create_plan(plan: Plan, member_id: int, request):
 
     try:
         plan_id = await reg_plan(plan, member_id)

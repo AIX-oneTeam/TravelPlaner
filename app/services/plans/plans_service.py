@@ -1,4 +1,4 @@
-from app.data_models.plan import Plan
+from app.data_models.data_model import Plan
 from app.repository.plans.plan_repository import save_plan
 
 
