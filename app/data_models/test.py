@@ -1,10 +1,8 @@
 from datetime import datetime
-from typing import List, Optional
-
 from pydantic import Field
-from sqlmodel import Relationship, SQLModel
+from sqlmodel import SQLModel
 
-class Spot(SQLModel, table=True):
+class Test(SQLModel, table=True):
     spot_id: int | None = Field(default=None, primary_key=True)
     kor_name: str = Field(..., max_length=255)
     eng_name: str | None = Field(default=None, max_length=255)
@@ -16,8 +14,8 @@ class Spot(SQLModel, table=True):
     map_url: str = Field(default=None, max_length=2083)
     likes: int | None = Field(default=None)
     satisfaction: float | None = Field(default=None)
-    created_at: datetime | None = Field(default=None)
-    updated_at: datetime | None = Field(default=None)
+    created_at: datetime | None = Field(default_factory=datetime.utcnow)  # 기본값 지정
+    updated_at: datetime | None = Field(default_factory=datetime.utcnow)
     spot_category: int = Field(...)
     phone_number: str | None = Field(default=None, max_length=300)
     business_status: bool | None = None

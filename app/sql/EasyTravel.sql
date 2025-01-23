@@ -17,8 +17,8 @@ CREATE TABLE `member` (
     `phone_number` VARCHAR(20) NULL,
     `voice` VARCHAR(255) NULL,
     `role` VARCHAR(10) NULL,
-    `created_at` DATETIME NULL,
-    `updated_at` DATETIME NULL
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `plan` (

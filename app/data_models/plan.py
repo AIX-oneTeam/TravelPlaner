@@ -1,15 +1,10 @@
-
-
 from datetime import datetime
 from typing import List
 
 from pydantic import Field
 from sqlmodel import Relationship, SQLModel
 
-from app.data_models.checklist import Checklist
 from app.data_models.member import Member
-from app.data_models.plan_spot_map import PlanSpotMap
-
 
 class Plan(SQLModel, table=True):
     plan_id: int | None = Field(default=None, primary_key=True)
@@ -20,8 +15,5 @@ class Plan(SQLModel, table=True):
     ages: int | None = Field(default=None)
     companion_count: int | None = Field(default=None)
     plan_concepts: str | None = Field(default=None, max_length=255)
-    member_id: int = Field(foreign_key="member.member_id")
+    member_id: int = Field(foreign_key=Member.member_id)
 
-    member: Member = Relationship(back_populates="plans")
-    checklist: Checklist | None = Relationship(back_populates="plan")
-    plan_spots: List["PlanSpotMap"] = Relationship(back_populates="plan")
