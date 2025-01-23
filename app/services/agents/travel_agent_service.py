@@ -1,5 +1,5 @@
 # services/agents/travel_agents.py
-from crewai import Agent , LLM
+from crewai import LLM, Agent
 from dotenv import load_dotenv
 import os
 
@@ -16,35 +16,31 @@ llm = LLM(
 async def create_attraction_agent():
     return Agent(
         role="관광지 전문가",
-        goal="방문객 특성에 맞는 관광지 추천",
-        backstory="한국의 관광지를 전문적으로 추천하는 전문가",
-        verbose=True,
-        api_key=OPENAI_API_KEY
+        goal="방문객 특성에 맞는 실제 존재하는 관광지 추천",
+        backstory="한국의 실제 관광지를 전문적으로 조사하고 추천하는 전문가",
+        verbose=True
     )
 
 async def create_food_cafe_agent():
     return Agent(
         role="맛집/카페 전문가",
-        goal="지역 특성에 맞는 맛집과 카페 추천",
-        backstory="한국의 맛집과 카페를 전문적으로 추천하는 전문가",
-        verbose=True,
-        api_key=OPENAI_API_KEY
+        goal="지역 특성에 맞는 실제 맛집과 카페 추천",
+        backstory="한국의 실제 맛집과 카페를 전문적으로 조사하고 추천하는 전문가",
+        verbose=True
     )
 
 async def create_accommodation_agent():
     return Agent(
         role="숙소 전문가",
-        goal="여행객 조건에 맞는 최적의 숙소 추천",
-        backstory="한국의 숙소를 전문적으로 추천하는 전문가",
-        verbose=True,
-        api_key=OPENAI_API_KEY
+        goal="여행객 조건에 맞는 실제 최적의 숙소 추천",
+        backstory="한국의 실제 숙소를 전문적으로 조사하고 추천하는 전문가",
+        verbose=True
     )
 
 async def create_schedule_agent():
     return Agent(
         role="일정 계획가",
-        goal="추천된 장소들을 바탕으로 최적의 일정 생성",
-        backstory="방문 시간과 동선을 고려하여 효율적인 일정을 만드는 전문가",
-        verbose=True,
-        api_key=OPENAI_API_KEY
+        goal="추천된 장소들을 바탕으로 최적의 일정 및 동선 생성",
+        backstory="방문 시간, 장소 위치, 이동 시간을 고려하여 최적의 여행 일정을 만드는 전문가",
+        verbose=True
     )
