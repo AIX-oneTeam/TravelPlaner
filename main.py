@@ -123,5 +123,4 @@ app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao Oaut
 app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver Oauth"])
 app.include_router(member_router, prefix="/members", tags=["members"])
 app.include_router(plan_router, prefix="/plans", tags=["plans"])
-# app.include_router(plan_router, prefix="/regions/division", tags=["regions"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
