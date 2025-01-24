@@ -52,7 +52,7 @@ class Member(SQLModel, table=True):
             raise ValueError(f"Invalid phone number: {phone_number}") from e
         return values
 
-        
+       
 class Plan(SQLModel, table=True):
     __tablename__ = "plan"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -108,7 +108,7 @@ class Spot(SQLModel, table=True):
         elif isinstance(value, int) and value in {0, 1}:
             return value
         raise ValueError("Invalid value for business_status. Must be a boolean, 'true'/'false', or 0/1.")
-
+   
 class PlanSpotMap(SQLModel, table=True):
     __tablename__ = "plan_spot_map"
     plan_id: int = Field(foreign_key="plan.id", primary_key=True)
