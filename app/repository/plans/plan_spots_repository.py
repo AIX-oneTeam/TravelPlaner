@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from app.data_models.data_model import PlanSpotMap, Spot
+from app.data_models.data_model import PlanSpotMap, Plan, Spot
 
 def save_plan_spots (plan_id:int, spot_id:int, order:int, day_x:str, spot_time:str,  request):
     try:
@@ -22,20 +22,27 @@ def get_plan_spots(plan_id: int, request):
         engine = request.app.state.engine
         with Session(engine) as session:
             
-            stmt = (
+            plan_stmt = select(Plan).where(Plan.id == plan_id)
+            plan = session.exec(plan_stmt).first()
+
+            spot_stmt = (
                 select(PlanSpotMap, Spot)
                 .join(Spot, PlanSpotMap.spot_id == Spot.id)  
                 .where(PlanSpotMap.plan_id == plan_id)  
             )
-            result = session.exec(stmt).all() 
+            spots = session.exec(spot_stmt).all() 
 
             plan_spots_with_spot_info = [
+            {
+            "plan": plan
+            },
+            [
                 {
                     "plan_spot": plan_spot,
                     "spot": spot
                 }
-                for plan_spot, spot in result
-            ]
+                for plan_spot, spot in spots
+            ]]
 
             return plan_spots_with_spot_info if plan_spots_with_spot_info is not None else None
     except Exception as e:
