@@ -1,4 +1,3 @@
-
 from contextlib import asynccontextmanager, contextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,13 +13,13 @@ from app.routers.oauths.google_oauth_router import router as google_oauth_router
 from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
 from app.routers.plans.plan_router import router as plan_router
+from app.routers.regions.region_router import router as region_router
 from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 
 # FastAPI 애플리케이션 생성
@@ -124,3 +123,5 @@ app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao Oaut
 app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver Oauth"])
 app.include_router(member_router, prefix="/members", tags=["members"])
 app.include_router(plan_router, prefix="/plans", tags=["plans"])
+# app.include_router(plan_router, prefix="/regions/division", tags=["regions"])
+app.include_router(region_router, prefix="/regions", tags=["regions"])
