@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from app.dtos.common.response import ErrorResponse, SuccessResponse
-from app.services.regions.regions_service import (
+from app.services.regions.region_service import (
     get_all_divisions_service,
 )
 
@@ -10,7 +10,6 @@ router = APIRouter()
 @router.get("/all")
 def fetch_all_divisions(request: Request):
     try:
-        # 서비스 호출
         divisions = get_all_divisions_service(request)
         return SuccessResponse(
             data={"divisions": divisions},
