@@ -101,8 +101,9 @@ async def handle_callback(code: str, state: str) -> tuple:
             "email": user_profile.get("response", {}).get("email"),
             "profile_url": user_profile.get("response", {}).get("profile_image"),
             "roles": ["USER"],
+            "access_token": access_token,
+            "refresh_token": refresh_token
         },
-        {"access_token": access_token, "refresh_token": refresh_token},
     )
 
 # 리프레시 토큰을 사용하여 액세스 토큰을 갱신하는 함수
