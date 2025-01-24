@@ -9,12 +9,13 @@ from sqlalchemy.orm import sessionmaker
 
 from app.repository.db import init_table_by_SQLModel, lifespan
 from app.routers.members.member_router import router as member_router
+from app.routers.spots.spot_router import router as spot_router
+from app.routers.plans.plan_router import router as plan_router
 from app.routers.oauths.google_oauth_router import router as google_oauth_router
 from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
-from app.routers.plans.plan_router import router as plan_router
-from app.routers.regions.region_router import router as region_router
 from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
+from app.routers.regions.region_router import router as region_router
 
 import os
 from dotenv import load_dotenv
@@ -67,6 +68,7 @@ app.add_middleware(
 #     response = await call_next(request)
 #     return response
 
+
 @app.get("/")
 async def root():
     return HTMLResponse(
@@ -82,7 +84,6 @@ async def root():
         </body>
         </html>
         """
-    
     )
 
 
@@ -107,6 +108,7 @@ async def refresh_token(request: Request):
     )
     return response
 
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
     """
@@ -117,10 +119,15 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         content={"message": exc.detail},
     )
 
+
 # 라우터 추가
 app.include_router(google_oauth_router, prefix="/oauths/google", tags=["Google Oauth"])
 app.include_router(kakao_oauth_router, prefix="/oauths/kakao", tags=["Kakao Oauth"])
 app.include_router(naver_oauth_router, prefix="/oauths/naver", tags=["Naver Oauth"])
 app.include_router(member_router, prefix="/members", tags=["members"])
 app.include_router(plan_router, prefix="/plans", tags=["plans"])
+app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
+
+# 데이터베이스 초기화
+# init_table_by_SQLModel()
