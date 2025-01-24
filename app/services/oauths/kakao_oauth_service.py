@@ -2,7 +2,7 @@ import os
 import httpx
 from dotenv import load_dotenv
 
-from app.utils.oauths.jwt_utils import create_refresh_token, create_token_from_oauth, decode_jwt
+from app.utils.oauths.jwt_utils import create_jwt_kakao, create_refresh_token, decode_jwt
 
 
 # .env 파일 로드
@@ -14,7 +14,7 @@ KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI")
 
 # 디버깅 로그 추가
 
-async def get_access_token(code: str) -> str:
+async def get_access_token(code: str, state: str) -> str:
     """
     카카오로부터 액세스 토큰을 가져옵니다.     #
     :param code: 카카오 로그인 인증 코드
@@ -29,6 +29,7 @@ async def get_access_token(code: str) -> str:
         "client_id": KAKAO_CLIENT_ID,
         "redirect_uri": KAKAO_REDIRECT_URI,
         "code": code,
+        "state": state
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
@@ -69,16 +70,10 @@ async def fetch_user_info(access_token: str) -> dict:
         raise Exception("An unexpected error occurred while fetching user info") from e
 
 
-async def handle_kakao_callback(code: str) -> dict:
+async def handle_kakao_callback(code: str, state:str) -> dict:
     try:
-        print("---------------------------------------")
-        print("code", code)
-        print("---------------------------------------")
         # 액세스 토큰 받기
-        access_token = await get_access_token(code)
-        print("---------------------------------------")
-        print("access_token", access_token)
-        print("---------------------------------------")
+        access_token = await get_access_token(code, state)
 
         if not access_token:
             raise ValueError("토큰이 유효하지 않습니다.")
@@ -86,25 +81,18 @@ async def handle_kakao_callback(code: str) -> dict:
         # 사용자 정보 받기
         user_info = await fetch_user_info(access_token)
 
-        print("---------------------------------------")
-        print("user_info", user_info)
-        print("---------------------------------------")
         if not user_info:
             raise ValueError("Failed to get user info")
         # JWT 토큰 생성 
         try:
-            jwt_token = create_token_from_oauth("kakao", user_info)
-            print("---------------------------------------")
-            print("jwt토큰입니다.", jwt_token)
-            print("---------------------------------------")
+            jwt_token = create_jwt_kakao(provider="kakao", auth_info=user_info)
+
         except Exception as jwt_error:
             raise jwt_error
         # Refresh 토큰 생성
         try:
             refresh_token = create_refresh_token(user_info)
-            print("---------------------------------------")
-            print("refresh_token", refresh_token)
-            print("---------------------------------------")
+
         except Exception as refresh_error:
             raise refresh_error
 
@@ -119,12 +107,9 @@ async def handle_kakao_callback(code: str) -> dict:
             "access_token": jwt_token,
             "refresh_token": refresh_token,
 
-              
             "user_info": user_info
         }
-        print("---------------------------------------")
-        print("user_data", user_data)
-        print("---------------------------------------")
+
         
         return user_data
 
