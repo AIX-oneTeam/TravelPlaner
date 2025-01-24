@@ -8,12 +8,13 @@ def save_spot(spot: Spot, request):
         engine = request.app.state.engine
         with Session(engine) as session:
             session.add(spot)
+            session.flush()
             session.commit()
             return spot.id
     except Exception as e:
         session.rollback()  # 트랜잭션 롤백
         print("[ spotRepository ] save_spot() 에러 : ", e)
-        raise  # 예외 다시 던지기
+        raise e  # 예외 다시 던지기
 
 def get_spot(spot_id: int, request) -> Spot:
     try:
@@ -24,6 +25,7 @@ def get_spot(spot_id: int, request) -> Spot:
             return spot if spot is not None else None
     except Exception as e:
         print("[ spotRepository ] get_spot() 에러 : ", e)
+        raise e
 
         
 # 샘플 Spot 데이터

@@ -6,8 +6,8 @@ from datetime import datetime
 
 from app.utils.serialize_time import serialize_time
 
-def reg_spot(spot: Spot, session: Session):
-    spot_id = save_spot(spot,session)
+def reg_spot(spot: Spot, request):
+    spot_id = save_spot(spot, request)
     return spot_id
 
 def find_spot(spot_id: int, request):

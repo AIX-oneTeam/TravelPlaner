@@ -1,4 +1,5 @@
 
+from datetime import time
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
@@ -20,8 +21,8 @@ class spot_request(BaseModel):
     url: str | None = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    likes: str | None = None
-    satisfaction: str | float = None
+    likes: int | None = None
+    satisfaction: float | None = None
     spot_category: int
     phone_number: str | None = Field(default=None, max_length=300)
     business_status: bool | None = None
@@ -29,13 +30,14 @@ class spot_request(BaseModel):
 
     order: int
     day_x: int
-    spot_time: str | None = None
+    spot_time: time | None = None
 
 # 일정 저장
 @router.post("/")
 def create_plan(plan: Plan, Spots:list[spot_request], member_id: int, request: Request):
 
     try:
+        # 0. 트랜잭션 생성
         # 1. 일정 저장
         plan_id = reg_plan(plan, member_id, request)
         # 2. 장소 저장

@@ -9,12 +9,12 @@ def save_plan(plan: Plan, request):
         engine = request.app.state.engine
         with Session(engine) as session:
             session.add(plan)
-            new_plan_id = plan.id
+            session.flush()
+            print("[ plan_repository ] new_plan.id : ", plan.id)
             session.commit()
-            print("[ planRepository ] plan.id : ", new_plan_id)
-            return new_plan_id
+            return plan.id
     except Exception as e:
-        print("[ planRepository ] save_plan() 에러 : ", e)
+        print("[ plan_repository ] save_plan() 에러 : ", e)
         raise e
 
 
@@ -25,7 +25,7 @@ def get_plan(plan_id: int, request):
             plan = session.get(Plan, plan_id)
             return plan if plan is not None else None
     except Exception as e:
-        print("[ planRepository ] get_plan() 에러 : ", e)
+        print("[ plan_repository ] get_plan() 에러 : ", e)
         raise e
 
    
