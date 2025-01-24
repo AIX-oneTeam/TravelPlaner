@@ -45,14 +45,6 @@ def get_session_sync(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail="데이터 베이스 연결 실패") from e
 
-def insert_csv_to_administrate_table(csv_file: str):
-    try:
-        data = pd.read_csv(csv_file)
-        print(f"CSV 데이터 삽입 완료: {len(data)}개의 행")
-    except Exception as e:
-        print(f"CSV 파일 읽기 실패: {e}")
-        return
-
 def drop_table_by_SQLModel():
     print("테이블을 삭제합니다.")
     SQLModel.metadata.drop_all(connection)
@@ -68,21 +60,12 @@ def init_table_by_SQLModel():
         print("테이블 생성 완료")
         
     # 테이블 초기화 시 행정구역 CSV 데이터 삽입
-    with Session(engine) as session:
-        try:
-            data = pd.read_csv('administrative_division.csv')
-            print(f"CSV 데이터 로드 완료: {len(data)}개의 행")
-            
-            # CSV 데이터를 테이블에 삽입
-            for _, row in data.iterrows():
-                record = AdministrativeDivision(**row.to_dict())  # 모델에 맞게 변환
-                session.add(record)
-            
-            session.commit()
-            print(f"총 {len(data)}개의 행 삽입 완료.")
-        except Exception as e:
-            session.rollback()
-            print(f"CSV 데이터 삽입 실패: {e}")
+    try:
+        data = pd.read_csv('administrative_division.csv')
+        data.to_sql('administrative_division', con=engine, if_exists='append', index=False)
+        print(f"총 {len(data)}개의 행 삽입 완료.")
+    except Exception as e:
+        print(f"CSV 데이터 삽입 실패: {e}")
         
 def check_table_exists_by_SQLModel():
     print("---------메타데이터 테이블 목록---------")

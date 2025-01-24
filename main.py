@@ -128,4 +128,4 @@ app.include_router(plan_router, prefix="/plans", tags=["plans"])
 app.include_router(spot_router, prefix="/spots", tags=["spots"])
 
 # 데이터베이스 초기화
-# init_table_by_SQLModel()
+init_table_by_SQLModel()
