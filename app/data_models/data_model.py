@@ -3,6 +3,9 @@ from typing import List, Optional
 import phonenumbers
 from pydantic import field_validator
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import text
+from pydantic import validator
+
 
 class AdministrativeDivision(SQLModel, table=True):
     __tablename__ = "administrative_division"
@@ -27,8 +30,12 @@ class Member(SQLModel, table=True):
     phone_number: Optional[str] = Field(default=None, max_length=20)
     voice: Optional[str] = Field(default=None, max_length=255)
     role: Optional[str] = Field(default=None, max_length=10)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP"), "nullable": False}
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), "nullable": False}
+    )
 
     plans: List["Plan"] = Relationship(back_populates="member")
 
@@ -45,7 +52,7 @@ class Member(SQLModel, table=True):
             raise ValueError(f"Invalid phone number: {phone_number}") from e
         return values
 
-        
+       
 class Plan(SQLModel, table=True):
     __tablename__ = "plan"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -57,9 +64,10 @@ class Plan(SQLModel, table=True):
     companion_count: Optional[int] = None
     concepts: Optional[str] = Field(default=None, max_length=255)
     member_id: int = Field(foreign_key="member.id")
-
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
     member: Member = Relationship(back_populates="plans")
-
     checklist: Optional["Checklist"] = Relationship(back_populates="plan")
     plan_spots: List["PlanSpotMap"] = Relationship(back_populates="plan")
 
@@ -76,17 +84,31 @@ class Spot(SQLModel, table=True):
     map_url: str = Field(max_length=2083)
     likes: Optional[int] = None
     satisfaction: Optional[float] = None
-    created_at: datetime
-    updated_at: datetime
     spot_category: int
     phone_number: Optional[str] = Field(default=None, max_length=300)
     business_status: Optional[bool] = None
     business_hours: Optional[str] = Field(default=None, max_length=255)
-
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP"), "nullable": False}
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), "nullable": False}
+    )
+    
     plan_spots: List["PlanSpotMap"] = Relationship(back_populates="spot")
     spot_tags: List["PlanSpotTagMap"] = Relationship(back_populates="spot")
 
-
+    @validator("business_status", pre=True, always=True)
+    def convert_bool_to_int(cls, value):
+        print(f"Validating business_status: {value}")
+        if isinstance(value, bool):
+            return int(value)  # True -> 1, False -> 0
+        elif isinstance(value, str) and value.lower() in {"true", "false"}:
+            return int(value.lower() == "true")
+        elif isinstance(value, int) and value in {0, 1}:
+            return value
+        raise ValueError("Invalid value for business_status. Must be a boolean, 'true'/'false', or 0/1.")
+   
 class PlanSpotMap(SQLModel, table=True):
     __tablename__ = "plan_spot_map"
     plan_id: int = Field(foreign_key="plan.id", primary_key=True)
