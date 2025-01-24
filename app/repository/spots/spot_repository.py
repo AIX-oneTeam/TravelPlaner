@@ -1,20 +1,32 @@
-# import os
-# import sys
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),"..", "..", "..")))
-from fastapi import Depends, HTTPException
-from sqlmodel import Session
+from fastapi import Depends
+from sqlmodel import Session, select
 from app.data_models.data_model import Spot
+from app.repository.db import get_session_sync
 
-def save_spot(spot: Spot, session: Session):
+def save_spot(spot: Spot, request):
     try:
-        session.add(spot)
-        session.commit()
-        session.refresh(spot)
+        engine = request.app.state.engine
+        with Session(engine) as session:
+            session.add(spot)
+            session.commit()
+            return spot.id
     except Exception as e:
         session.rollback()  # 트랜잭션 롤백
-        print(f"Error while saving spot: {e}")
+        print("[ spotRepository ] save_spot() 에러 : ", e)
         raise  # 예외 다시 던지기
-    
+
+def get_spot(spot_id: int, request) -> Spot:
+    try:
+        engine = request.app.state.engine
+        with Session(engine) as session:
+            query = select(Spot).where(Spot.id == spot_id)
+            spot = session.exec(query).first()
+            print(f"Returned spot: {spot}")  # 반환된 객체 확인
+            return spot if spot is not None else None
+    except Exception as e:
+        print("[ spotRepository ] get_spot() 에러 : ", e)
+
+        
 # 샘플 Spot 데이터
 # {
 #   "kor_name": "Test Spot",
