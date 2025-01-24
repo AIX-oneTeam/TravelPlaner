@@ -90,6 +90,7 @@ CREATE TABLE `plan_spot_map` (
 );
 
 CREATE TABLE `plan_spot_tag_map` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `spot_id` INT NOT NULL,
     `spot_tag_id` INT NOT NULL,
     CONSTRAINT `FK_tag_map_spot_id` FOREIGN KEY (`spot_id`) REFERENCES `spot` (`id`),

@@ -11,7 +11,7 @@ from sqlmodel import SQLModel, Session
 
 # 환경 변수 로드
 print("--------------------db.py---------------------")
-
+load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL, echo=True)
@@ -43,7 +43,6 @@ def get_session_sync(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail="데이터 베이스 연결 실패") from e
 
-
 def drop_table_by_SQLModel():
     print("테이블을 삭제합니다.")
     print("테이블 삭제 완료")
@@ -54,9 +53,15 @@ def init_table_by_SQLModel():
         print("테이블을 생성합니다.")
         SQLModel.metadata.create_all(connection)
         print("테이블 생성 완료")
-
-
-
+        
+    # 테이블 초기화 시 행정구역 CSV 데이터 삽입
+    try:
+        data = pd.read_csv('administrative_division.csv')
+        data.to_sql('administrative_division', con=engine, if_exists='append', index=False)
+        print(f"총 {len(data)}개의 행 삽입 완료.")
+    except Exception as e:
+        print(f"CSV 데이터 삽입 실패: {e}")
+        
 def check_table_exists_by_SQLModel():
     print("---------메타데이터 테이블 목록---------")
     print(SQLModel.metadata.tables)
