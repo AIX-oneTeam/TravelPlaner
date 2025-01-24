@@ -21,7 +21,6 @@ def get_spot(spot_id: int, request) -> Spot:
         with Session(engine) as session:
             query = select(Spot).where(Spot.id == spot_id)
             spot = session.exec(query).first()
-            print(f"Returned spot: {spot}")  # 반환된 객체 확인
             return spot if spot is not None else None
     except Exception as e:
         print("[ spotRepository ] get_spot() 에러 : ", e)
