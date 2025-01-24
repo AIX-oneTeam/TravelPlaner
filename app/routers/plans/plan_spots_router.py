@@ -16,7 +16,7 @@ async def create_plan_spot():
 async def read_plan_spots(plan_id: int, request: Request):
     try:
         plan_spots = find_plan_spots(plan_id, request)
-        return SuccessResponse(data={"plan_spots": plan_spots}, message="일정 장소가 성공적으로 조회되었습니다.")
+        return SuccessResponse(data=plan_spots, message="일정과 장소 정보가 성공적으로 조회되었습니다.")
     except Exception as e:
-        return ErrorResponse(message="일정 장소 조회에 실패했습니다.", error_detail=e)
+        return ErrorResponse(message="일정과 장소정보 조회에 실패했습니다.", error_detail=e)
 
