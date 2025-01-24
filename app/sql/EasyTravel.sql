@@ -40,6 +40,13 @@ CREATE TABLE `spot_tag` (
     `spot_tag` VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE `administrative_division` (
+	`city_id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `city_province` VARCHAR(50) NOT NULL,
+    `city_county` VARCHAR(50) NOT NULL
+);
+
+
 -- 연결 테이블
 
 CREATE TABLE `checklist` (
@@ -74,8 +81,9 @@ CREATE TABLE `spot` (
 CREATE TABLE `plan_spot_map` (
     `plan_id` INT NOT NULL,
     `spot_id` INT NOT NULL,
-    `day_X` INT NOT NULL,
+    `day_x` INT NOT NULL,
     `order` INT NOT NULL,
+    `time` TIME NULL,
     CONSTRAINT `FK_map_plan_id` FOREIGN KEY (`plan_id`) REFERENCES `plan` (`plan_id`),
  	CONSTRAINT `FK_map_spot_id` FOREIGN KEY (`spot_id`) REFERENCES `spot` (`spot_id`)
 );
