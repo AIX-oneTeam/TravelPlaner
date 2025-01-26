@@ -1,108 +1,209 @@
 import os
 from dotenv import load_dotenv
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
 import googlemaps
 import json
+from datetime import datetime
+from typing import Dict, List, Optional
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
+class RestaurantRecommender:
+    def __init__(self):
+        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        self.GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
+        self.llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=self.OPENAI_API_KEY)
+        self.gmaps = googlemaps.Client(key=self.GOOGLE_MAP_API_KEY)
+        self._setup_chains()
 
-llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
-gmaps = googlemaps.Client(key=GOOGLE_MAP_API_KEY)
+    def _setup_chains(self):
+        analysis_prompt = PromptTemplate.from_template("""
+        당신은 한국의 맛집을 완벽하게 이해하고 있는 미식 전문가 AI입니다.
+        사용자의 여행 정보를 분석하여 최적의 맛집 추천을 위한 키워드를 추출해주세요.
 
-def search_google_places(location, radius=1500):
-    geocode_result = gmaps.geocode(location)
-    if not geocode_result:
-        return None
-    
-    lat = geocode_result[0]['geometry']['location']['lat']
-    lng = geocode_result[0]['geometry']['location']['lng']
-    
-    result = gmaps.places(
-        f"{location} 맛집",
-        location=(lat, lng),
-        radius=radius,
-        language='ko'
-    )
-    
-    restaurants = []
-    for place in result['results'][:15]:
-        details = gmaps.place(
-            place['place_id'],
-            fields=['name', 'rating', 'user_ratings_total', 'formatted_address', 
-                   'price_level'],
-            language='ko'
-        )['result']
+        여행 정보:
+        - 위치: {location}
+        - 시작일: {start_date}
+        - 종료일: {end_date}
+        - 컨셉: {concepts}
         
-        if details.get('rating', 0) >= 4.0 and details.get('user_ratings_total', 0) >= 100:
-            restaurants.append({
-                'name': details.get('name'),
-                'address': details.get('formatted_address'),
-                'rating': details.get('rating'),
-                'reviews_count': details.get('user_ratings_total'),
-                'price_level': details.get('price_level')
-            })
+        지역 특색, 음식 종류, 분위기 등을 고려하여 핵심 키워드만 쉼표로 구분하여 출력하세요.
+        """)
+
+        recommendation_prompt = PromptTemplate.from_template("""
+        당신은 대한민국의 모든 맛집 정보를 가진 전문 식당 추천 AI입니다.
+        주어진 정보를 바탕으로 최적의 맛집을 추천해주세요.
+
+        분석된 키워드: {keywords}
+        필요한 식사 횟수: {total_meals}회
+        식당 목록: {restaurants}
+
+        고려사항:
+        1. 시간대별 적합한 메뉴 (아침: 가벼운 식사, 점심/저녁: 식사 메뉴)
+        2. 이동 동선 최적화 (같은 지역 내 식당 우선)
+        3. 식당 운영시간 고려
+        4. 평점과 리뷰 수 반영
+        5. 그룹 구성원에 적합한 메뉴
+
+        응답 형식:
+        {{
+        "recommendations": [
+            {{
+            "restaurant_id": "실제 place_id",
+            "meal_time": "아침/점심/저녁",
+            "day": 숫자(1부터 시작),
+            "order": 숫자(1부터 시작),
+            "reason": "추천 이유(메뉴, 특징, 선택 이유 포함)"
+            }}
+        ]
+        }}
+
+        필수 규칙:
+        1. 반드시 JSON 형식으로만 응답 (추가 설명 X)
+        2. 제공된 실제 place_id만 사용
+        3. {total_meals}회 만큼 추천
+        4. day와 order는 반드시 숫자로 출력
+        5. 각 식사 시간대에 적합한 메뉴 추천
+        6. 하루 최대 3끼, 마지막 날은 2끼까지만 추천
+        """)
+
+        details_prompt = PromptTemplate.from_template("""
+        당신은 한국의 모든 맛집에 대한 상세 정보를 제공하는 미식 전문 AI입니다.
+        
+        식당 정보:
+        {restaurant_info}
+        식사 시간대: {meal_time}
+
+        다음을 포함하여 한 문단으로 설명해주세요:
+        - 대표 메뉴와 특징
+        - {meal_time} 추천 메뉴
+        - 주변 정보
+        - 방문 팁
+        """)
+
+        self.analysis_chain = analysis_prompt | self.llm
+        self.recommendation_chain = recommendation_prompt | self.llm
+        self.details_chain = details_prompt | self.llm
+
+    def _calculate_meals(self, start_date: str, end_date: str) -> int:
+        start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        days = (end - start).days + 1
+
+        if days == 1:
+            return 2 if end.hour < 18 else 3
+        
+        total_meals = (days - 1) * 3 + (2 if end.hour < 18 else 3)
+        return total_meals
+
+    def search_restaurants(self, location: str) -> List[Dict]:
+        try:
+            geocode_result = self.gmaps.geocode(location)
+            if not geocode_result:
+                return []
+
+            lat = geocode_result[0]['geometry']['location']['lat']
+            lng = geocode_result[0]['geometry']['location']['lng']
+
+            places = self.gmaps.places_nearby(
+                location=(lat, lng),
+                radius=1500,
+                keyword='맛집',
+                language='ko',
+                type='restaurant'
+            )
+
+            return places.get('results', [])[:15]
+        except Exception as e:
+            print(f"검색 오류: {e}")
+            return []
+
+    def process_recommendation(self, plan_data: Dict) -> Dict:
+        try:
+            keywords = self.analysis_chain.invoke({
+                "location": plan_data['plan']['main_location'],
+                "start_date": plan_data['plan']['start_date'],
+                "end_date": plan_data['plan']['end_date'],
+                "concepts": ", ".join(plan_data['plan']['concepts'])
+            }).content
+
+            restaurants = self.search_restaurants(plan_data['plan']['main_location'])
+            total_meals = self._calculate_meals(
+                plan_data['plan']['start_date'],
+                plan_data['plan']['end_date']
+            )
+
+            response = self.recommendation_chain.invoke({
+                "keywords": keywords,
+                "restaurants": json.dumps(restaurants, ensure_ascii=False),
+                "total_meals": total_meals
+            }).content
+
+            # ```json과 ```를 제거
+            cleaned_response = response.replace("```json", "").replace("```", "").strip()
+            recommendations = json.loads(cleaned_response)
+
+            spots = []
+            for rec in recommendations.get('recommendations', []):
+                if validated := self.validate_restaurant(rec['restaurant_id'], rec):
+                    spots.append(validated)
+
+            return {
+                "data": [
+                    {"plan": plan_data['plan']},
+                    {"Spots": spots}
+                ]
+            }
+        except Exception as e:
+            print(f"추천 처리 오류: {e}")
+            return {"data": [{"plan": plan_data['plan']}, {"Spots": []}]}
+
+    def validate_restaurant(self, place_id: str, meal_info: Dict) -> Optional[Dict]:
+        try:
+            details = self.gmaps.place(
+                place_id,
+                fields=['name', 'formatted_address', 'rating', 'user_ratings_total',
+                        'opening_hours', 'formatted_phone_number', 'website', 'url'],
+                language='ko'
+            )['result']
+
+            if details.get('rating', 0) >= 4.0:
+                description = self.details_chain.invoke({
+                    'restaurant_info': json.dumps(details, ensure_ascii=False),
+                    'meal_time': meal_info.get('meal_time', '점심')
+                }).content
+
+                return {
+                    'kor_name': details.get('name'),
+                    'eng_name': details.get('name'),
+                    'description': description,
+                    # ... [나머지 필드들은 동일]
+                }
+            return None
+        except Exception as e:
+            print(f"검증 오류: {e}")
+            return None
+
+def main():
+    recommender = RestaurantRecommender()
+    plan_data = {
+        "plan": {
+            "id": 1,
+            "name": "부산 여행",
+            "member_id": 0,
+            "companion_count": 3,
+            "main_location": "부산 해운대",
+            "concepts": ["가족", "맛집"],
+            "uses": 0,
+            "start_date": "2025-01-26T11:00:00",
+            "end_date": "2025-01-27T16:00:00"
+        }
+    }
     
-    restaurants.sort(key=lambda x: (x['rating'], x['reviews_count']), reverse=True)
-    return restaurants
+    result = recommender.process_recommendation(plan_data)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
-def generate_restaurant_recommendations(keywords):
-   restaurants_data = search_google_places(keywords['location'])
-   
-   if not restaurants_data:
-       return "식당 정보를 찾을 수 없습니다."
-
-   user_data_description = f"""
-   당신은 식당 추천 전문가입니다. 다음 여행 정보를 바탕으로 최적의 식당을 추천해주세요:
-   - 위치: {keywords['location']}
-   - 날짜: {keywords['dates']}
-   - 연령대: {keywords['age_group']}
-   - 그룹: 성인 {keywords['group']['adults']}, 아동 {keywords['group']['children']}, 반려동물 {keywords['group']['pets']}
-   - 테마: {', '.join(keywords['themes'])}
-
-   실제 식당 데이터:
-   {json.dumps(restaurants_data, ensure_ascii=False, indent=2)}
-
-   다음 규칙을 따라 추천해주세요:
-   - 전체 여행일(1월 22일~24일)은 하루 3끼 추천
-   - 마지막 여행일(1월 25일)은 2끼 추천
-   - 평점과 리뷰가 많은 순으로 우선 추천
-   - 아이와 반려동물 동반 가능한 곳 우선 추천
-
-   다음 JSON 형식으로 응답해주세요:
-   {{
-       "recommendations": [
-           {{
-               "day": "1일차",
-               "order": "1",
-               "name": "식당명",
-               "description": "설명",
-               "address": "주소",
-               "rating": "평점",
-               "photo_url": "사진URL",
-               "reason": "추천이유"
-           }}
-       ]
-   }}
-   """
-
-   try:
-       response = llm.predict(user_data_description)
-       return response.strip()
-   except Exception as e:
-       print(f"오류 발생: {e}")
-       return "추천 실패"
-
-keywords = {
-   "location": "부산 해운대",
-   "dates": "2025년 1월 22일 ~ 2025년 1월 25일",
-   "age_group": "10대 미만",
-   "themes": ["가족 여행", "리조트"],
-   "group": {"adults": 2, "children": 1, "pets": 1},
-}
-
-recommendation = generate_restaurant_recommendations(keywords)
-print("\n=== 추천 맛집 ===")
-print(recommendation)
+if __name__ == "__main__":
+    main()
