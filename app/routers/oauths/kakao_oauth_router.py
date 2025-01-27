@@ -1,6 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlmodel import Session
 
 from app.data_models.data_model import Member
@@ -15,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @router.get("/callback")
-async def kakao_callback(code: str, state: str, response: Response, request : Request):
+async def kakao_callback(code: str, state: str, response: Response, session: Session = Depends(get_session_sync)):
     """
     카카오 인증 콜백: 인증 코드를 받아 JWT와 Refresh Token을 쿠키에 저장.
     """
@@ -69,7 +68,7 @@ async def kakao_callback(code: str, state: str, response: Response, request : Re
         try:
             logger.info("[Kakao Callback] 회원 정보 데이터 베이스 시작")
 
-            if not is_exist_member_by_email(user_data["email"], "kakao", request):
+            if not is_exist_member_by_email(user_data["email"], "kakao", session):
                 save_member(Member(
                     email=user_data["email"],
                     name=user_data["nickname"],
@@ -78,7 +77,7 @@ async def kakao_callback(code: str, state: str, response: Response, request : Re
                     roles=user_data["roles"],
                     access_token=user_data["access_token"],
                     refresh_token=user_data["refresh_token"],
-                    oauth="kakao"), request)
+                    oauth="kakao"), session)
 
 
             return {"content": "카카오 로그인 성공",

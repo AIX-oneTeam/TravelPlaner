@@ -1,9 +1,9 @@
 
 from datetime import time
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from app.repository.db import get_session_sync
-
+from sqlmodel import Session
 from app.data_models.data_model import Plan, Spot
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.plans.plan_spots_repository import save_plan_spots

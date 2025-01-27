@@ -6,11 +6,11 @@ from datetime import datetime
 
 from app.utils.serialize_time import serialize_time
 
-def reg_spot(spot: Spot, request):
-    spot_id = save_spot(spot, request)
+def reg_spot(spot: Spot, session: Session):
+    spot_id = save_spot(spot, session)
     return spot_id
 
-def find_spot(spot_id: int, request):
-    spot = get_spot(spot_id, request)
+def find_spot(spot_id: int, session: Session):
+    spot = get_spot(spot_id, session)
     serialized_spot = serialize_time(spot,  ["created_at", "updated_at"])
     return serialized_spot

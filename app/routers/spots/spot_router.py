@@ -24,5 +24,5 @@ async def read_spot(spot_id: int, session: Session = Depends(get_session_sync)):
         spot = find_spot(spot_id, session)
         return SuccessResponse(data={"spot": spot}, message="장소가 성공적으로 조회되었습니다.")
     except Exception as e:
-        return ErrorResponse(message="장소 조회에 실패했습니다.", error_detail=e)
+        return ErrorResponse(message="등록되지 않은 장소입니다.", error_detail=e)
     
