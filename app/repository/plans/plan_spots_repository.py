@@ -32,17 +32,15 @@ def get_plan_spots(plan_id: int, request):
             )
             spots = session.exec(spot_stmt).all() 
 
-            plan_spots_with_spot_info = [
-            {
-            "plan": plan
-            },
-            [
+            plan_spots_with_spot_info = {
+                "plan": plan,
+                "detail" : [
                 {
                     "plan_spot": plan_spot,
                     "spot": spot
                 }
                 for plan_spot, spot in spots
-            ]]
+            ]}
 
             return plan_spots_with_spot_info if plan_spots_with_spot_info is not None else None
     except Exception as e:
