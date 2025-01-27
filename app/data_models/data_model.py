@@ -111,8 +111,9 @@ class Spot(SQLModel, table=True):
    
 class PlanSpotMap(SQLModel, table=True):
     __tablename__ = "plan_spot_map"
-    plan_id: int = Field(foreign_key="plan.id", primary_key=True)
-    spot_id: int = Field(foreign_key="spot.id", primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    plan_id: int = Field(foreign_key="plan.id")
+    spot_id: int = Field(foreign_key="spot.id")
     day_x: int = Field(...)
     order: int = Field(...)
     spot_time: Optional[time] = Field(default=None)  # 시간 필드 추가

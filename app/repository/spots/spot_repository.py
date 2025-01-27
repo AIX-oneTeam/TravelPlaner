@@ -1,29 +1,25 @@
-from fastapi import Depends
 from sqlmodel import Session, select
 from app.data_models.data_model import Spot
-from app.repository.db import get_session_sync
 
-def save_spot(spot: Spot, request):
+def save_spot(spot: Spot, session:Session):
     try:
-        engine = request.app.state.engine
-        with Session(engine) as session:
-            session.add(spot)
-            session.commit()
-            return spot.id
+        session.add(spot)
+        session.flush()
+        session.commit()
+        return spot.id
     except Exception as e:
         session.rollback()  # 트랜잭션 롤백
         print("[ spotRepository ] save_spot() 에러 : ", e)
-        raise  # 예외 다시 던지기
+        raise e  # 예외 다시 던지기
 
-def get_spot(spot_id: int, request) -> Spot:
+def get_spot(spot_id: int, session:Session) -> Spot:
     try:
-        engine = request.app.state.engine
-        with Session(engine) as session:
-            query = select(Spot).where(Spot.id == spot_id)
-            spot = session.exec(query).first()
-            return spot if spot is not None else None
+        query = select(Spot).where(Spot.id == spot_id)
+        spot = session.exec(query).first()
+        return spot if spot is not None else None
     except Exception as e:
         print("[ spotRepository ] get_spot() 에러 : ", e)
+        raise e
 
         
 # 샘플 Spot 데이터
