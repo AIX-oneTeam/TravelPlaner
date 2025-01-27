@@ -1,13 +1,11 @@
-from contextlib import asynccontextmanager, contextmanager
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
-from sqlalchemy import create_engine
-from sqlmodel import Session
-from sqlalchemy.orm import sessionmaker
 
-from app.repository.db import init_table_by_SQLModel, lifespan
+from app.repository.db import lifespan
 from app.routers.members.member_router import router as member_router
 from app.routers.spots.spot_router import router as spot_router
 from app.routers.plans.plan_router import router as plan_router

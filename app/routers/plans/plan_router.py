@@ -1,8 +1,9 @@
 
 from datetime import time
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
-
+from app.repository.db import get_session_sync
+from sqlmodel import Session
 from app.data_models.data_model import Plan, Spot
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.plans.plan_spots_repository import save_plan_spots
@@ -34,12 +35,12 @@ class spot_request(BaseModel):
 
 # 일정 저장
 @router.post("/")
-def create_plan(plan: Plan, Spots:list[spot_request], member_id: int, request: Request):
+def create_plan(plan: Plan, Spots:list[spot_request], member_id: int, session: Session = Depends(get_session_sync)):
 
     try:
         # 0. 트랜잭션 생성
         # 1. 일정 저장
-        plan_id = reg_plan(plan, member_id, request)
+        plan_id = reg_plan(plan, member_id, session)
         # 2. 장소 저장
         for spot in Spots:
             spot_id = reg_spot(Spot( #SQL Model
@@ -57,9 +58,9 @@ def create_plan(plan: Plan, Spots:list[spot_request], member_id: int, request: R
                 phone_number=spot.phone_number,
                 business_status=spot.business_status,
                 business_hours=spot.business_hours
-            ), request)
+            ), session)
             # 3. 일정-장소 매핑 저장
-            save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, request)
+            save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 등록되었습니다.")
     except Exception as e:
         return ErrorResponse(message="일정 등록에 실패했습니다.", error_detail=e)
