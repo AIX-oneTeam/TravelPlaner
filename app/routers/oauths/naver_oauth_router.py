@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Query, HTTPException, Response, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from sqlmodel import Session
 
 from app.data_models.data_model import Member
 from app.repository.members.mebmer_repository import is_exist_member_by_email, save_member
 from app.services.oauths.naver_oauth_service import get_login_url, handle_callback, refresh_naver_access_token
 from app.utils.oauths.jwt_utils import create_jwt_naver
+from app.repository.db import get_session_sync
 
 
 
@@ -15,7 +16,7 @@ REFRESH_TOKENS = {}  # 사용자 ID를 키로 하는 리프레시 토큰 저장�
 
 
 @router.get("/callback")
-async def naver_callback(code: str, state: str, response: Response, request: Request):
+async def naver_callback(code: str, state: str, response: Response, session: Session = Depends(get_session_sync)):
     """
     네이버 인증 콜백 처리 및 JWT 쿠키 저장
     """
@@ -41,7 +42,7 @@ async def naver_callback(code: str, state: str, response: Response, request: Req
             samesite="None",
         )
 
-        if not is_exist_member_by_email(user_data["email"], "naver", request):
+        if not is_exist_member_by_email(user_data["email"], "naver", session):
             save_member(Member(
                 email=user_data["email"],
                 name=user_data["nickname"],
@@ -50,7 +51,7 @@ async def naver_callback(code: str, state: str, response: Response, request: Req
                 roles=user_data["roles"],
                 access_token=user_data["access_token"],
                 refresh_token=user_data["refresh_token"],
-                oauth="naver"), request)
+                oauth="naver"), session)
 
         return {"content": "네이버 로그인 성공",
                 "nickname": user_data["nickname"],
