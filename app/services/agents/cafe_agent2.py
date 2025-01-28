@@ -5,19 +5,26 @@ load_dotenv(dotenv_path="../../../.env")
 # OpenAI API 키 설정
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-from crewai_tools import SerperDevTool, ScrapeWebsiteTool, WebsiteSearchTool
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+from crewai_tools import SerperDevTool, ScrapeWebsiteTool, WebsiteSearchTool, tools
 from crewai import Agent, Task, Crew, LLM, Process
+from langchain_community.tools.tavily_search import TavilySearchResults
 
 search_tool = SerperDevTool() # 검색 엔진을 통해 웹 데이터를 가져오는 도구
 scrape_tool = ScrapeWebsiteTool() # 특정 웹사이트에서 데이터를 스크래핑하는 도구
 web_rag_tool = WebsiteSearchTool() # 특정 키워드나 주제에 대해 웹 검색을 수행하는 도구
+web_search_tool = TavilySearchResults(k=3)
+
+user_input = "인천 오션뷰이고 애견 동반 가능 카페"
+
+web_search_tool.run(user_input)
 
 result = search_tool.run(query="quiet cafes in Incheon")
 result2 = scrape_tool.run(url="https://map.naver.com",query="quiet cafes in Incheon")
 result3 = web_rag_tool.run(query="quiet cafes in Incheon")
 print(result)  # 결과 확인
 print(result2)  # 결과 확인
-print(result)3  # 결과 확인
+print(result3)  # 결과 확인
 
 # LLM 초기화
 my_llm = LLM(
@@ -27,14 +34,7 @@ my_llm = LLM(
     # max_tokens=4000
 )
 
-user_info = {
-    "location":"인천",  # 사용자의 지역
-    "age" : "40대",
-    "companions" : {"pets": 1, "adults": 2, "teens": 1},  # 동행인 세부사항
-    "concepts":["조용한 분위기", "디저트가 맛있는 곳"],  # 취향
-    "parking":True,  # 주차 가능 여부
-    "pet_friendly":True  # 반려동물 동반 가능 여부
-}
+
 
 """ 에이전트 정의
 - role : 핵심 역할
@@ -137,9 +137,5 @@ crew = Crew(
 )
 
 # 실행
-try:
-    result = crew.kickoff(inputs=user_info)
-    print(result)
-except Exception as e:
-    print(f"Error during execution: {e}")
-
+result = crew.kickoff(inputs={"query":user_input})
+result.raw
