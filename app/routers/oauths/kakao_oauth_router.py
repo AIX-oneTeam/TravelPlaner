@@ -1,7 +1,10 @@
 import logging
-from fastapi import APIRouter, HTTPException, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlmodel import Session
 
+from app.data_models.data_model import Member
+from app.repository.db import get_session_sync
+from app.repository.members.mebmer_repository import is_exist_member_by_email, save_member
 from app.services.oauths.kakao_oauth_service import handle_kakao_callback
 
 router = APIRouter()
@@ -11,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @router.get("/callback")
-async def kakao_callback(code: str, state: str, response: Response):
+async def kakao_callback(code: str, state: str, response: Response, session: Session = Depends(get_session_sync)):
     """
     카카오 인증 콜백: 인증 코드를 받아 JWT와 Refresh Token을 쿠키에 저장.
     """
@@ -30,6 +33,7 @@ async def kakao_callback(code: str, state: str, response: Response):
         # 3. JWT 토큰 쿠키 저장
         try:
             logger.info("[Kakao Callback] JWT 토큰 쿠키 저장 시작")
+
             response.set_cookie(
                 key="access_token",
                 value=user_data["access_token"],
@@ -58,12 +62,22 @@ async def kakao_callback(code: str, state: str, response: Response):
         except Exception as e:
             logger.error(f"[Kakao Callback] Refresh Token 쿠키 저장 실패: {e}")
             raise HTTPException(status_code=500, detail="Refresh Token 쿠키 저장 중 오류 발생")
-            
+        
 
         # 5. 프론트엔드로 리다이렉트
         try:
-            logger.info("[Kakao Callback] 프론트엔드로 리다이렉트 시작")
-            logger.info(f"[Kakao Callback] 리다이렉트 URL: {redirect_url}")
+            logger.info("[Kakao Callback] 회원 정보 데이터 베이스 시작")
+
+            if not is_exist_member_by_email(user_data["email"], "kakao", session):
+                save_member(Member(
+                    email=user_data["email"],
+                    name=user_data["nickname"],
+                    nickname=user_data["nickname"],
+                    picture_url=user_data["profile_url"],
+                    roles=user_data["roles"],
+                    access_token=user_data["access_token"],
+                    refresh_token=user_data["refresh_token"],
+                    oauth="kakao"), session)
 
 
             return {"content": "카카오 로그인 성공",
@@ -73,8 +87,8 @@ async def kakao_callback(code: str, state: str, response: Response):
                     "roles":user_data["roles"],}
 
         except Exception as e:
-            logger.error(f"[Kakao Callback] 리다이렉트 실패: {e}")
-            raise HTTPException(status_code=500, detail="프론트엔드 리다이렉트 중 오류 발생")
+            logger.error(f"[Kakao Callback] 회원 정보 데이터 베이스 저장 실패: {e}")
+            raise HTTPException(status_code=500, detail="회원 정보 데이터 베이스 저장 중 오류 발생")
 
     except Exception as e:
         logger.error(f"[Kakao Callback] 예외 발생: {e}")

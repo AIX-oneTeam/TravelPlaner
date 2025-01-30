@@ -72,14 +72,8 @@ async def fetch_user_info(access_token: str) -> dict:
 
 async def handle_kakao_callback(code: str, state:str) -> dict:
     try:
-        print("---------------------------------------")
-        print("code", code)
-        print("---------------------------------------")
         # 액세스 토큰 받기
         access_token = await get_access_token(code, state)
-        print("---------------------------------------")
-        print("access_token", access_token)
-        print("---------------------------------------")
 
         if not access_token:
             raise ValueError("토큰이 유효하지 않습니다.")
@@ -87,25 +81,18 @@ async def handle_kakao_callback(code: str, state:str) -> dict:
         # 사용자 정보 받기
         user_info = await fetch_user_info(access_token)
 
-        print("---------------------------------------")
-        print("user_info", user_info)
-        print("---------------------------------------")
         if not user_info:
             raise ValueError("Failed to get user info")
         # JWT 토큰 생성 
         try:
             jwt_token = create_jwt_kakao(provider="kakao", auth_info=user_info)
-            print("---------------------------------------")
-            print("jwt토큰입니다.", jwt_token)
-            print("---------------------------------------")
+
         except Exception as jwt_error:
             raise jwt_error
         # Refresh 토큰 생성
         try:
             refresh_token = create_refresh_token(user_info)
-            print("---------------------------------------")
-            print("refresh_token", refresh_token)
-            print("---------------------------------------")
+
         except Exception as refresh_error:
             raise refresh_error
 
@@ -120,12 +107,9 @@ async def handle_kakao_callback(code: str, state:str) -> dict:
             "access_token": jwt_token,
             "refresh_token": refresh_token,
 
-              
             "user_info": user_info
         }
-        print("---------------------------------------")
-        print("user_data", user_data)
-        print("---------------------------------------")
+
         
         return user_data
 
