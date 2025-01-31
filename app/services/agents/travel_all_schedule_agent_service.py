@@ -9,8 +9,8 @@ from crewai.tools import BaseTool
 # 🔹 환경 변수 로드
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
-NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
+AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
 # 🔹 LLM 설정 (객체 호출 X)
 llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
@@ -22,13 +22,13 @@ class NaverWebSearchTool(BaseTool):
     description: str = "네이버 웹 검색 API를 사용해 텍스트 정보를 검색"
 
     def _run(self, query: str) -> str:
-        if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+        if not AGENT_NAVER_CLIENT_ID or not AGENT_NAVER_CLIENT_SECRET:
             return "[NaverWebSearchTool] 네이버 API 자격 증명이 없습니다."
 
         url = "https://openapi.naver.com/v1/search/webkr.json"
         headers = {
-            "X-Naver-Client-Id": NAVER_CLIENT_ID,
-            "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+            "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
+            "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
         params = {"query": query, "display": 3, "start": 1, "sort": "random"}
 
@@ -61,13 +61,13 @@ class NaverImageSearchTool(BaseTool):
     description: str = "네이버 이미지 검색 API를 사용하여 장소 관련 이미지를 가져옴"
 
     def _run(self, query: str) -> str:
-        if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+        if not AGENT_NAVER_CLIENT_ID or not AGENT_NAVER_CLIENT_SECRET:
             return "[NaverImageSearchTool] 네이버 API 자격 증명이 없습니다."
 
         url = "https://openapi.naver.com/v1/search/image"
         headers = {
-            "X-Naver-Client-Id": NAVER_CLIENT_ID,
-            "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+            "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
+            "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
         params = {"query": query, "display": 1, "sort": "sim"}
 
@@ -181,7 +181,7 @@ def create_plan(user_input):
             """,
             agent=site_agent,
             expected_output="관광지 목록 (텍스트)",
-            async_execution=True,
+            # async_execution=True,
         )
 
         cafe_task = Task(
@@ -193,7 +193,7 @@ def create_plan(user_input):
             agent=cafe_agent,
             context=[site_task],
             expected_output="맛집 및 카페 목록 (텍스트)",
-            async_execution=True,
+            # async_execution=True,
         )
 
         accommodation_task = Task(
@@ -205,20 +205,7 @@ def create_plan(user_input):
             agent=accommodation_agent,
             context=[site_task, cafe_task],
             expected_output="숙소 목록 (텍스트)",
-            async_execution=True,
-        )
-
-        image_task = Task(
-            description=f"""
-            [이미지 삽입]
-            - CrewAI가 생성한 여행 일정 JSON에서 각 장소의 `kor_name`을 기반으로 이미지를 검색.
-            - 검색된 이미지를 `image_url` 필드에 추가.
-            - JSON 형식으로 업데이트된 일정 반환.
-            """,
-            agent=image_agent,
-            context=[planning_task],  # ✅ 여행 일정 생성 이후 실행
-            expected_output="이미지가 추가된 최종 여행 일정 JSON",
-            output_json=True,
+            # async_execution=True,
         )
 
         planning_task = Task(
@@ -259,7 +246,20 @@ def create_plan(user_input):
                 accommodation_task,
             ],  # ✅ 기존 태스크(관광지, 숙소, 맛집) 결과를 활용
             expected_output="JSON 형식의 여행 일정 데이터",  # ✅ CrewAI가 JSON 형식으로 반환하도록 설정
-            output_json=True,  # ✅ CrewAI가 JSON 데이터로 반환
+            # output_json=True,  # ✅ CrewAI가 JSON 데이터로 반환
+        )
+
+        image_task = Task(
+            description=f"""
+            [이미지 삽입]
+            - CrewAI가 생성한 여행 일정 JSON에서 각 장소의 `kor_name`을 기반으로 이미지를 검색.
+            - 검색된 이미지를 `image_url` 필드에 추가.
+            - JSON 형식으로 업데이트된 일정 반환.
+            """,
+            agent=image_agent,
+            context=[planning_task],  # ✅ 여행 일정 생성 이후 실행
+            expected_output="이미지가 추가된 최종 여행 일정 JSON",
+            # output_json=True,
         )
 
         # 3️⃣ Crew 실행 (🚨 `await` 사용 금지)
@@ -286,15 +286,16 @@ def create_plan(user_input):
                 "end_date": user_input["end_date"],
                 "main_location": location,
                 "ages": user_input.get("ages", 0),
-                "companion_count": sum(user_input.get("companions", {}).values()),
+                "companion_count": sum(
+                    companion.get("count", 0)
+                    for companion in user_input.get("companions", [])
+                ),
                 "concepts": ", ".join(user_input.get("concepts", [])),
                 "member_id": user_input.get("member_id", 0),
                 "created_at": datetime.now().strftime("%Y-%m-%d"),
                 "updated_at": datetime.now().strftime("%Y-%m-%d"),
             },
-            "spots": final_result.get(
-                "spots", []
-            ),  # ✅ CrewAI 실행 결과의 spots 리스트 활용 (이미지 포함)
+            "spots": final_result.spots if hasattr(final_result, "spots") else [],
         }
 
         return response_json
