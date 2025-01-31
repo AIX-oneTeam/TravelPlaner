@@ -276,8 +276,7 @@ def create_plan(user_input):
       
 
         # 4️⃣ Crew 결과를 JSON 형식으로 변환 (plan + spots)
-        response_json = {
-            "message": "요청이 성공적으로 처리되었습니다.",
+        return {
             "plan": {
                 "name": user_input.get("name", "여행 일정"),
                 "start_date": user_input["start_date"],
@@ -290,12 +289,10 @@ def create_plan(user_input):
                 "created_at": datetime.now().strftime("%Y-%m-%d"),
                 "updated_at": datetime.now().strftime("%Y-%m-%d")
             },
-            "spots": final_result.get("spots", [])  # ✅ CrewAI 실행 결과의 spots 리스트 활용 (이미지 포함)
+            "spots": final_result.get("spots", [])  # ✅ CrewAI 실행 결과에서 `spots` 추출
         }
-
-        return response_json
 
     except Exception as e:
         print(f"[ERROR] {e}")
         traceback.print_exc()
-        return {"message": "요청 처리 중 오류가 발생했습니다.", "error": str(e)}
+        return {"error": str(e)}
