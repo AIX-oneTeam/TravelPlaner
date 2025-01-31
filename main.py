@@ -15,6 +15,7 @@ from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
 from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
+from app.routers.plan_router import router as generator_router 
 
 import os
 from dotenv import load_dotenv
@@ -128,6 +129,8 @@ app.include_router(plan_router, prefix="/plans", tags=["plans"])
 app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
+app.include_router(generator_router, prefix="/generator", tags=["Generator"])  # 테스트 라우터 등록
+
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()
