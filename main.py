@@ -15,7 +15,7 @@ from app.routers.oauths.kakao_oauth_router import router as kakao_oauth_router
 from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
 from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
-from app.routers.agents.travel_schedule_agent_router import router as agent_router
+from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 
 import os
 from dotenv import load_dotenv
