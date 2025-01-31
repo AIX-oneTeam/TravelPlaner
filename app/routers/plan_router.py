@@ -12,8 +12,22 @@ def generate_plan(user_input: Dict):
     """
 
     try:
-        result = create_plan(user_input)  # ✅ `await` 없이 호출
-        return {"status": "success", "message": "일정과 장소 리스트가 생성되었습니다.", "data": result}
+        result = create_plan(user_input)  # ✅ CrewAI 실행 후 결과 받기
+
+        # ✅ 실행 결과 검증
+        if not isinstance(result, dict) or "plan" not in result or "spots" not in result:
+            raise ValueError("CrewAI 실행 결과가 올바른 JSON 형식이 아닙니다.")
+
+        # ✅ 라우터에서 `response_json` 조립
+        response_json = {
+            "status": "success",
+            "message": "일정과 장소 리스트가 생성되었습니다.",
+            "plan": result["plan"],
+            
+            "spots": result["spots"]
+        }
+
+        return response_json  # ✅ 최종 JSON 응답 반환
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))  # 🔹 예외 발생 시 처리
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")  # 🔹 예외 발생 시 처리
