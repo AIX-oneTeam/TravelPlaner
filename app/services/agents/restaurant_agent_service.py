@@ -179,6 +179,10 @@ class FinalRecommendationTool(BaseTool):
     )
 
     def _run(self, filtered_list: str) -> str:
+        # filtered_list가 리스트라면 문자열로 변환합니다.
+        if isinstance(filtered_list, list):
+            filtered_list = json.dumps(filtered_list, ensure_ascii=False)
+
         system_prompt = """당신은 여행객들을 위한 맛집 추천 전문가이자, JSON 생성기입니다.
 절대로 JSON 형식 이외의 텍스트를 출력하지 마세요. 
 특히 "안녕하세요", "추천 리스트는 다음과 같습니다" 같은 문구는 절대 넣지 말고, 
@@ -232,7 +236,6 @@ class FinalRecommendationTool(BaseTool):
         prompt = f"{system_prompt}\n\n맛집 후보 리스트:\n{filtered_list}"
         # 실제로는 LLM 호출을 통해 결과를 받아야 하지만, 여기서는 프롬프트를 반환 예시로 사용
         return prompt.strip()
-
 
 # 최종 추천 생성 에이전트 생성
 final_recommendation_agent = Agent(
