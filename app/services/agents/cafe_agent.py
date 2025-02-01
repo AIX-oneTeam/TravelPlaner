@@ -1,81 +1,81 @@
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.chat_models import ChatOpenAI
-from langchain.agents import initialize_agent, Tool
-from googleapiclient.discovery import build
+# from langchain.prompts import PromptTemplate
+# from langchain.chains import LLMChain
+# from langchain.chat_models import ChatOpenAI
+# from langchain.agents import initialize_agent, Tool
+# from googleapiclient.discovery import build
 from dotenv import load_dotenv
 import os
 
-# .env 파일 로드
+# # .env 파일 로드
 load_dotenv()
 
-# 환경 변수에서 API 키 가져오기
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GOOGLE_CUSTOM_SEARCH_ENGINE_ID=os.getenv("GOOGLE_CUSTOM_SEARCH_ENGINE_ID")
-GOOGLE_SEARCH_API_KEY=os.getenv("GOOGLE_SEARCH_API_KEY")
-NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
-NAVER_SECRET_ID = os.getenv("NAVER_SECRET_ID")
+# # 환경 변수에서 API 키 가져오기
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# GOOGLE_CUSTOM_SEARCH_ENGINE_ID=os.getenv("GOOGLE_CUSTOM_SEARCH_ENGINE_ID")
+# GOOGLE_SEARCH_API_KEY=os.getenv("GOOGLE_SEARCH_API_KEY")
+NAVER_PLACE_ID = os.getenv("NAVER_PLACE_ID")
+NAVER_PLACE_SECRET = os.getenv("NAVER_PLACE_SECRET")
 
-# Google Search Tool
-def google_search(query: str, num_results: int = 5) -> str:
-    service = build("customsearch", "v1", developerKey=GOOGLE_SEARCH_API_KEY)
-    results = service.cse().list(q=query, cx=GOOGLE_CUSTOM_SEARCH_ENGINE_ID, num=num_results).execute()
-    output = []
-    for item in results.get("items", []):
-        output.append(f"Title: {item['title']}\nLink: {item['link']}\nSnippet: {item['snippet']}\n")
-    return "\n".join(output)
+# # Google Search Tool
+# def google_search(query: str, num_results: int = 5) -> str:
+#     service = build("customsearch", "v1", developerKey=GOOGLE_SEARCH_API_KEY)
+#     results = service.cse().list(q=query, cx=GOOGLE_CUSTOM_SEARCH_ENGINE_ID, num=num_results).execute()
+#     output = []
+#     for item in results.get("items", []):
+#         output.append(f"Title: {item['title']}\nLink: {item['link']}\nSnippet: {item['snippet']}\n")
+#     return "\n".join(output)
 
-# Define the user request
-user_request = """
-지역: 인천
-일정: 2박 3일
-나이: 30대
-일행: 성인 2명, 반려견 1명
-목적: 힐링 여행
-타입: 반려견 동반 가능, 디저트 카페, 로스터리 카페
-"""
+# # Define the user request
+# user_request = """
+# 지역: 인천
+# 일정: 2박 3일
+# 나이: 30대
+# 일행: 성인 2명, 반려견 1명
+# 목적: 힐링 여행
+# 타입: 반려견 동반 가능, 디저트 카페, 로스터리 카페
+# """
 
-# Create a prompt template for generating a search query
-prompt_template = PromptTemplate(
-    input_variables=["request"],
-    template="""
-Generate a search query to find 5 cafes that match the following travel preferences:
+# # Create a prompt template for generating a search query
+# prompt_template = PromptTemplate(
+#     input_variables=["request"],
+#     template="""
+# Generate a search query to find 5 cafes that match the following travel preferences:
 
-{request}
+# {request}
 
-Each cafe should have a short description, including its location, amenities, and why it's a good fit for the criteria.
-"""
-)
+# Each cafe should have a short description, including its location, amenities, and why it's a good fit for the criteria.
+# """
+# )
 
-# Initialize the LLM (e.g., OpenAI's GPT model)
-llm = ChatOpenAI(temperature=0, model="gpt-4")
+# # Initialize the LLM (e.g., OpenAI's GPT model)
+# llm = ChatOpenAI(temperature=0, model="gpt-4")
 
-# Create the chain to generate a search query
-query_chain = LLMChain(llm=llm, prompt=prompt_template)
+# # Create the chain to generate a search query
+# query_chain = LLMChain(llm=llm, prompt=prompt_template)
 
-# Generate the search query
-search_query = query_chain.run(user_request)
+# # Generate the search query
+# search_query = query_chain.run(user_request)
 
-# Wrap the search function as a tool
-tools = [
-    Tool(
-        name="GoogleSearch",
-        func=lambda q: google_search(q),
-        description="Search for cafes and their details on the web using Google."
-    )
-]
+# # Wrap the search function as a tool
+# tools = [
+#     Tool(
+#         name="GoogleSearch",
+#         func=lambda q: google_search(q),
+#         description="Search for cafes and their details on the web using Google."
+#     )
+# ]
 
-# Initialize an agent with the tools
-agent = initialize_agent(
-    tools, llm, agent="zero-shot-react-description", verbose=True
-)
+# # Initialize an agent with the tools
+# agent = initialize_agent(
+#     tools, llm, agent="zero-shot-react-description", verbose=True
+# )
 
-# Execute the search using the agent
-result = agent.run(search_query)
+# # Execute the search using the agent
+# result = agent.run(search_query)
 
-# Display the result
-print("\n--- Search Results ---\n")
-print(result)
+# # Display the result
+# print("\n--- Search Results ---\n")
+# print(result)
 
 
 # 결과
@@ -112,12 +112,12 @@ print(result)
 ########################## AI 툴로 쓰려고 했는데 네이버 API호출이 안됨
 import requests
 
-def search_cafe(query, display=10, start=1, sort="random"):
-    url = "https://openapi.naver.com/v1/search/local.json"
+def search_cafe(query, display=1, start=1, sort="random"):
+    import requests
+    search_url = "https://openapi.naver.com/v1/search/local.json"
     headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_SECRET_ID,
-        "Referer": "http://localhost:8000" 
+        "X-Naver-Client-Id": NAVER_PLACE_ID,
+        "X-Naver-Client-Secret": NAVER_PLACE_SECRET,
     }
 
     params = {
@@ -127,16 +127,22 @@ def search_cafe(query, display=10, start=1, sort="random"):
         "sort": sort,
     }
 
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(search_url, headers=headers, params=params)
 
     if response.status_code == 200:
+        result = response.json()
+        cafe = result.get("items",[])
+        address = cafe[0]['roadAddress']
+        url = cafe[0]['link']
+
+        cafe[0]['title']
         return response.json()
     else:
         print("Error:", response.status_code, response.text)
         return None
     
 # 사용 예시
-result = search_cafe("카페")
+result = search_cafe("인천 카페")
 if result:
     for item in result.get("items", []):
         print(f"카페 이름: {item['title']}, 주소: {item['address']}")

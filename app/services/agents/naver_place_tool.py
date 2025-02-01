@@ -34,8 +34,8 @@ def naver_place_tool(query, pet_friendly=False, parking=True):
     네이버 지도에서 특정 조건(애견 동반 가능, 주차 가능 등)에 맞는 카페 정보를 검색하는 도구.
 
     1. 사용법:
-    - `query` (str): 검색할 키워드, 지역+카페 또는 지역명+특징+카페 (예: 인천 오션뷰 카페), 3단어 이내로 검색
-    - `pet_friendly` (bool): 애견 동반 가능 필터 적용 (기본값: False)
+    - `query` pet_fri(str): 검색할 키워드, 지역+카페 또는 지역명+특징+카페 (예: 인천 오션뷰 카페), 3단어 이내로 검색
+    - `endly` (bool): 애견 동반 가능 필터 적용 (기본값: False)
     - `parking` (bool): 주차 가능 필터 적용 (기본값: True)
 
     2. 반환값:
