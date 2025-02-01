@@ -1,6 +1,7 @@
 import traceback
 import os
 import requests
+import json
 from crewai import Agent, Task, Crew, LLM
 from datetime import datetime
 from dotenv import load_dotenv
@@ -23,6 +24,12 @@ class TravelPlan(BaseModel):
     end_date: str
     companion_count: int
     concepts: List[str]
+
+
+# 추가: RestaurantSearchTool용 인자 스키마
+class RestaurantSearchArgs(BaseModel):
+    location: str
+    coordinates: str
 
 
 # -------------------------------------------------------------------
@@ -67,9 +74,8 @@ class RestaurantSearchTool(BaseTool):
     description: str = (
         "주어진 좌표 정보를 바탕으로 serpAPI의 구글맵 API를 호출해 맛집 후보 리스트를 최대 40개(20개씩 2회) 조회합니다."
     )
-    args_schema: Type[BaseModel] = (
-        TravelPlan  # 참고용; 실제 호출 시 별도 파라미터로 처리
-    )
+    # 수정: TravelPlan 대신 RestaurantSearchArgs 사용
+    args_schema: Type[BaseModel] = RestaurantSearchArgs
 
     def __init__(self, serpapi_key: str, google_maps_api_key: str):
         super().__init__()
