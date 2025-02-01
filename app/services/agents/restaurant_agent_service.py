@@ -237,6 +237,7 @@ class FinalRecommendationTool(BaseTool):
         # 실제로는 LLM 호출을 통해 결과를 받아야 하지만, 여기서는 프롬프트를 반환 예시로 사용
         return prompt.strip()
 
+
 # 최종 추천 생성 에이전트 생성
 final_recommendation_agent = Agent(
     role="최종 추천 에이전트",
