@@ -12,14 +12,14 @@ class Companion(BaseModel):
 
 
 class TravelPlanRequest(BaseModel):
-    ageGroup: str
-    companions: List[
+    ages: str
+    companion_count: List[
         Companion
     ]
     start_date: str
     end_date: str
     concepts: List[str]
-    location: str
+    main_location: str
 
 @router.post("/plan")
 async def generate_plan(user_input: TravelPlanRequest):
