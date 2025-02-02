@@ -17,6 +17,7 @@ from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 
+
 import os
 from dotenv import load_dotenv
 
@@ -130,6 +131,7 @@ app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
 app.include_router(agent_router, prefix="/agents", tags=["agents"])
+
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()
