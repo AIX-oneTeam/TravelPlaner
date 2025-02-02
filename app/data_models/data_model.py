@@ -61,7 +61,7 @@ class Plan(SQLModel, table=True):
     end_date: Optional[datetime] = None
     main_location: Optional[str] = Field(default=None, max_length=50)
     ages: Optional[int] = None
-    companion_count: Optional[int] = None
+    companion_count: Optional[str] = None
     concepts: Optional[str] = Field(default=None, max_length=255)
     member_id: int = Field(foreign_key="member.id")
     created_at: Optional[datetime] = None
