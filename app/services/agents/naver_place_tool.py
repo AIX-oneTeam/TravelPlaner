@@ -29,7 +29,7 @@ def safe_find_element(driver, by, value, timeout=1, attr="text", default="정보
         return default  # 요소가 없을 경우 기본값 반환
     
 @tool("naver_place_tool")    
-def naver_place_tool(query, pet_friendly=False, parking=True):
+def naver_place_tool(location, pet_friendly=False, parking=True):
     """
     네이버 지도에서 특정 조건(애견 동반 가능, 주차 가능 등)에 맞는 카페 정보를 검색하는 도구.
 
@@ -41,6 +41,7 @@ def naver_place_tool(query, pet_friendly=False, parking=True):
     2. 반환값:
     - JSON 형식의 카페 정보, 리뷰 및 이미지 리스트.
     """
+    query = f"{location} 카페"
     cafe_info ={}
     # 크롬 드라이버 설정
     options = webdriver.ChromeOptions()

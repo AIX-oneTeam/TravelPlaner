@@ -64,23 +64,17 @@ research_task = Task(
         각 카페의 주요 특징: 3가지 주요 강점, 3가지 시그니처 메뉴, 3가지 분위기 특징을 자료 조사한 결과에 추가
     """,
     agent=researcher,
-    tools=[naver_place_tool],
-    inputs={
-        "query": f"{user_input['location']} 카페",
-        "pet_friendly": user_input['pet_friendly'],
-        "parking": user_input['parking']
-    }
+    tools=[naver_place_tool]
 )
 
 ranker_task = Task(
-    description=f"""
+    description="""
     다음 여행 정보를 분석하고, 고객의 선호도와 제약 사항을 파악하세요.
-    - location: {user_input['location']}
-    - age : {user_input['age']}
-    - companions : 성인 {user_input['companions']["adults"]}명, 아기{user_input['companions']["baby"]}명
-    - concepts: {", ".join(user_input['concepts'])}
-    - parking : {user_input['parking']}
-    - pet_friendly : {user_input['pet_friendly']}
+    - 여행 지역: {location}
+    - 주 연령대 : {age}
+    - 여행 컨셉: {concepts}
+    - 주차 가능 여부 : {parking}
+    - 애견 동반 가능 여부 : {pet_friendly}
 
     1. analyst가 제공한 데이터를 기반으로 사용자의 상황에 맞게 순위를 매김.
     2. 우선순위 조건(예: 분위기, 주차 가능 여부, 메뉴)을 반영해 카페 3곳 선정.
@@ -89,8 +83,7 @@ ranker_task = Task(
     expected_output="""
         선정 이유와 함께 순위가 매겨진 3개의 카페 정보를 반환
     """,
-    agent=ranker,
-    inputs={"analyzed_data": research_task.output}
+    agent=ranker
 )
 
 
