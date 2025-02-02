@@ -127,7 +127,7 @@ def create_plan(user_input):
     """
     try:
         # location = user_input["location"]
-        location = user_input.get("location", "Unknown Location")
+        main_location = user_input.get("main_location", "Unknown Location")
         trip_days = calculate_trip_days(
             user_input["start_date"], user_input["end_date"]
         )
@@ -200,7 +200,7 @@ def create_plan(user_input):
         site_task = Task(
             description=f"""
             [관광지 정보 조사]
-            - '{location}' 인근 관광지 최소 5곳 조사.
+            - '{main_location}' 인근 관광지 최소 5곳 조사.
             - 주소, 운영시간, 입장료, 특징, 추천 이유, 반려동물 동반 가능 여부 포함.
             """,
             agent=site_agent,
@@ -211,7 +211,7 @@ def create_plan(user_input):
         cafe_task = Task(
             description=f"""
             [맛집 및 카페 조사]
-            - '{location}' 인근 맛집 5곳 이상, 카페 3곳 이상 조사.
+            - '{main_location}' 인근 맛집 5곳 이상, 카페 3곳 이상 조사.
             - 주소, 영업시간, 대표 메뉴, 예약 가능 여부, 반려동물 동반 가능 여부 포함.
             """,
             agent=cafe_agent,
@@ -223,7 +223,7 @@ def create_plan(user_input):
         accommodation_task = Task(
             description=f"""
             [숙소 조사]
-            - '{location}' 인근 숙소 5곳 이상 조사.
+            - '{main_location}' 인근 숙소 5곳 이상 조사.
             - 주소, 객실 정보, 주요 시설, 체크인/체크아웃 시간, 반려동물 가능 여부, 주차 가능 여부 포함.
             """,
             agent=accommodation_agent,
@@ -263,6 +263,8 @@ def create_plan(user_input):
                 "spot_time": "2025-06-01T06:27:43.593Z"
             }}
             - 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정.
+            - day_x는 반드시 1부터 시작하여 증가하는 숫자이며, 여행 기간의 각각의 날짜를 의미함.
+            - order는 반드시 0부터 시작하여 증가하는 숫자이며, 각 날짜 내에서 장소의 순서를 의미함.
             - 각 장소는 spot_category 필드로 관광지, 맛집, 카페, 숙소를 구분, 0은 숙소, 1은 관광지, 2는 카페, 3은 맛집임. 
             - spot_time 형식은 '%H:%M:%S' 형식의 문자열로 변환
             """,
@@ -315,7 +317,7 @@ def create_plan(user_input):
                 "name": user_input.get("name", "여행 일정"),
                 "start_date": user_input["start_date"],
                 "end_date": user_input["end_date"],
-                "main_location": location,
+                "main_location": main_location,
                 "ages": user_input.get("ages", 0),
                 "companion_count": sum(
                     companion.get("count", 0)
