@@ -1,10 +1,36 @@
+import json
 import traceback
 import os
 import requests
 from crewai import Agent, Task, Crew, LLM
-from datetime import datetime
+from datetime import datetime, time
 from dotenv import load_dotenv
 from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
+
+class spot_pydantic(BaseModel):
+
+    kor_name: str = Field(max_length=255)
+    eng_name: str = Field(default=None, max_length=255)
+    description: str = Field(max_length=255)
+    address: str = Field(max_length=255)
+    zip: str = Field(max_length=10)
+    url: str  = Field(default=None, max_length=2083)
+    image_url: str = Field(max_length=2083)
+    map_url: str = Field(max_length=2083)
+    likes: int = None
+    satisfaction: float = None
+    spot_category: int
+    phone_number: str = Field(default=None, max_length=300)
+    business_status: bool = None
+    business_hours: str = Field(default=None, max_length=255)
+
+    order: int
+    day_x: int
+    spot_time: str = None
+class spots_pydantic(BaseModel):
+    spots: list[spot_pydantic]
+
 
 # 🔹 환경 변수 로드
 load_dotenv()
@@ -14,8 +40,6 @@ AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
 # 🔹 LLM 설정 (객체 호출 X)
 llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
-
-
 class NaverWebSearchTool(BaseTool):
     """네이버 웹 검색 API를 사용해 텍스트 정보를 검색"""
     name: str = "NaverWebSearch"
@@ -217,8 +241,8 @@ def create_plan(user_input):
                 - 카페 2곳
                 - 관광지 3곳
                 - 숙소 1곳
-            - JSON 형식으로 일정 반환.
-            - 각 장소(spots)의 필드는 다음과 같음:
+            - 모든 장소는 기간 구분 없이 모두 spots 이라는 단일 리스트에 포함.
+            - 각 장소는 spot이라는 이름을 가지며, 필드는 다음과 같음:
             {{
                 "kor_name": "string",
                 "eng_name": "string",
@@ -232,12 +256,15 @@ def create_plan(user_input):
                 "satisfaction": 0,
                 "spot_category": 0,
                 "phone_number": "string",
-                "business_status": true,
+                "business_status":True,
                 "business_hours": "string",
                 "order": 0,
                 "day_x": 0,
                 "spot_time": "2025-06-01T06:27:43.593Z"
             }}
+            - 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정.
+            - 각 장소는 spot_category 필드로 관광지, 맛집, 카페, 숙소를 구분, 0은 숙소, 1은 관광지, 2는 카페, 3은 맛집임. 
+            - spot_time 형식은 '%H:%M:%S' 형식의 문자열로 변환
             """,
             agent=planning_agent,
             context=[
@@ -245,21 +272,22 @@ def create_plan(user_input):
                 cafe_task,
                 accommodation_task,
             ],  # ✅ 기존 태스크(관광지, 숙소, 맛집) 결과를 활용
-            expected_output="JSON 형식의 여행 일정 데이터",  # ✅ CrewAI가 JSON 형식으로 반환하도록 설정
-            # output_json=True,  # ✅ CrewAI가 JSON 데이터로 반환
+            expected_output="pydantic 형식의 여행 일정 데이터",  
+            output_pydantic=spots_pydantic,  
         )
 
         image_task = Task(
             description=f"""
             [이미지 삽입]
-            - CrewAI가 생성한 여행 일정 JSON에서 각 장소의 `kor_name`을 기반으로 이미지를 검색.
+            - CrewAI가 생성한 여행 일정 pydantic 형식에서 각 장소의 `kor_name`을 기반으로 이미지를 검색.
             - 검색된 이미지를 `image_url` 필드에 추가.
-            - JSON 형식으로 업데이트된 일정 반환.
+            - 각 필드를 spot_request 형식으로 변환.
+            - 모든 장소는 기간 구분 없이 spots라는 단일 리스트에 포함.
             """,
             agent=image_agent,
             context=[planning_task],  # ✅ 여행 일정 생성 이후 실행
-            expected_output="이미지가 추가된 최종 여행 일정 JSON",
-            # output_json=True,
+            expected_output="pydantic 형식의 여행 일정 데이터",
+            output_pydantic=spots_pydantic,
         )
 
         # 3️⃣ Crew 실행 (🚨 `await` 사용 금지)
@@ -276,8 +304,11 @@ def create_plan(user_input):
         )
 
         final_result = crew.kickoff()
+        print("final_result", final_result)
+        print("image_task.output", image_task.output)
 
-        # 4️⃣ Crew 결과를 JSON 형식으로 변환 (plan + spots)
+
+        # 4️⃣ Crew 결과를 dict 형식으로 변환
         response_json = {
             "message": "요청이 성공적으로 처리되었습니다.",
             "plan": {
@@ -295,8 +326,10 @@ def create_plan(user_input):
                 "created_at": datetime.now().strftime("%Y-%m-%d"),
                 "updated_at": datetime.now().strftime("%Y-%m-%d"),
             },
-            "spots": final_result.spots if hasattr(final_result, "spots") else [],
+            "spots": image_task.output.pydantic.model_dump()
         }
+
+
 
         return response_json
 

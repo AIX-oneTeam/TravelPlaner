@@ -30,7 +30,7 @@ async def generate_plan(user_input: TravelPlanRequest):
     try:
         print("프론트에서 받은 데이터:", user_input)  # 요청 데이터 출력
         print("Python dict 변환:", user_input.model_dump())  # dict로 변환 후 출력
-        result = await create_plan(user_input.model_dump())
+        result = create_plan(user_input.model_dump())
         return {
             "status": "success",
             "message": "일정과 장소 리스트가 생성되었습니다.",
