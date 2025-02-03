@@ -153,118 +153,104 @@ restaurant_filter_agent = Agent(
 )
 
 
-# -------------------------------------------------------------------
-# [새로운 단계] 5. 식당 세부 정보 조회 툴 (Batch 방식)
-# 새로운 Tool은 필터링된 후보들의 place_id 리스트를 받아, 각 식당에 대해 구글 플레이스 API(신규)를 호출합니다.
-class BatchRestaurantDetailTool(BaseTool):
-    name: str = "BatchRestaurantDetailTool"
+# [기존 Google Places API 사용] 5. 식당 세부 정보 조회 툴
+class RestaurantDetailTool(BaseTool):
+    name: str = "RestaurantDetailTool"
     description: str = (
-        "필터링된 식당 후보들의 place_id 리스트를 받아, 구글 플레이스 API(신규)를 통해 연락처, 영업시간, 가격대, 웹사이트, 사진, "
-        "분류/타입, 비즈니스 상태 등의 세부 정보를 조회하여, 각 place_id별 정보를 반환합니다."
+        "식당의 place_id를 이용해 기존 Google Places API를 통해 연락처, 영업시간, 가격대, 웹사이트, 사진, 분류/타입, 비즈니스 상태 등 세부 정보를 조회합니다."
     )
 
-    def _run(self, place_ids: List[str]) -> Dict:
-        details_map = {}
-        fields = "addressComponents,opening_hours,price_level,website,international_phone_number,photos,types,business_status"
-        base_url = "https://places.googleapis.com/v1/places/"
-        for pid in place_ids:
-            url = f"{base_url}{pid}"
-            params = {"fields": fields, "key": GOOGLE_MAP_API_KEY}
-            try:
-                response = requests.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
-                result = data.get("result", {})
-                details = {
-                    "address": " ".join(
-                        [
-                            comp.get("long_name", "")
-                            for comp in result.get("addressComponents", [])
-                        ]
-                    ),
-                    "opening_hours": result.get("opening_hours", {}).get(
-                        "weekday_text", []
-                    ),
-                    "price_level": result.get("price_level", None),
-                    "website": result.get("website", ""),
-                    "phone_number": result.get("international_phone_number", ""),
-                    "types": result.get("types", []),
-                    "business_status": result.get("business_status", ""),
-                    "image_url": "",  # 필요시 사진 처리 로직 추가
-                }
-            except Exception as e:
-                details = {"error": str(e)}
-            details_map[pid] = details
-        return details_map
+    def _run(self, place_id: str) -> Dict:
+        url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            "placeid": place_id,
+            "key": GOOGLE_MAP_API_KEY,
+            "fields": "formatted_address,opening_hours,price_level,website,formatted_phone_number,types,business_status,photos",
+        }
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            result = data.get("result", {})
+
+            # 이미지 URL 가져오기 (최대 1장)
+            photos = result.get("photos", [])
+            image_url = ""
+            if photos:
+                photo_reference = photos[0].get("photo_reference", "")
+                if photo_reference:
+                    image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_reference}&key={GOOGLE_MAP_API_KEY}"
+
+            details = {
+                "address": result.get("formatted_address", ""),
+                "opening_hours": result.get("opening_hours", {}).get(
+                    "weekday_text", []
+                ),
+                "price_level": result.get("price_level", None),
+                "website": result.get("website", ""),
+                "phone_number": result.get("formatted_phone_number", ""),
+                "types": result.get("types", []),
+                "business_status": result.get("business_status", ""),
+                "image_url": image_url,
+            }
+        except Exception as e:
+            details = {"error": str(e)}
+        return details
 
 
-batch_detail_agent = Agent(
+restaurant_detail_agent = Agent(
     role="맛집 세부 정보 전문가",
-    goal="필터링된 식당 후보들의 place_id를 받아, 구글 플레이스 API(신규)를 통해 세부 정보를 조회한다.",
-    backstory=""" 
+    goal="필터링된 식당의 place_id를 활용하여 기존 Google Places API를 통해 추가 세부 정보를 조회한다.",
+    backstory="""
     나는 식당 세부 정보를 전문적으로 수집하는 전문가입니다.
-    구글 플레이스 API(신규)를 사용하여 주소, 영업시간, 가격대, 웹사이트, 사진, 분류/타입, 비즈니스 상태 등의 정보를 조회합니다.
+    기존 Google Places API를 사용하여 주소, 영업시간, 가격대, 웹사이트, 사진, 분류/타입, 비즈니스 상태 등의 정보를 조회합니다.
     """,
-    tools=[BatchRestaurantDetailTool()],
+    tools=[RestaurantDetailTool()],
     llm=llm,
     verbose=True,
 )
 
 
-# 여기까지가 Part 1/2
 # -------------------------------------------------------------------
-# 6. 최종 추천 생성 툴 (세부 정보와 추가 정보를 포함하여 최종 추천 리스트 구성)
+# 6. 최종 추천 생성 툴
 class FinalRecommendationTool(BaseTool):
     name: str = "FinalRecommendationTool"
     description: str = (
-        "필터링된 맛집 후보와 각 식당의 세부 정보를 바탕으로, 사용자 여행 일정 데이터를 고려하여 최종 맛집 추천 리스트를 "
-        "엄격한 JSON 형식으로 생성합니다. 각 장소는 day_x와 order 필드를 포함해야 하며, "
-        "day_x는 1부터 시작하여 여행 기간의 각 날짜를, order는 0부터 시작하여 각 날짜 내 순서를 나타냅니다."
+        "필터링된 맛집 후보와 각 식당의 세부 정보를 바탕으로, 사용자 여행 일정 데이터를 고려하여 최종 맛집 추천 리스트를 생성합니다."
     )
 
     def _run(self, inputs: Dict) -> Dict:
-        """
-        inputs 예시:
-        {
-            "filtered_list": [...],  # 기본 정보만 있는 후보 리스트
-            "details_map": {         # 각 식당의 place_id를 key로 세부 정보가 담긴 dict
-                "place_id1": { ... },
-                "place_id2": { ... },
-                ...
-            },
-            "travel_plan": { ... }   # 사용자 여행 일정 데이터
-        }
-        """
         filtered_list = inputs.get("filtered_list", [])
         details_map = inputs.get("details_map", {})
         travel_plan = inputs.get("travel_plan", {})
 
         final_spots = []
-        # 예: 최종 추천 대상은 필터링된 후보 중 상위 6개
         for idx, restaurant in enumerate(filtered_list[:6]):
             pid = restaurant.get("place_id", "")
             detail = details_map.get(pid, {})
             final_spots.append(
                 {
-                    "kor_name": restaurant.get("title", ""),
-                    "eng_name": "",  # 필요 시 추가
+                    "kor_name": restaurant.get("name", "이름 없음"),
+                    "eng_name": "",
                     "description": detail.get("description", "")
                     or f"Rating: {restaurant.get('rating', 0)}, Reviews: {restaurant.get('reviews', 0)}",
-                    "address": detail.get("address", ""),
-                    "zip": "",  # 별도 처리 필요
-                    "url": detail.get("website", ""),
-                    "image_url": detail.get("image_url", ""),
-                    "map_url": "",  # 필요시 지도 링크 생성 로직 추가
+                    "address": detail.get("address", "주소 없음"),
+                    "zip": "",
+                    "url": detail.get("website", "웹사이트 없음"),
+                    "image_url": detail.get("image_url", "이미지 없음"),
+                    "map_url": "",
                     "rating": restaurant.get("rating", 0),
                     "reviews": restaurant.get("reviews", 0),
                     "satisfaction": 0,
-                    "spot_category": 3,  # 맛집
-                    "phone_number": detail.get("phone_number", ""),
-                    "business_status": detail.get("business_status", True),
-                    "business_hours": detail.get("opening_hours", []),
+                    "spot_category": 3,
+                    "phone_number": detail.get("phone_number", "전화번호 없음"),
+                    "business_status": detail.get("business_status", "알 수 없음"),
+                    "business_hours": detail.get(
+                        "opening_hours", ["영업시간 정보 없음"]
+                    ),
                     "order": (idx % 3) + 1,
                     "day_x": 1 if idx < 3 else 2,
-                    "spot_time": ("2025-02-01" if idx < 3 else "2025-02-02"),
+                    "spot_time": "2025-02-01" if idx < 3 else "2025-02-02",
                 }
             )
         return {"Spots": final_spots}
@@ -273,9 +259,8 @@ class FinalRecommendationTool(BaseTool):
 final_recommendation_agent = Agent(
     role="최종 추천 에이전트",
     goal="필터링된 맛집 후보와 세부 정보를 결합하여 최종 추천 맛집 리스트를 생성한다.",
-    backstory=""" 
+    backstory="""
     나는 데이터 구조화 전문가로, 후보 식당의 기본 정보와 세부 정보를 종합하여 사용자 여행 일정과 선호도를 반영한 최종 맛집 추천 리스트를 구성한다.
-    각 장소는 day_x와 order 필드를 포함해야 하며, day_x는 1부터 시작하여 각 날짜를, order는 0부터 시작하여 각 날짜 내 순서를 나타낸다.
     """,
     tools=[FinalRecommendationTool()],
     llm=llm,
@@ -309,7 +294,7 @@ def create_recommendation(input_data: dict) -> dict:
             ),
             Task(
                 description="세부 정보 조회",
-                agent=batch_detail_agent,
+                agent=restaurant_detail_agent,
                 expected_output="각 후보 식당의 세부 정보(연락처, 영업시간, 가격대, 웹사이트, 사진, 분류/타입, 비즈니스 상태)를 포함하는 details_map",
             ),
             Task(
@@ -328,7 +313,7 @@ def create_recommendation(input_data: dict) -> dict:
                 geocoding_agent,
                 restaurant_basic_search_agent,
                 restaurant_filter_agent,
-                batch_detail_agent,
+                restaurant_detail_agent,
                 final_recommendation_agent,
             ],
             tasks=tasks,
@@ -349,7 +334,7 @@ def create_recommendation(input_data: dict) -> dict:
         place_ids = [
             r.get("place_id", "") for r in filtered_result if r.get("place_id", "")
         ]
-        details_map = batch_detail_agent.tools[0]._run(place_ids)
+        details_map = restaurant_detail_agent.tools[0]._run(place_ids)
         final_input = {
             "filtered_list": filtered_result,
             "details_map": details_map,
