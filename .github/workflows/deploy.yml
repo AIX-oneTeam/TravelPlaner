@@ -97,13 +97,13 @@ jobs:
 
             echo "AWS SSM에서 환경 변수를 가져와 .env 파일 생성 중입니다..."
             aws ssm describe-parameters \
-              --query "Parameters[*].Name" \
-              --region ap-northeast-2 \
-              --output text | while read -r param_name; do
-              value=$(aws ssm get-parameter --name "$param_name" --with-decryption --region ap-northeast-2 --query "Parameter.Value" --output text)
-              echo "${param_name##*/}=$value" >> .env
+              --path "/backend/" \
+              --with-decryption \
+              --region ${{ secrets.AWS_REGION }} \
+              --query "Parameters[*].[Name,Value]" \
+              --output text | while read -r name value; do
+              echo "${name##*/}=$value" >> .env
             done
-
 
 
             echo "새 컨테이너를 시작합니다..."
