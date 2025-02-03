@@ -30,7 +30,7 @@ async def naver_callback(code: str, state: str, response: Response, session: Ses
             key="access_token",
             value=access_token,
             httponly=True,  # 브라우저에서 접근 불가능하도록 설정
-            secure=False,    # HTTPS를 통해서만 전송되도록 설정 (로컬 테스트 중에는 False로 변경 가능)
+            secure=True,    # HTTPS를 통해서만 전송되도록 설정 (로컬 테스트 중에는 False로 변경 가능)
             samesite="None", # 쿠키 정책 설정
         )
 
@@ -38,7 +38,7 @@ async def naver_callback(code: str, state: str, response: Response, session: Ses
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=False,
+            secure=True,
             samesite="None",
         )
 
