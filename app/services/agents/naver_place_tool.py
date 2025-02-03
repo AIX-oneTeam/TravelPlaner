@@ -10,6 +10,9 @@ from selenium.common.exceptions import TimeoutException
 
 from crewai.tools import tool
 
+  
+    
+
 def safe_find_element(driver, by, value, timeout=1, attr="text", default="정보 없음"):
     """
     요소를 안전하게 찾고 값이 없을 경우 기본값 반환
