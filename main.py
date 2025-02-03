@@ -30,7 +30,7 @@ app = FastAPI(lifespan=lifespan)
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 모든 출처 허용
+    allow_origins=["http://52.79.251.234:3000", "http://localhost:3000"],  # 모든 출처 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,10 +42,9 @@ PUBLIC_PATHS = {
     "/docs",  # Swagger UI
     "/openapi.json",  # OpenAPI 스키마
     "/oauths/google/callback",  # 구글 OAuth
-    "/oauths/kakao/callback",   # 카카오 OAuth
-    "/oauths/naver/callback",   # 네이버 OAuth
+    "/oauths/kakao",   # 카카오 OAuth
+    "/oauths/naver",   # 네이버 OAuth
     "/refresh-token",  # 토큰 갱신
-
 }
 
 @app.middleware("http")
