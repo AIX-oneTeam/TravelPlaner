@@ -96,7 +96,7 @@ jobs:
             docker pull ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
 
             echo "AWS SSM에서 환경 변수를 가져와 .env 파일 생성 중입니다..."
-            aws ssm describe-parameters \
+            aws ssm get-parameters-by-path \
               --path "/backend/" \
               --with-decryption \
               --region ${{ secrets.AWS_REGION }} \
