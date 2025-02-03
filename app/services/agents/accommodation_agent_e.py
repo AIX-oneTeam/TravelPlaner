@@ -129,7 +129,7 @@ class AiLatestDevelopment():
 def run(location:str,check_in_date:str,check_out_date:str):
     ai_dev = AiLatestDevelopment()  
     crew_instance = ai_dev.crew()  
-    r = crew_instance.kickoff(inputs={location, check_in_date, check_out_date})     
+    r = crew_instance.kickoff(inputs={location, check_in_date, check_out_date })     
     print(r)
 
 run()
