@@ -8,12 +8,13 @@ from langchain_openai import ChatOpenAI
 from crewai.tools import BaseTool 
 from urllib.parse import quote
 from serpapi import GoogleSearch
+from geopy.geocoders import Nominatim
 
 
 load_dotenv()
-GOOGLE_API_KEY = 'MY-KEY'
-
-os.environ["OPENAI_API_KEY"] = "MY-KEY"  
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
+ 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
 
 class UserInput(BaseModel):
@@ -21,22 +22,35 @@ class UserInput(BaseModel):
     end_date: str
     region: str
 
+#위도 경도 툴
+class GeoCoordinateTool(BaseTool):
+    name: str = "GeoCoordinate Tool"
+    description:str = " 지역의 위도 경도를 계산"
+    
+    def _run(self, location : str) -> str:
+        try:
+            geo_local = Nominatim(user_agent='South Korea')
+            geo = geo_local.geocode(location)
+            if geo:
+                x_y = [geo.latitude, geo.longitude]
+                return x_y
+            
+        except Exception as e:
+            return f"[GeoCoordinateTool] 에러: {str(e)}"
 
+#구글 맵 툴
 class GoogleMapSearchTool(BaseTool):
     name: str = "Google Maps Search"
     description: str = "구글 맵 검색 API를 사용하여 텍스트 정보를 검색"
     
-    def _run(self, location: str) -> str:  # location을 매개변수로 받도록 수정
+    def _run(self, location: str, location_coordinates:str ) -> str: 
         try:            
-            # 위도 경도는 기본값으로 설정하되, 실제 검색 지역을 쿼리 파라미터로 사용
-            location_coordinates = "@37.5665,126.9780,15.1z" 
             decoded_location = location.encode('utf-8').decode('unicode_escape')
             
-            # 검색할 지역 이름을 'q' 파라미터에 넣기
             params = {
                 'engine': 'google_maps',
-                'q': f"{decoded_location} 숙소",  # 입력 받은 location 사용
-                'll': location_coordinates,  
+                'q': f"{decoded_location} 숙소", 
+                'll': f"@{location_coordinates},15.1z",  
                 "type": "search",
                 "gl": "kr",
                 "hl": "ko",
@@ -45,12 +59,41 @@ class GoogleMapSearchTool(BaseTool):
             
             search = GoogleSearch(params)
             map_results = search.get_dict()
-            results = map_results["local_results"]
-            print(f"전체 API 응답: {map_results}")
-            return results
+            print(f"전체 MAP API 응답: {map_results}")
+            return map_results
         
         except Exception as e:
-            return f"[Tool] 에러: {str(e)}"
+            return f"[GoogleMapSearchTool] 에러: {str(e)}"
+        
+#구글 호텔 툴
+class GoogleHotelSearchTool(BaseTool):
+    name: str = "Google Hotel Search"
+    description: str = "구글 호텔 검색 API를 사용하여 텍스트 정보를 검색"
+    
+    def _run(self, location: str, check_in_date:str, check_out_date:str) -> str: 
+        try:            
+            decoded_location = location.encode('utf-8').decode('unicode_escape')
+            
+            params = {
+            "engine": "google_hotels",
+            'q': f"{decoded_location} 숙소", 
+            "check_in_date": check_in_date,
+            "check_out_date": check_out_date,
+            "adults": "2",
+            "children": "0",
+            "currency": "KRW",
+            "gl": "kr",
+            "hl": "ko",
+            "api_key": GOOGLE_API_KEY 
+            }
+            
+            search = GoogleSearch(params)
+            hotel_results = search.get_dict()
+            print(f"전체 HOTEL API 응답: {hotel_results}")
+            return hotel_results
+        
+        except Exception as e:
+            return f"[GoogleHotelSearchTool] 에러: {str(e)}"        
 
 
 @CrewBase
@@ -64,8 +107,8 @@ class AiLatestDevelopment():
         return Agent(
             config= self.agents_config['accommodation_recommendation_expert'],
             verbose=True,
-            tools=[GoogleMapSearchTool()],
-            manager_llm=llm # region을 전달
+            tools=[GeoCoordinateTool(), GoogleMapSearchTool(),GoogleHotelSearchTool()],
+            manager_llm=llm 
         )
 
     @task
@@ -84,9 +127,9 @@ class AiLatestDevelopment():
         )
 
 def run():
-    ai_dev = AiLatestDevelopment()  # 인스턴스 생성
-    crew_instance = ai_dev.crew()  # Crew 객체 획득
-    r = crew_instance.kickoff(inputs={"location": "서울"})     # 실행
+    ai_dev = AiLatestDevelopment()  
+    crew_instance = ai_dev.crew()  
+    r = crew_instance.kickoff(inputs={"location": "서울", "check_in_date":"2025-03-03","check_out_date":"2025-03-06" })     
     print(r)
 
 run()
