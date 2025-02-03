@@ -41,10 +41,11 @@ PUBLIC_PATHS = {
     "/",  # 메인 페이지
     "/docs",  # Swagger UI
     "/openapi.json",  # OpenAPI 스키마
-    "/oauths/google",  # 구글 OAuth
-    "/oauths/kakao",   # 카카오 OAuth
-    "/oauths/naver",   # 네이버 OAuth
+    "/oauths/google/callback",  # 구글 OAuth
+    "/oauths/kakao/callback",   # 카카오 OAuth
+    "/oauths/naver/callback",   # 네이버 OAuth
     "/refresh-token",  # 토큰 갱신
+
 }
 
 @app.middleware("http")
