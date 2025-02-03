@@ -10,8 +10,15 @@ class N1JSONResponse(JSONResponse):
         }
         # 성공일 때는 data를 포함, 에러일 때는 error_detail 포함
         if status_code < 400:
-            # DTO를 추가하는 경우 SQLModel인지 확인 후 model_dump() 호출
-            content["data"] = data.model_dump if isinstance(data, SQLModel) else data
+            if isinstance(data, list):
+                # 리스트인 경우 각 항목에 대해 SQLModel 체크 후 변환
+                content["data"] = [
+                    item.model_dump() if isinstance(item, SQLModel) else item 
+                    for item in data
+                ]
+            else:
+                # 단일 항목인 경우 기존 로직 유지
+                content["data"] = data.model_dump() if isinstance(data, SQLModel) else data
         else:
             content["error_detail"] = error_detail
         # 부모인 JSONResponse생성 및 초기화
