@@ -39,7 +39,7 @@ async def kakao_callback(code: str, state: str, response: Response, session: Ses
                 value=user_data["access_token"],
                 max_age=3600,
                 samesite="None",
-                secure=False,
+                secure=True,
                 httponly=True,
             )
             logger.info("[Kakao Callback] JWT 토큰 쿠키 저장 완료")
@@ -55,7 +55,7 @@ async def kakao_callback(code: str, state: str, response: Response, session: Ses
                 value=user_data["refresh_token"],
                 max_age=30 * 24 * 60 * 60,
                 samesite="None",
-                secure=False,
+                secure=True,
                 httponly=True
             )
             logger.info("[Kakao Callback] Refresh Token 쿠키 저장 완료")

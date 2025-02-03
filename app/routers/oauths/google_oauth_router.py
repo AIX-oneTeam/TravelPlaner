@@ -24,7 +24,7 @@ async def google_callback(code:str, state:str, response: Response, session: Sess
         value=user_data["access_token"],
         max_age=3600,
         samesite="None",
-        secure=False,
+        secure=True,
         httponly=True,
     )
 
@@ -34,7 +34,7 @@ async def google_callback(code:str, state:str, response: Response, session: Sess
         value=user_data["refresh_token"],
         max_age=30 * 24 * 60 * 60,
         samesite="None",
-        secure=False,
+        secure=True,
         httponly=True
     )
 
