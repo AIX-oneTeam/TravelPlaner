@@ -198,9 +198,9 @@ def create_plan(user_input):
 
         # 2️⃣ 태스크 생성
         site_task = Task(
-            description=f"""
+            description="""
             [관광지 정보 조사]
-            - '{main_location}' 인근 관광지 최소 5곳 조사.
+            - {main_location} 인근 관광지 최소 5곳 조사.
             - 주소, 운영시간, 입장료, 특징, 추천 이유, 반려동물 동반 가능 여부 포함.
             """,
             agent=site_agent,
@@ -209,9 +209,9 @@ def create_plan(user_input):
         )
 
         cafe_task = Task(
-            description=f"""
+            description="""
             [맛집 및 카페 조사]
-            - '{main_location}' 인근 맛집 5곳 이상, 카페 3곳 이상 조사.
+            - {main_location} 인근 맛집 5곳 이상, 카페 3곳 이상 조사.
             - 주소, 영업시간, 대표 메뉴, 예약 가능 여부, 반려동물 동반 가능 여부 포함.
             """,
             agent=cafe_agent,
@@ -221,9 +221,9 @@ def create_plan(user_input):
         )
 
         accommodation_task = Task(
-            description=f"""
+            description="""
             [숙소 조사]
-            - '{main_location}' 인근 숙소 5곳 이상 조사.
+            - {main_location} 인근 숙소 5곳 이상 조사.
             - 주소, 객실 정보, 주요 시설, 체크인/체크아웃 시간, 반려동물 가능 여부, 주차 가능 여부 포함.
             """,
             agent=accommodation_agent,
@@ -233,9 +233,9 @@ def create_plan(user_input):
         )
 
         planning_task = Task(
-            description=f"""
+            description="""
             [최종 여행 일정 생성]
-            - 여행 기간: {user_input['start_date']} ~ {user_input['end_date']} (총 {trip_days}일)
+            - 여행 기간: {user_input[start_date]} ~ {user_input[end_date]} (총 {trip_days}일)
             - 매일 포함될 요소:
                 - 맛집 3곳 (아침, 점심, 저녁)
                 - 카페 2곳
@@ -279,7 +279,7 @@ def create_plan(user_input):
         )
 
         image_task = Task(
-            description=f"""
+            description="""
             [이미지 삽입]
             - CrewAI가 생성한 여행 일정 pydantic 형식에서 각 장소의 `kor_name`을 기반으로 이미지를 검색.
             - 검색된 이미지를 `image_url` 필드에 추가.
