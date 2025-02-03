@@ -67,7 +67,7 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           port: 22
           # appleboy 원격 쉘에 github runner환경의 환경변수 전달
-          envs: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+          envs: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
           script: |
             set -e  # 스크립트 실패 시 중단
 
@@ -94,8 +94,20 @@ jobs:
 
             echo "Amazon ECR에서 최신 이미지를 가져오는 중입니다..."
             docker pull ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
+
+            echo "AWS SSM에서 환경 변수를 가져와 .env 파일 생성 중입니다..."
+            aws ssm describe-parameters \
+              --query "Parameters[*].Name" \
+              --region ap-northeast-2 \
+              --output text | while read -r param_name; do
+              value=$(aws ssm get-parameter --name "$param_name" --with-decryption --region ap-northeast-2 --query "Parameter.Value" --output text)
+              echo "${param_name##*/}=$value" >> .env
+            done
+
+
+
             echo "새 컨테이너를 시작합니다..."
-            docker run -d --name backend -p 8000:8000 ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
+            docker run -d --name backend -p 8000:8000 --env-file .env ${{ secrets.ECR_REPOSITORY_URI }}/backend:latest
             echo "배포가 성공적으로 완료되었습니다."
 
   # discord_alarm:

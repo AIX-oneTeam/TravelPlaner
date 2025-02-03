@@ -36,12 +36,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# JWT 인증 미들웨어 추가
+# JWT 인증이 필요없는 경로들
+PUBLIC_PATHS = {
+    "/",  # 메인 페이지
+    "/docs",  # Swagger UI
+    "/openapi.json",  # OpenAPI 스키마
+    "/oauths/google/callback",  # 구글 OAuth
+    "/oauths/kakao/callback",   # 카카오 OAuth
+    "/oauths/naver/callback",   # 네이버 OAuth
+    "/refresh-token",  # 토큰 갱신
+
+}
+
 @app.middleware("http")
 async def jwt_auth_middleware(request: Request, call_next):
     """
     JWT 인증 미들웨어
     """
+    # 현재 요청 경로 확인
+    path = request.url.path
+    
+    # 정확한 경로 매칭 확인
+    if path in PUBLIC_PATHS:
+        return await call_next(request)
+    
     print("JWT 인증 미들웨어")
     token = request.cookies.get("access_token")  # 쿠키에서 JWT 가져오기
     print("token : ", token)
@@ -79,8 +97,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
     error_details = exc.errors()  # Pydantic 검증 오류 내용 가져오기
 
+    print("==================================================")
     print("요청 데이터:", request_data)  # 콘솔 출력 (디버깅)
+
+    print("==================================================")
     print("검증 실패:", error_details)  # 오류 정보 출력
+
+    print("==================================================")
 
     return JSONResponse(
         status_code=422,
