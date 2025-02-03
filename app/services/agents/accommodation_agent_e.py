@@ -126,10 +126,10 @@ class AiLatestDevelopment():
             verbose=True
         )
 
-def run():
+def run(location:str,check_in_date:str,check_out_date:str):
     ai_dev = AiLatestDevelopment()  
     crew_instance = ai_dev.crew()  
-    r = crew_instance.kickoff(inputs={"location": "서울", "check_in_date":"2025-03-03","check_out_date":"2025-03-06" })     
+    r = crew_instance.kickoff(inputs={location, check_in_date, check_out_date})     
     print(r)
 
 run()
