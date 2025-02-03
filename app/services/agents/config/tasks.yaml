@@ -1,0 +1,9 @@
+accommodation_recommendation_task:
+  description: >
+    -{location}지역의 숙소들을 검색.
+    -검색 결과에서 이름, 주소, 전화번호, 부대 시설, 대표 이미지 url을 추출.
+    -JSON 형식으로 반환
+    
+  expected_output: >
+    JSON 형식의 숙소 데이터
+  agent: accommodation_recommendation_expert
