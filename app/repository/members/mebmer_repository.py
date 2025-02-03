@@ -19,6 +19,14 @@ def get_member_by_id(member_id: int, session:Session) -> Member:
     except Exception as e:
         print("[ memberRepository ] get_member_by_id() 에러 : ", e)
 
+def get_memberId_by_email(email: str, session:Session) -> Member:
+    try:
+        query = select(Member).where((Member.email == email))
+        member = session.exec(query).first()
+        return member.id if member is not None else None
+    except Exception as e:
+        print("[ memberRepository ] get_memberId_by_email() 에러 : ", e)
+
 def is_exist_member_by_email(email: str, oauth: str, session:Session) -> bool:
     try:
         print("session type : ", type(session))

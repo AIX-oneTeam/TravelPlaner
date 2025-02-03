@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.exceptions import HTTPException
+from fastapi.exceptions import HTTPException, RequestValidationError
 
 from app.repository.db import lifespan
+from app.repository.db import init_table_by_SQLModel
 from app.routers.members.member_router import router as member_router
 from app.routers.spots.spot_router import router as spot_router
 from app.routers.plans.plan_router import router as plan_router
@@ -35,38 +36,60 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# # JWT 인증 미들웨어 추가
-# @app.middleware("http")
-# async def jwt_auth_middleware(request: Request, call_next):
-#     """
-#     JWT 인증 미들웨어
-#     """
-#     print("JWT 인증 미들웨어")
-#     token = request.cookies.get("access_token")  # 쿠키에서 JWT 가져오기
-#     if token:
-#         try:
-#             user_data = decode_jwt(token)  # JWT 디코딩 및 검증
-#             request.state.user = user_data  # 사용자 정보를 요청 상태에 저장
-#         except HTTPException:
-#             # 액세스 토큰이 만료되었으면 리프레시 토큰을 사용하여 새 액세스 토큰을 발급
-#             refresh_token = request.cookies.get("refresh_token")
-#             if refresh_token:
-#                 new_access_token = await refresh_access_token_naver(refresh_token)
-#                 # 새 액세스 토큰을 쿠키에 저장
-#                 response = await call_next(request)
-#                 response.set_cookie(
-#                     key="access_token",
-#                     value=new_access_token,
-#                     httponly=True,
-#                     secure=True,
-#                     samesite="Lax",
-#                 )
-#                 return response
-#             request.state.user = None
-#     else:
-#         request.state.user = None  # 쿠키가 없으면 None으로 설정
-#     response = await call_next(request)
-#     return response
+# JWT 인증 미들웨어 추가
+@app.middleware("http")
+async def jwt_auth_middleware(request: Request, call_next):
+    """
+    JWT 인증 미들웨어
+    """
+    print("JWT 인증 미들웨어")
+    token = request.cookies.get("access_token")  # 쿠키에서 JWT 가져오기
+    print("token : ", token)
+    if token:
+        try:
+            user_data = decode_jwt(token)  # JWT 디코딩 및 검증
+            request.state.user = user_data  # 사용자 정보를 요청 상태에 저장
+            response = await call_next(request)
+        except HTTPException:
+            # 액세스 토큰이 만료되었으면 리프레시 토큰을 사용하여 새 액세스 토큰을 발급
+            refresh_token = request.cookies.get("refresh_token")
+            if refresh_token:
+                new_access_token = await refresh_access_token_naver(refresh_token)
+                # 새 액세스 토큰을 쿠키에 저장
+                response = await call_next(request)
+                response.set_cookie(
+                    key="access_token",
+                    value=new_access_token,
+                    httponly=True,
+                    secure=True,
+                    samesite="Lax",
+                )
+                return response
+            request.state.user = None
+    else:
+        request.state.user = None  # 쿠키가 없으면 None으로 설정
+    response = await call_next(request)
+    return response
+
+
+# 요청 데이터 검증 오류 처리
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    request_data = await request.json()  # 요청 데이터를 JSON으로 받기
+
+    error_details = exc.errors()  # Pydantic 검증 오류 내용 가져오기
+
+    print("요청 데이터:", request_data)  # 콘솔 출력 (디버깅)
+    print("검증 실패:", error_details)  # 오류 정보 출력
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "message": "요청 데이터 검증 실패",
+            "errors": error_details,
+            "request_data": request_data
+        }
+    )
 
 
 @app.get("/")
