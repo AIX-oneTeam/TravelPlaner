@@ -24,8 +24,9 @@ class TouristFeedback(BaseModel):
     tourist: bool = False  # False: 초안 추천, True: 대체 추천 요청
 
 
+# location은 이제 기본값 없이 사용자가 반드시 입력하도록 변경
 class TouristPlanRequest(BaseModel):
-    location: str = "강릉"
+    location: str
     feedback: TouristFeedback = TouristFeedback()
 
 
@@ -103,35 +104,39 @@ class NaverWebSearchTool(BaseTool):
 # ──────────────────────────────
 def create_tourist_plan(user_input: dict):
     """
-    CrewAI를 사용하여 강릉 관광지 추천 초안을 생성합니다.
+    CrewAI를 사용하여 관광지 추천 초안을 생성합니다.
     user_input 예시:
     {
-        "location": "강릉",
+        "location": "입력한 지역명",
         "feedback": {"tourist": True}  # True이면 대체 추천 진행
     }
     """
     try:
-        location = user_input.get("location", "강릉")
+        # 반드시 입력된 지역명을 사용합니다.
+        location = user_input["location"]
 
         # 4-1. 초기 관광지 추천 에이전트
         tourist_agent = Agent(
             role="관광지 추천 에이전트",
-            goal=f"'{location}' 인근의 관광지를 추천",
-            backstory="""
-            나는 강릉 지역의 관광지에 대해 깊이 있는 지식을 보유한 전문가이다.
-            최신 트렌드와 지역 특성을 반영해 매력적인 관광지를 추천할 수 있다.
+            goal=f"사용자에게 {location} 지역 내에서 문화, 역사, 자연경관 등 다양한 측면을 종합적으로 고려한 독창적이고 체계적인 관광지 추천을 제공하라.",
+            backstory=f"""
+            나는 {location} 지역의 관광지에 대해 심도 있는 정보를 보유하고 있으며, 최신 트렌드, 문화, 역사 및 자연 경관을 반영한 데이터를 기반으로 분석하는 전문가입니다.
+            수년간의 현장 경험과 다양한 데이터 소스를 활용하여 {location}의 주요 명소와 숨겨진 보석 같은 관광지를 체계적으로 추천할 수 있습니다.
+            내 분석은 지역의 문화적 배경, 역사적 가치, 자연미와 함께 최신 관광 트렌드와 사용자 선호도를 모두 고려하여, 사용자가 잊지 못할 특별한 경험을 할 수 있도록 돕습니다.
             """,
             tools=[NaverWebSearchTool()],
             llm=llm,
             verbose=True,
         )
 
-        # 4-2. 대체 관광지 추천 에이전트 (초안 추천에 불만족 시)
+        # 4-2. 대체 관광지 추천 에이전트
         alternative_tourist_agent = Agent(
             role="대체 관광지 추천 에이전트",
-            goal=f"'{location}' 인근의 기존 추천과 다른 새로운 관광지를 추천",
-            backstory="""
-            나는 강릉 지역의 다양한 관광지를 심도 있게 분석해, 기존 추천과 차별화된 관광지를 찾아내는 전문가이다.
+            goal=f"{location} 지역 내 기존 추천과 차별화된, 숨겨진 명소나 덜 알려진 관광지를 발굴하여 사용자에게 제시하라.",
+            backstory=f"""
+            나는 {location} 지역의 다양한 관광지를 심도 있게 분석하고, 현장 조사와 최신 데이터를 기반으로 일반적으로 널리 알려진 관광지와는 다른 특별하고 새로운 명소를 발굴하는 전문가입니다.
+            내 접근 방식은 지역 주민 인터뷰, 최신 관광 트렌드, 그리고 다각도의 데이터 분석을 통해 {location}의 숨겨진 매력을 찾아내는 데 중점을 두고 있으며,
+            이를 통해 사용자가 기존 추천과는 다른, 독창적이고 참신한 관광지를 경험할 수 있도록 도와줍니다.
             """,
             tools=[NaverWebSearchTool()],
             llm=llm,
@@ -141,9 +146,9 @@ def create_tourist_plan(user_input: dict):
         # 4-3. 초안 관광지 추천 태스크 생성
         tourist_task = Task(
             description=f"""
-            [강릉 관광지 초안 추천]
-            - '{location}' 인근의 관광지를 최소 5곳 추천.
-            - 각 관광지에 대해 주소, 특징, 추천 이유 등을 포함.
+            ['{location}' 관광지 초안 추천]
+            - {location} 인근의 관광지를 최소 5곳 추천하라.
+            - 각 관광지에 대해 상세한 주소, 주요 특징, 추천 이유 및 관련 정보(예: 운영 시간, 접근성 등)를 포함하라.
             """,
             agent=tourist_agent,
             expected_output="관광지 추천 결과 (텍스트)",
@@ -155,9 +160,9 @@ def create_tourist_plan(user_input: dict):
         if user_input.get("feedback", {}).get("tourist", False):
             alternative_task = Task(
                 description=f"""
-                [대체 강릉 관광지 추천]
-                - 기존 초안 추천과 다른 '{location}' 인근의 관광지를 최소 5곳 추천.
-                - 각 관광지에 대해 주소, 특징, 추천 이유 등을 포함.
+                [대체 '{location}' 관광지 추천]
+                - 기존 초안 추천과 차별화된 {location} 인근의 관광지를 최소 5곳 추천하라.
+                - 각 관광지에 대해 상세한 주소, 주요 특징, 추천 이유 및 기타 부가 정보를 포함하라.
                 """,
                 agent=alternative_tourist_agent,
                 expected_output="대체 관광지 추천 결과 (텍스트)",
@@ -172,7 +177,7 @@ def create_tourist_plan(user_input: dict):
         )
         crew.kickoff()
 
-        # 피드백이 있을 경우 대체 태스크 결과를, 아니면 초안 결과를 사용
+        # 피드백 여부에 따라 대체 태스크 결과 또는 초안 결과 선택
         if user_input.get("feedback", {}).get("tourist", False):
             alternative_output = None
             for task in tasks:
