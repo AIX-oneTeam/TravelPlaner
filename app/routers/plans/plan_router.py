@@ -1,11 +1,11 @@
-
 from datetime import time
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from app.repository.db import get_session_sync
 from sqlmodel import Session
 from app.data_models.data_model import Plan, Spot
 from app.dtos.common.response import ErrorResponse, SuccessResponse
+from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.repository.plans.plan_spots_repository import save_plan_spots
 from app.services.plans.plan_service import reg_plan
 from app.services.spots.spot_service import reg_spot
@@ -33,16 +33,29 @@ class spot_request(BaseModel):
     day_x: int
     spot_time: time | None = None
 
+class PlanRequest(BaseModel):
+    plan: Plan
+    spots: list[spot_request]
+    email: str
+
 # 일정 저장
 @router.post("/")
-def create_plan(plan: Plan, Spots:list[spot_request], member_id: int, session: Session = Depends(get_session_sync)):
-
+def create_plan(request_data: PlanRequest, request: Request, session: Session = Depends(get_session_sync)):
     try:
-        # 0. 트랜잭션 생성
+        # 0. memberid 획득
+        if(request.state.user is not None):
+            print("request.state.user : ", request.state.user)
+            member_email = request.state.user.get("email")
+            member_id = get_memberId_by_email(member_email, session)
+        else:
+            print("[ plan_router ] request_data.email : ", request_data.email)
+            member_id = get_memberId_by_email(request_data.email, session)
+            print("[ plan_router ] member_id : ", member_id)
+
         # 1. 일정 저장
-        plan_id = reg_plan(plan, member_id, session)
+        plan_id = reg_plan(request_data.plan, member_id, session)
         # 2. 장소 저장
-        for spot in Spots:
+        for spot in request_data.spots:
             spot_id = reg_spot(Spot( #SQL Model
                 kor_name=spot.kor_name,
                 eng_name=spot.eng_name,
