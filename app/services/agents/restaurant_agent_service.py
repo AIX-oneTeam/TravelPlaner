@@ -2,6 +2,7 @@ import traceback
 import os
 import requests
 import json
+from fastapi import FastAPI, HTTPException
 from crewai import Agent, Task, Crew, LLM
 from datetime import datetime
 from dotenv import load_dotenv
@@ -9,16 +10,19 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Type
 
+# FastAPI 앱 초기화
+app = FastAPI()
+
 # 환경 변수 로드
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
-AGENT_NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
-AGENT_NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
+AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
 # 공통 LLM 설정
-llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
+llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
 
 
 # -------------------------------------------------------------------
@@ -265,8 +269,6 @@ naver_image_search_agent = Agent(
 
 # -------------------------------------------------------------------
 # 6. 최종 추천 생성 도구 (LLM 활용)
-# 이 도구는 필터링된 맛집 후보, 네이버 텍스트 기반 세부정보, 그리고 여행 계획(TravelPlan)을 고려하여
-# LLM에 최종 추천 리스트 생성을 요청합니다.
 class FinalRecommendationTool(BaseTool):
     name: str = "FinalRecommendationTool"
     description: str = (
@@ -313,7 +315,6 @@ final_recommendation_agent = Agent(
 
 # -------------------------------------------------------------------
 # 7. 최종 추천 사진 업데이트 도구
-# 이 도구는 최종 추천 리스트에 포함된 각 맛집에 대해 네이버 이미지 검색 API를 호출하여 이미지 URL을 추가합니다.
 class FinalImageUpdateTool(BaseTool):
     name: str = "FinalImageUpdateTool"
     description: str = (
@@ -396,68 +397,27 @@ def create_recommendation(input_data: dict) -> dict:
         )
 
         # Crew 실행 (전체 체인 실행)
-        crew_result = crew.kickoff()
-
-        # 최종 단계: 각 단계별 결과 재수집
-        # 1. 좌표 조회
-        coord_result = geocoding_agent.tools[0]._run(location)
-        # 2. 맛집 기본 조회 (구글맵)
-        basic_result = restaurant_basic_search_agent.tools[0]._run(
-            location, coord_result.get("coordinates", "")
-        )
-        # 3. 맛집 필터링
-        filtered_result = restaurant_filter_agent.tools[0]._run(basic_result)
-
-        # 4. 네이버 텍스트 세부정보 조회: 각 후보의 'title'을 기준으로 네이버 웹 검색 텍스트 결과 수집
-        text_details_map = {}
-        for restaurant in filtered_result:
-            restaurant_name = restaurant.get("title", "")
-            if restaurant_name:
-                text_info = naver_web_search_agent.tools[0]._run(restaurant_name)
-                text_details_map[restaurant_name] = text_info
-
-        # 5. 최종 추천 생성: 필터링 결과, 네이버 텍스트 세부정보, 여행 계획을 결합하여 최종 추천 리스트 생성
-        final_input = {
-            "filtered_list": filtered_result,
-            "text_details_map": text_details_map,
-            "travel_plan": travel_plan.dict(),
-        }
-        final_recommendation = final_recommendation_agent.tools[0]._run(final_input)
-
-        # 6. 최종 추천 사진 업데이트: 최종 추천 리스트에 대해 네이버 이미지 검색으로 이미지 URL 추가
-        final_result = final_image_update_agent.tools[0]._run(final_recommendation)
-
-        # JSON 직렬화 함수
-        def serialize(obj):
-            if isinstance(obj, (dict, list, str, int, float, bool, type(None))):
-                return obj
-            elif hasattr(obj, "dict") and callable(obj.dict):
-                return serialize(obj.dict())
-            elif hasattr(obj, "__dict__"):
-                return {key: serialize(value) for key, value in vars(obj).items()}
-            elif isinstance(obj, list):
-                return [serialize(item) for item in obj]
-            else:
-                return str(obj)
-
-        return serialize(final_result)
+        result = crew.kickoff()
+        return result
 
     except Exception as e:
         print(f"[ERROR] {e}")
         traceback.print_exc()
-        return {"message": "요청 처리 중 오류가 발생했습니다.", "error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# -------------------------------------------------------------------
-# 테스트 실행
+# FastAPI 엔드포인트 정의
+@app.post("/recommendation")
+async def get_restaurant_recommendations(travel_plan: TravelPlan):
+    try:
+        result = create_recommendation(travel_plan.dict())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 서버 실행 설정
 if __name__ == "__main__":
-    test_input = {
-        "main_location": "부산광역시",
-        "start_date": "2025-02-01",
-        "end_date": "2025-02-02",
-        "companions": [{"label": "성인", "count": 2}, {"label": "어린이", "count": 1}],
-        "concepts": ["가족", "맛집"],
-        "name": "부산 여행 일정",
-    }
-    result = create_recommendation(test_input)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
