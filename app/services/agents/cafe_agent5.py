@@ -1,6 +1,7 @@
 from crewai import Agent, Task, Crew, LLM, Process
 from crewai_tools import SerperDevTool
-from app.services.agents.cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
+from cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
+# from app.services.agents.cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
 from pydantic import BaseModel,Field
 from typing import List
 import os
@@ -14,8 +15,6 @@ SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 search_dev_tool = SerperDevTool()
 google_map_tool = GoogleMapSearchTool()
 naver_local_tool = NaverLocalSearchTool()
-multi_tool=MultiToolWrapper(google_map_tool,naver_local_tool) 
-
 
 # LLM 초기화
 my_llm = LLM(
@@ -28,11 +27,6 @@ my_llm = LLM(
 class CafeSimple(BaseModel):
     kor_name: str =  Field(..., description="카페 이름")
     description: str =  Field(..., description="카페 주요 특징, 분위기, 시그니처 메뉴 요약")
-    address: str =  Field(..., description="카페 도로명 주소(한글)")
-    zip_code: str =  Field(..., description="카페 우편번호")
-    business_hours: dict =  Field(..., description="운영 시간")
-    parking: bool =  Field(..., description="주차 가능 여부")
-    pet_friendly: bool =  Field(..., description="애견동반 가능 여부")
     
 class Cafe(BaseModel):
     """ 카페 정보 """
@@ -41,7 +35,7 @@ class Cafe(BaseModel):
     description: str =  Field(..., description="카페 주요 특징, 분위기, 시그니처 메뉴 요약")
     address: str =  Field(..., description="카페 도로명 주소(한글)")
     zip_code: str =  Field(..., description="카페 우편번호")
-    url: str =  Field(..., description="카페 대표 홈페이지 url")
+    website: str =  Field(..., description="카페 대표 홈페이지 url")
     image_url: str =  Field(..., description="카페 썸네일 url")
     map_url: str =  Field(..., description="카페 지도 url(google, naver, kakao 중 택1)")
     latitude: str =  Field(..., description="카페 위도")
@@ -96,7 +90,7 @@ def cafe_agent(user_input):
             backstory="resercher가 찾지 못한 정보를 보완하고, 잘못 찾은 정보는 정확한 정보로 수정해주세요",
             # max_iter=2,
             allow_delegation=False,
-            tools=[multi_tool],
+            tools=[search_dev_tool, google_map_tool,naver_local_tool],
             llm=my_llm,
             verbose=True
         )
@@ -111,8 +105,7 @@ def cafe_agent(user_input):
             협찬을 받고 작성한 글이나 광고 글은 제외하고 조사해주세요.
             시그니처 메뉴는 "다양한"과 같은 추상적인 단어를 사용하지 않고 정확한 메뉴의 이름을 명시해주세요.
             description에는 카페의 최신 리뷰와 사진을 분석해 해당 카페의 분위기, 시그니처 메뉴, 사람들이 공통적으로 좋아했던 주요 특징을 간략히 적어주세요.
-            description에는 나이, 연령대, 주차, 애견동반 여부에 대한 언급 하지마세요.
-            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
+            description에는 "나이", "연령대", "주차", "애견동반"을 절대 포함시키지 마세요.
             
             반드시 서로 다른 3곳의 카페를 반환해주세요.
             고객의 선호도({concepts})에 "프랜차이즈"가 포함되지 않는 경우, 프랜차이즈 카페는 3곳에서 제외해주세요.
@@ -128,7 +121,12 @@ def cafe_agent(user_input):
 
         checker_task = Task(
             description="""
-            researcher가 반환한 카페들의 kor_name + {location}을 검색해 Cafe에 필요한 정보들을 찾아 입력해주세요. 
+            researcher가 반환한 카페들을 SerperDevTool()을 사용해 kor_name + {location}를 검색하고 정보를 검색하세요.
+            검색 결과를 참고해 kor_name과 description를 제외한 나머지 필드의 값을 추가해주세요.
+            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요.
+            모든 필드를 채운 후, "정보 없음"이 있다면 GoogleMapSearchTool()를 사용해 값을 수정해주세요.
+            website는 반드시 해당 카페의 공식 홈페이지 또는 공식 인스타그램 계정 url 주소여야 합니다. 구글맵 주소나 블로그링크, 다이닝코드 등의 카페 검색을 위해 사용한 사이트의 url주소를 사용하지 마세요
+            여전히 website, telephone의 값이 "정보 없음" 또는 ""라면 NaverLocalSearchTool()을 사용해 kor_name + {location}을 다시 검색하고 정보를 수정하세요. 
             """,
             expected_output="""
             검증된 정확한 정보를 json 형태로 반환해주세요.
@@ -175,7 +173,7 @@ if __name__ == "__main__":
     }
                    
     agent_result = cafe_agent(user_input)
-    print(f"------------------------")
-    print(f"type of agent_result : {type(agent_result)}")
-    print(f"------------------------")
-    print(f"result of agent_result : {agent_result}")
+    # print(f"------------------------")
+    # print(f"type of agent_result : {type(agent_result)}")
+    # print(f"------------------------")
+    # print(f"result of agent_result : {agent_result}")
