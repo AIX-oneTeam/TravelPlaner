@@ -150,10 +150,16 @@ class AiLatestDevelopment():
             verbose=True
         )
 
-def run():
-    ai_dev = AiLatestDevelopment()  
-    crew_instance = ai_dev.crew()  
-    r = crew_instance.kickoff(inputs={"location": "서울", "check_in_date":"2025-03-03","check_out_date":"2025-03-06" })     
-    print(r)
+def run(location: str, check_in_date: str, check_out_date: str):
 
-run()
+    ai_dev = AiLatestDevelopment()
+    crew_instance = ai_dev.crew()
+    
+    inputs = {
+        "location": location,
+        "check_in_date": check_in_date,
+        "check_out_date": check_out_date
+    }
+    
+    result = crew_instance.kickoff(inputs=inputs)
+    return result
