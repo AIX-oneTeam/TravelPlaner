@@ -64,6 +64,7 @@ class spot_pydantic(BaseModel):
 class spots_pydantic(BaseModel):
     spots: List[spot_pydantic]
 
+# -------------------- Tool -------------------------
 # 2. 좌표 조회 도구 (Google Geocoding API 활용)
 class GeocodingTool(BaseTool):
     name: str = "GeocodingTool"
