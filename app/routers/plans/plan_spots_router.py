@@ -8,7 +8,7 @@ from app.repository.db import get_session_sync
 router = APIRouter()
 
 # 일정 저장
-@router.post("/")
+@router.post("")
 async def create_plan_spot():
     pass
 

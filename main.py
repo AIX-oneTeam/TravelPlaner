@@ -17,6 +17,7 @@ from app.routers.oauths.naver_oauth_router import router as naver_oauth_router
 from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
+from app.routers.agents.accommodation_agent_router import router as accommodation_router
 
 import os
 from dotenv import load_dotenv
@@ -27,10 +28,11 @@ load_dotenv()
 # FastAPI 애플리케이션 생성
 app = FastAPI(lifespan=lifespan)
 
+
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 모든 출처 허용
+    allow_origins=["https://easytravel.jomalang.com", "http://localhost:3000"],  # 모든 출처 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,8 +46,8 @@ PUBLIC_PATHS = {
     "/oauths/google/callback",  # 구글 OAuth
     "/oauths/kakao/callback",   # 카카오 OAuth
     "/oauths/naver/callback",   # 네이버 OAuth
-    "/refresh-token",  # 토큰 갱신
-
+    "/refresh-token", # 토큰 갱신 
+    "/test/", #테스트 경로  
 }
 
 @app.middleware("http")
@@ -176,6 +178,7 @@ app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
 app.include_router(agent_router, prefix="/agents", tags=["agents"])
+
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()

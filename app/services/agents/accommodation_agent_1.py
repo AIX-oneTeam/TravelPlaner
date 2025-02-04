@@ -12,8 +12,8 @@ from geopy.geocoders import Nominatim
 
 
 load_dotenv()
-OPENAI_API_KEY = "key"
-GOOGLE_API_KEY = "key"
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
  
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
 
@@ -95,30 +95,6 @@ class GoogleHotelSearchTool(BaseTool):
         except Exception as e:
             return f"[GoogleHotelSearchTool] 에러: {str(e)}"        
 
-#구글 리뷰 툴
-class GoogleReviewTool(BaseTool) :
-    name: str = "GoogleReviewTool"
-    description: str = "구글 리뷰 API를 사용하여 텍스트 정보를 검색"
-    
-    def _run(self, data_id : str) -> str:
-        try:
-            params = {
-            "engine": "google_maps_reviews",
-            "data_id": data_id,
-            "gl": "kr",
-            "hl": "ko",
-            "api_key": GOOGLE_API_KEY 
-            }
-
-            search = GoogleSearch(params)
-            review_results = search.get_dict()
-            print(f"전체 REVIEW API 응답: {review_results}")
-            
-            return review_results 
-        
-        except Exception as e:
-            return f"[GoogleReviewTool] 에러: {str(e)}"   
-
 
 @CrewBase
 class AiLatestDevelopment():
@@ -131,7 +107,7 @@ class AiLatestDevelopment():
         return Agent(
             config= self.agents_config['accommodation_recommendation_expert'],
             verbose=True,
-            tools=[GeoCoordinateTool(), GoogleMapSearchTool(),GoogleHotelSearchTool(),GoogleReviewTool()],
+            tools=[GeoCoordinateTool(), GoogleMapSearchTool(),GoogleHotelSearchTool()],
             manager_llm=llm 
         )
 
@@ -150,10 +126,10 @@ class AiLatestDevelopment():
             verbose=True
         )
 
-def run():
+def run(location:str,check_in_date:str,check_out_date:str):
     ai_dev = AiLatestDevelopment()  
     crew_instance = ai_dev.crew()  
-    r = crew_instance.kickoff(inputs={"location": "서울", "check_in_date":"2025-03-03","check_out_date":"2025-03-06" })     
+    r = crew_instance.kickoff(inputs={location, check_in_date, check_out_date})     
     print(r)
 
 run()
