@@ -27,10 +27,11 @@ load_dotenv()
 # FastAPI 애플리케이션 생성
 app = FastAPI(lifespan=lifespan)
 
+
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 모든 출처 허용
+    allow_origins=["https://easytravel.jomalang.com", "http://localhost:3000"],  # 모든 출처 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,8 +45,8 @@ PUBLIC_PATHS = {
     "/oauths/google/callback",  # 구글 OAuth
     "/oauths/kakao/callback",   # 카카오 OAuth
     "/oauths/naver/callback",   # 네이버 OAuth
-    "/refresh-token",  # 토큰 갱신
-
+    "/refresh-token", # 토큰 갱신 
+    "/test/", #테스트 경로  
 }
 
 @app.middleware("http")
