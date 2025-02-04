@@ -1,128 +1,129 @@
-from crewai import Agent, Crew, Process, Task, LLM
-from crewai.utils import MultiAgentSystem
-from openai import ChatCompletion
-from typing import List, Dict
-
+from crewai import Agent, Task, Crew, LLM, Process
+from naver_place_tool import naver_place_tool
 import os
 from dotenv import load_dotenv
-# 환경 변수 로드
 load_dotenv()
-# OpenAI API 키 설정
+from crewai_tools import SerperDevTool
+import time
+agent_start_time = time.time()
+search_tool = SerperDevTool()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SERPER_API_KEY= os.getenv("SERPER_API_KEY")
 
 # LLM 초기화
 my_llm = LLM(
     model="gpt-4o-mini",
     api_key=OPENAI_API_KEY,
     temperature=0,
-    # max_tokens=4000
+    max_tokens=4000
 )
 
-class LLMBaseAgent(Agent):
-    def __init__(self):
-        self.llm = ChatCompletion(api_key=OPENAI_API_KEY)
-
-    def query_llm(self, prompt: str) -> str:
-        """LLM에 쿼리하여 응답을 반환."""
-        response = self.llm.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response['choices'][0]['message']['content']
-
-# 에이전트 정의
-search_agent = Agent(
-    role='검색 전문가',
-    goal='사용자의 상황에 맞는 카페 조사',
-    backstory="여행온 사용자에게 특별한 추억 제공",
-    llm=my_llm
-)
-
-review_agent = Agent(
-    role='카페 비평가',
-    goal='카페별로 리뷰에서 사람들이 공통적으로 좋아하고 칭찬하는 특징 3개 추출',
-    backstory="search_agent가 반환한 카페의 최신 리뷰를 조사",
-    llm=my_llm
-)
-
-menu_agent = Agent(
-    role='메뉴 추천 전문가',
-    goal='사람들이 공통적으로 찾는 시그니처 메뉴 3가지 추출',
-    backstory="search_agent가 반환한 카페의 최신 리뷰를 조사",
-    llm=my_llm
-)
-
-atmosphere_agent = Agent(
-    role='분위기 전문가',
-    goal='사람들이 공통적으로 촬영한 사진의 특징을 3가지 추출',
-    backstory="search_agent가 반환한 카페의 사진 리뷰를 조사",
-    llm=my_llm
-)
-
-summarize_agent = Agent(
-    role='정리 전문가',
-    goal='사람들이 공통적으로 촬영한 사진의 특징을 3가지 추출',
-    backstory="search_agent, review_agent, menu_agent, atmosphere_agent가 반환한 값을 정리 ",
-    llm=my_llm
-)
-
-selector_agent = Agent(
-    role='선택 전문가',
-    goal='사용자의 상황에 맞는 카페 TOP 3제시',
-    backstory="summarize_agent가 정리한 값을 바탕으로 최적의 카페 선택",
-    llm=my_llm
-)
-
-qa_agent = Agent(
-    role='품질 전문가',
-    goal='정확한 정보 조사 및 제공',
-    backstory="selector_agent가 알려준 카페가 폐업했는지 확인, 폐업했다면 운영중인 다음 순위의 카페로 대체" ,
-    llm=my_llm
-)
-
-information_agent = Agent(
-    role='정보 전문가',
-    goal='카페의 정확한 정보 조사 및 제공',
-    backstory="qa_agent와 selector_agent가 협업해 최종 결정된 3개 카페의 이름, 영문이름, 주소, 운영시간, 지도url, 대표 이미지 url, 주차가능여부, 반려견동반여부, 폐업여부 정보 추출",
-    llm=my_llm
-)
-
-
-# 멀티 에이전트 시스템 설정
-agents = {
-    "search_cafe": SearchCafeAgent(),
-    "review": ReviewAgent(),
-    "extract_features": ExtractFeaturesAgent(),
-    "recommend_menu": RecommendMenuAgent(),
-    "photo": PhotoAgent(),
-    "extract_photo_keywords": ExtractPhotoKeywordsAgent(),
-    "summarize": SummarizeAgent(),
-    "select_top_cafes": SelectTopCafesAgent(),
-    "extract_cafe_details": ExtractCafeDetailsAgent()
+user_input = {
+    "location": "인천",   # 사용자의 지역
+    "age" : "40대",
+    "concepts": "조용한, 디저트",  # 취향
+    "parking": True,     # 주차 가능 여부
+    "pet_friendly": True # 반려동물 동반 가능 여부
 }
 
-multi_agent_system = MultiAgentSystem(agents)
+# 에이전트 정의
+researcher = Agent(
+    role="카페 정보 검색 및 분석 전문가",
+    goal="고객 선호도에 맞는 최적의 카페 정보 수집 후 각 카페의 주요 특징, 시그니처 메뉴, 분위기 등 핵심 정보를 리뷰 및 사진에서 추출",
+    backstory="사용자의 여행을 특별하게 만들기 위해, 최적의 카페를 찾고 카페의 매력을 심층 분석하여 사용자가 최적의 선택을 할 수 있도록 돕는 전문가",
+    tools=[naver_place_tool],
+    max_iter=2,
+    llm=my_llm
+)
 
-# 실행
-region = "Seoul"
-traveler_context = "quiet place for work"
+ranker = Agent(
+    role="카페 평가 및 순위 결정 전문가",
+    goal="분석된 데이터를 기반으로 사용자 취향에 맞는 카페 3곳 선정",
+    backstory="사용자 입력을 기반으로 가장 적합한 카페를 정밀하게 선정하는 평가 전문가.",
+    max_iter=2,
+    llm=my_llm
+)
 
-# Step-by-step 호출
-cafes = multi_agent_system.run("search_cafe", region=region, traveler_context=traveler_context)
-reviews = multi_agent_system.run("review", cafes=cafes)
-features = multi_agent_system.run("extract_features", reviews=reviews)
-menu = multi_agent_system.run("recommend_menu", reviews=reviews)
-photos = multi_agent_system.run("photo", cafes=cafes)
-photo_keywords = multi_agent_system.run("extract_photo_keywords", photos=photos)
-summary = multi_agent_system.run("summarize", inputs={
-    "popular_features": features["popular_features"],
-    "recommended_menu": menu,
-    "photo_keywords": photo_keywords,
-    "cafes": cafes
-})
-top_cafes = multi_agent_system.run("select_top_cafes", cafes=cafes, traveler_context=traveler_context)
-cafe_details = multi_agent_system.run("extract_cafe_details", top_cafes=top_cafes)
+# (B) description에서 {location}, {parking}, {pet_friendly} 등 '개별 변수'만 사용
+research_task = Task(
+    description="""
+    사용자 요청 지역({location})의 카페 정보를 검색하여 반환하세요.
+    필수 조건:
+    - 주차 가능 여부: {parking}
+    - 애견 동반 가능 여부: {pet_friendly}
+    - 검색 실패 시 "error" 메시지를 반환해야 합니다.
+    """,
+    expected_output="""
+    카페 목록을 JSON 형태로 반환
+    cafe_info = {
+        "cafe_name" : "카페 이름",
+        "info": {
+            "address": "카페 주소",
+            "business_time": "운영 시간",
+            "tel_number": "전화 번호",
+            "home_url": "홈페이지 주소",
+            "img_url": "대표 이미지",
+        },
+        "reviews": "최신 리뷰 10개 리스트",
+        "images" : "이미지 10개 url 리스트",
+        "pet_friendly" : "애견 동반 가능 여부(bool)",
+        "parking" : "주차 가능 여부(bool)",
+        "signiture_menu" : "해당 카페에서 사람들이 찾는 시그니처 메뉴",
+        "atmosphere" : "해당 카페의 분위기",
+        "characteristic" : "해당 카페를 나타낼 수 있는 주요 키워드 5가지" 
+    }
+    """,
+    agent=researcher,
+    tools=[naver_place_tool],
+)
 
-# 결과 출력
-print("Summary:\n", summary)
-print("Top Cafes Details:\n", cafe_details)
+ranker_task = Task(
+    description="""
+    다음 여행 정보를 분석하고, 고객의 선호도와 제약 사항을 파악하세요.
+    - location: {location}
+    - age: {age}
+    - concepts: {concepts}
+    - parking: {parking}
+    - pet_friendly: {pet_friendly}
+
+    1. researcher가 제공한 데이터를 기반으로 사용자에게 맞는 카페 3곳을 선정.
+    2. 각 카페가 선택된 이유와 함께 cafe_info 반환.
+    """,
+    expected_output="""
+    선정 이유와 함께 순위가 매겨진 3개의 카페의 cafe_info를 반환
+        카페 목록을 JSON 형태로 반환
+    cafe_info = {
+        "cafe_name" : "카페 이름",
+        "info": {
+            "address": "카페 주소",
+            "business_time": "운영 시간",
+            "tel_number": "전화 번호",
+            "home_url": "홈페이지 주소",
+            "img_url": "대표 이미지",
+        },
+        "pet_friendly" : "애견 동반 가능 여부(bool)",
+        "parking" : "주차 가능 여부(bool)",
+        "signiture_menu" : "해당 카페에서 사람들이 찾는 시그니처 메뉴",
+        "atmosphere" : "해당 카페의 분위기",
+        "characteristic" : "해당 카페를 나타낼 수 있는 주요 키워드 5가지",
+        "reason":"선택한 이유" 
+    }
+    """,
+    agent=ranker,
+)
+
+crew = Crew(
+    agents=[researcher, ranker],
+    tasks=[research_task, ranker_task],
+    process=Process.sequential,
+    verbose=True,
+)
+
+try:
+    result = crew.kickoff(inputs=user_input)
+    print(result)
+    agent_end_time = time.time()  # 🔴 종료 시간 기록
+    agent_elapsed_time = agent_end_time - agent_start_time  # ⏳ 총 실행 시간 계산
+    print(f"\n⏰ 실행 시간: {agent_elapsed_time:.2f} 초")  # 🚀 실행 시간 출력
+except Exception as e:
+    print(f"Error during execution: {e}")
