@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List
 from fastapi import APIRouter
-from app.services.agents.accommodation_agent_e import run
+from app.services.agents.accommodation_agent_2 import run
 
 router = APIRouter()
 
@@ -10,8 +10,15 @@ class UserInputData(BaseModel) :
     location : str
     check_in_date : str
     check_out_date: str
-    concepts: List[str]
-    
     
 
+@router.post("/accommodations")
+async def get_accommodations(user_input:UserInputData) :
+    """
+    숙소 추천 API
+    """
+    try:
+        return
+    except :
+        return
 
