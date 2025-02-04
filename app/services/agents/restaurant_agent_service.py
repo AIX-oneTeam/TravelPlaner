@@ -24,13 +24,10 @@ AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 # 공통 LLM 설정
 llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
 
-
-# -------------------------------------------------------------------
 # 1. 사용자 여행 데이터 입력 스키마
 class Companion(BaseModel):
     label: str
     count: int
-
 
 class TravelPlan(BaseModel):
     main_location: str
@@ -39,12 +36,10 @@ class TravelPlan(BaseModel):
     companions: List[Companion]  # 동반자 정보: [{"label": "성인", "count": 3}]
     concepts: List[str]
 
-
 # 추가: RestaurantSearchTool용 인자 스키마 (기본 정보 용)
 class RestaurantSearchArgs(BaseModel):
     location: str
     coordinates: str
-
 
 # 최종 출력용 스키마
 class spot_pydantic(BaseModel):
@@ -66,12 +61,9 @@ class spot_pydantic(BaseModel):
     day_x: int
     spot_time: str = None
 
-
 class spots_pydantic(BaseModel):
     spots: List[spot_pydantic]
 
-
-# -------------------------------------------------------------------
 # 2. 좌표 조회 도구 (Google Geocoding API 활용)
 class GeocodingTool(BaseTool):
     name: str = "GeocodingTool"
@@ -96,20 +88,7 @@ class GeocodingTool(BaseTool):
             coordinates = f"[GeocodingTool] Error: {str(e)}"
         return {"location": location, "coordinates": coordinates}
 
-
-geocoding_agent = Agent(
-    role="좌표 조회 전문가",
-    goal="사용자가 입력한 location(예: '부산광역시')의 위도와 경도를 조회하며, location 값은 그대로 유지한다.",
-    backstory="나는 위치 데이터 전문가로, 입력된 location 값을 변경하지 않고 Google Geocoding API를 통해 좌표를 조회한다.",
-    tools=[GeocodingTool()],
-    llm=llm,
-    verbose=True,
-)
-
-
-# -------------------------------------------------------------------
-# 3. 맛집 기본 정보 조회 도구 (구글맵에서 title, rating, reviews 포함)
-# "place_id" 필드를 제거하고 title, rating, reviews만 반환하도록 수정함.
+# 3. 맛집 기본 정보 조회 도구 (title, rating, reviews)
 class RestaurantBasicSearchTool(BaseTool):
     name: str = "RestaurantBasicSearchTool"
     description: str = (
@@ -146,18 +125,6 @@ class RestaurantBasicSearchTool(BaseTool):
                 print(f"[RestaurantBasicSearchTool] Error at start={start}: {e}")
         return all_candidates
 
-
-restaurant_basic_search_agent = Agent(
-    role="맛집 기본 조회 전문가",
-    goal="좌표 정보를 활용하여 식당의 기본 정보(구글맵의 title, rating, reviews)를 조회한다.",
-    backstory="나는 맛집 데이터 분석 전문가로, Google Maps API를 사용하여 특정 위치(예: 부산광역시)의 식당 정보를 조회한다.",
-    tools=[RestaurantBasicSearchTool()],
-    llm=llm,
-    verbose=True,
-)
-
-
-# -------------------------------------------------------------------
 # 4. 맛집 필터링 도구 (평점 4.0 이상, 리뷰 500개 이상 필터링)
 class RestaurantFilterTool(BaseTool):
     name: str = "RestaurantFilterTool"
@@ -172,18 +139,6 @@ class RestaurantFilterTool(BaseTool):
             if r.get("rating", 0) >= 4.0 and r.get("reviews", 0) >= 500
         ]
 
-
-restaurant_filter_agent = Agent(
-    role="맛집 필터링 전문가",
-    goal="평점과 리뷰 수 기준으로 식당 후보를 선별한다.",
-    backstory="나는 데이터 필터링 전문가로, 맛집 리뷰와 평점을 분석하여 신뢰할 수 있는 식당 후보를 추려낸다.",
-    tools=[RestaurantFilterTool()],
-    llm=llm,
-    verbose=True,
-)
-
-
-# -------------------------------------------------------------------
 # 5-1. 네이버 웹 검색 도구 (텍스트 기반 세부정보 조회)
 class NaverWebSearchTool(BaseTool):
     name: str = "NaverWebSearch"
@@ -217,18 +172,6 @@ class NaverWebSearchTool(BaseTool):
         except Exception as e:
             return f"[NaverWebSearchTool] 에러: {str(e)}"
 
-
-naver_web_search_agent = Agent(
-    role="네이버 웹 검색 에이전트",
-    goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
-    backstory="네이버 웹 검색을 통해 식당의 상세 텍스트 정보를 제공합니다.",
-    tools=[NaverWebSearchTool()],
-    llm=llm,
-    verbose=True,
-)
-
-
-# -------------------------------------------------------------------
 # 5-2. 네이버 이미지 검색 도구 (이미지 URL 조회)
 class NaverImageSearchTool(BaseTool):
     name: str = "NaverImageSearch"
@@ -256,19 +199,7 @@ class NaverImageSearchTool(BaseTool):
         except Exception as e:
             return f"[NaverImageSearchTool] 에러: {str(e)}"
 
-
-naver_image_search_agent = Agent(
-    role="네이버 이미지 검색 에이전트",
-    goal="네이버 이미지 검색 API를 사용해 식당의 이미지 URL을 조회한다.",
-    backstory="네이버 이미지 검색을 통해 식당의 이미지를 제공합니다.",
-    tools=[NaverImageSearchTool()],
-    llm=llm,
-    verbose=True,
-)
-
-
-# -------------------------------------------------------------------
-# 6. 최종 추천 생성 도구 (LLM 활용)
+# 6. 최종 추천 생성 도구(prompt 사용)
 class FinalRecommendationTool(BaseTool):
     name: str = "FinalRecommendationTool"
     description: str = (
@@ -301,19 +232,6 @@ class FinalRecommendationTool(BaseTool):
             final_output = {"spots": []}
         return final_output
 
-
-final_recommendation_agent = Agent(
-    role="최종 추천 에이전트",
-    goal="필터링된 맛집 후보와 네이버 텍스트 기반 세부 정보를, 여행 계획을 고려하여 최종 맛집 추천 리스트를 생성한다.",
-    backstory="나는 데이터 구조화 전문가로, 후보 식당의 기본 정보, 네이버에서 수집한 텍스트 세부 정보와 여행 계획 정보를 종합하여 최종 추천 리스트를 구성한다.",
-    tools=[FinalRecommendationTool()],
-    llm=llm,
-    verbose=True,
-    output_pydantic=spots_pydantic,  # 최종 출력 스키마 연결
-)
-
-
-# -------------------------------------------------------------------
 # 7. 최종 추천 사진 업데이트 도구
 class FinalImageUpdateTool(BaseTool):
     name: str = "FinalImageUpdateTool"
@@ -330,7 +248,69 @@ class FinalImageUpdateTool(BaseTool):
                 spot["image_url"] = image_url
         return {"spots": spots}
 
+# -------------------- Agent -------------------------
+# 좌표 조회
+geocoding_agent = Agent(
+    role="좌표 조회 전문가",
+    goal="사용자가 입력한 location(예: '부산광역시')의 위도와 경도를 조회하며, location 값은 그대로 유지한다.",
+    backstory="나는 위치 데이터 전문가로, 입력된 location 값을 변경하지 않고 Google Geocoding API를 통해 좌표를 조회한다.",
+    tools=[GeocodingTool()],
+    llm=llm,
+    verbose=True,
+)
 
+# 맛집 조회
+restaurant_basic_search_agent = Agent(
+    role="맛집 기본 조회 전문가",
+    goal="좌표 정보를 활용하여 식당의 기본 정보(구글맵의 title, rating, reviews)를 조회한다.",
+    backstory="나는 맛집 데이터 분석 전문가로, Google Maps API를 사용하여 특정 위치(예: 부산광역시)의 식당 정보를 조회한다.",
+    tools=[RestaurantBasicSearchTool()],
+    llm=llm,
+    verbose=True,
+)
+
+# 맛집 필터링
+restaurant_filter_agent = Agent(
+    role="맛집 필터링 전문가",
+    goal="평점과 리뷰 수 기준으로 식당 후보를 선별한다.",
+    backstory="나는 데이터 필터링 전문가로, 맛집 리뷰와 평점을 분석하여 신뢰할 수 있는 식당 후보를 추려낸다.",
+    tools=[RestaurantFilterTool()],
+    llm=llm,
+    verbose=True,
+)
+
+# 네이버 웹 검색
+naver_web_search_agent = Agent(
+    role="네이버 웹 검색 에이전트",
+    goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
+    backstory="네이버 웹 검색을 통해 식당의 상세 텍스트 정보를 제공합니다.",
+    tools=[NaverWebSearchTool()],
+    llm=llm,
+    verbose=True,
+)
+
+# 네이버 이미지 검색
+naver_image_search_agent = Agent(
+    role="네이버 이미지 검색 에이전트",
+    goal="네이버 이미지 검색 API를 사용해 식당의 이미지 URL을 조회한다.",
+    backstory="네이버 이미지 검색을 통해 식당의 이미지를 제공합니다.",
+    tools=[NaverImageSearchTool()],
+    llm=llm,
+    verbose=True,
+)
+
+# 최종 추천 생성
+final_recommendation_agent = Agent(
+    role="최종 추천 에이전트",
+    goal="필터링된 맛집 후보와 네이버 텍스트 기반 세부 정보를, 여행 계획을 고려하여 최종 맛집 추천 리스트를 생성한다.",
+    backstory="나는 데이터 구조화 전문가로, 후보 식당의 기본 정보, 네이버에서 수집한 텍스트 세부 정보와 여행 계획 정보를 종합하여 최종 추천 리스트를 구성한다.",
+    tools=[FinalRecommendationTool()],
+    llm=llm,
+    verbose=True,
+    output_pydantic=spots_pydantic,  # 최종 출력 스키마 연결
+)
+
+# 최종 추천 사진 업데이트
 final_image_update_agent = Agent(
     role="최종 이미지 업데이트 에이전트",
     goal="최종 추천 리스트에 포함된 맛집에 대해 네이버 이미지 검색 API를 통해 이미지 URL을 업데이트한다.",
@@ -339,7 +319,6 @@ final_image_update_agent = Agent(
     llm=llm,
     verbose=True,
 )
-
 
 # -------------------------------------------------------------------
 # 8. 전체 Crew 구성 및 실행 함수
@@ -396,7 +375,7 @@ def create_recommendation(input_data: dict) -> dict:
             verbose=True,
         )
 
-        # Crew 실행 (전체 체인 실행)
+        # Crew 실행
         result = crew.kickoff()
         return result
 
@@ -407,7 +386,7 @@ def create_recommendation(input_data: dict) -> dict:
 
 
 # FastAPI 엔드포인트 정의
-@app.post("/recommendation")
+@app.post("/restaurant")
 async def get_restaurant_recommendations(travel_plan: TravelPlan):
     try:
         result = create_recommendation(travel_plan.dict())
