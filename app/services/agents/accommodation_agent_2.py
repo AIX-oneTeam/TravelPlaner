@@ -12,10 +12,11 @@ from geopy.geocoders import Nominatim
 
 
 load_dotenv()
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
+OPENAI_API_KEY = "key"
+print(OPENAI_API_KEY)
+GOOGLE_API_KEY = "key"
  
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
 
 class UserInput(BaseModel):
     start_date: str
@@ -102,7 +103,19 @@ class GoogleReviewTool(BaseTool) :
     
     def _run(self, data_id : str) -> str:
         try:
-            return 
+            params = {
+            "engine": "google_maps_reviews",
+            "data_id": data_id,
+            "gl": "kr",
+            "hl": "ko",
+            "api_key": GOOGLE_API_KEY 
+            }
+
+            search = GoogleSearch(params)
+            review_results = search.get_dict()
+            print(f"전체 REVIEW API 응답: {review_results}")
+            
+            return review_results 
         
         except Exception as e:
             return f"[GoogleReviewTool] 에러: {str(e)}"   
@@ -119,7 +132,7 @@ class AiLatestDevelopment():
         return Agent(
             config= self.agents_config['accommodation_recommendation_expert'],
             verbose=True,
-            tools=[GeoCoordinateTool(), GoogleMapSearchTool(),GoogleHotelSearchTool()],
+            tools=[GeoCoordinateTool(), GoogleMapSearchTool(),GoogleHotelSearchTool(),GoogleReviewTool()],
             manager_llm=llm 
         )
 

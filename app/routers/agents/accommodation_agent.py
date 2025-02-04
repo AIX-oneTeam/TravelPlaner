@@ -13,10 +13,5 @@ class UserInputData(BaseModel) :
     concepts: List[str]
     
     
-async def recommand_accommodation(userinput : UserInputData):
-    return run(
-        "location" : "userinput,
-        
-        
-    )
+
 

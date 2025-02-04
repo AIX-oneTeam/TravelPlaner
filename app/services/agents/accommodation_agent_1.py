@@ -15,7 +15,7 @@ load_dotenv()
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
  
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
 
 class UserInput(BaseModel):
     start_date: str
@@ -129,7 +129,7 @@ class AiLatestDevelopment():
 def run(location:str,check_in_date:str,check_out_date:str):
     ai_dev = AiLatestDevelopment()  
     crew_instance = ai_dev.crew()  
-    r = crew_instance.kickoff(inputs={location, check_in_date, check_out_date })     
+    r = crew_instance.kickoff(inputs={location, check_in_date, check_out_date})     
     print(r)
 
 run()
