@@ -1,0 +1,12 @@
+accommodation_recommendation_task:
+  description: >
+    -{location}지역의 위도 경도를 GeoCoordinateTool()을 사용하여 추출.
+    -GeoCoordinateTool()을 통해 구한 값을 GoogleMapSearchTool()에 전달.
+    -GoogleMapSearchTool()로 {location}지역의 숙소들을 검색.
+    -GoogleMapSearchTool()의 검색 결과 중 숙소 이름을 추출하여 GoogleHotelSearchTool()에 검색한다.
+    -GoogleHotelSearchTool()에 검색할때, {location}지역의 숙소들 중 입력된 {check_in_date}, {check_out_date}을 사용하여 가능한 숙소들을 검색.
+    -GoogleHotelSearchTool()의 검색 결과의 찾은 모든 숙소 이름, 주소, 전화번호, 부대 시설, 대표 이미지 url을 추출.
+    -JSON 형식으로 반환
+  expected_output: >
+    JSON 형식의 숙소 데이터
+  agent: accommodation_recommendation_expert
