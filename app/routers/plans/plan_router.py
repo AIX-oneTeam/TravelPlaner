@@ -40,7 +40,7 @@ class PlanRequest(BaseModel):
     email: str
 
 # 일정 저장
-@router.post("/")
+@router.post("")
 def create_plan(request_data: PlanRequest, request: Request, session: Session = Depends(get_session_sync)):
     try:
         # 0. memberid 획득
@@ -81,7 +81,7 @@ def create_plan(request_data: PlanRequest, request: Request, session: Session = 
 
 # 일정 조회
 # 회원의 모든 일정 리스트 조회
-@router.get("/")
+@router.get("")
 async def read_member_plans(request: Request, session: Session = Depends(get_session_sync)):
     try:
         if(request.state.user is not None):
