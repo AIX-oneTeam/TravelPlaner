@@ -15,7 +15,7 @@ async def cafe_response_test(user_input: TravelPlanRequest):
         return {
             "status": "success",
             "message": "카페 리스트가 생성되었습니다.",
-            "data": result,
+            "data": result.json_dict.get("spots",[]),
         }
 
     except Exception as e:
