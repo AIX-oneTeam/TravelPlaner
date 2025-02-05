@@ -213,6 +213,8 @@ app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
 app.include_router(agent_router, prefix="/agents", tags=["agents"])
+app.include_router(accommodation_router, prefix="/accommodation-agnet", tags=["agents"])
+
 
 
 # 데이터베이스 초기화

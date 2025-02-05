@@ -9,6 +9,8 @@ from crewai.tools import BaseTool
 from urllib.parse import quote
 from serpapi import GoogleSearch
 from geopy.geocoders import Nominatim
+from typing import List, Dict
+import json
 
 
 load_dotenv()
@@ -70,7 +72,7 @@ class GoogleHotelSearchTool(BaseTool):
     name: str = "Google Hotel Search"
     description: str = "구글 호텔 검색 API를 사용하여 텍스트 정보를 검색"
     
-    def _run(self, location: str, check_in_date:str, check_out_date:str) -> str: 
+    def _run(self, location: str, check_in_date:str, check_out_date:str, adults:int, children:int) -> str: 
         try:            
             decoded_location = location.encode('utf-8').decode('unicode_escape')
             
@@ -79,8 +81,8 @@ class GoogleHotelSearchTool(BaseTool):
             'q': f"{decoded_location} 숙소", 
             "check_in_date": check_in_date,
             "check_out_date": check_out_date,
-            "adults": "2",
-            "children": "0",
+            "adults": adults,
+            "children": children,
             "currency": "KRW",
             "gl": "kr",
             "hl": "ko",
@@ -149,8 +151,10 @@ class AiLatestDevelopment():
             process=Process.sequential,
             verbose=True
         )
-
-def run(location: str, check_in_date: str, check_out_date: str):
+           
+           
+def run(location: str, check_in_date: str, check_out_date: str, 
+        age_group: int, adults:int, children:int, keyword:list)->list:
 
     ai_dev = AiLatestDevelopment()
     crew_instance = ai_dev.crew()
@@ -158,7 +162,11 @@ def run(location: str, check_in_date: str, check_out_date: str):
     inputs = {
         "location": location,
         "check_in_date": check_in_date,
-        "check_out_date": check_out_date
+        "check_out_date": check_out_date,
+        "age_group" : age_group,
+        "adults" : adults,
+        "children":children,
+        "keyword": keyword
     }
     
     result = crew_instance.kickoff(inputs=inputs)
