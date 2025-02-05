@@ -444,13 +444,15 @@ def create_recommendation(input_data: dict) -> dict:
                 description=f"""{travel_plan.main_location}의 좌표 조회""",
                 agent=geocoding_agent,
                 expected_output="위치 좌표",
-                config={"location": travel_plan.main_location},
+                context={"location": travel_plan.main_location},
             ),
             Task(
                 description="""맛집 기본 정보 조회""",
                 agent=restaurant_basic_search_agent,
                 expected_output="맛집 기본 정보 리스트",
-                config={},
+                context={
+                    "geocoding_result": "$prev_task_0"  # 첫 번째 태스크의 결과 참조
+                },
             ),
             Task(
                 description="""맛집 필터링 (평점 4.0 이상, 리뷰 500개 이상)""",
