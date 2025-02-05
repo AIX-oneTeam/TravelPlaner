@@ -2,7 +2,6 @@ from crewai import Agent, Task, Crew, LLM, Process
 from crewai_tools import SerperDevTool
 from app.services.agents.cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
 from app.services.agents.travel_all_schedule_agent_service import spots_pydantic
-from cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
 import os
 from dotenv import load_dotenv
 import traceback
@@ -94,10 +93,11 @@ def cafe_agent(user_input, user_prompt=""):
             """,
             expected_output="""
             검증된 정확한 정보를 json 형태로 반환해주세요.
+            다음 4가지 필드는 항상 해당 값으로 고정해주세요
             spot_category: 3
             order: 0
             day_x: 0
-            spot_time: str = None
+            spot_time: null
             """,
             output_json=spots_pydantic,
             agent=checker
