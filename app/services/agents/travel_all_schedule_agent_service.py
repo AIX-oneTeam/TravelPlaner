@@ -4,10 +4,10 @@ import os
 import requests
 from crewai import Agent, Task, Crew, LLM
 from datetime import datetime, time
-from sqlalchemy import DECIMAL
 from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+from sqlalchemy import Column, Double
 
 class spot_pydantic(BaseModel):
 
@@ -18,8 +18,8 @@ class spot_pydantic(BaseModel):
     url: str  = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    latitude: float = Field(sa_column=DECIMAL(9,6))
-    longitude: float = Field(sa_column=DECIMAL(9,6))
+    latitude: float = Field(sa_column=Column(Double, nullable=False))
+    longitude: float = Field(sa_column=Column(Double, nullable=False))
     spot_category: int
     phone_number: str = Field(default=None, max_length=300)
     business_status: bool = None
