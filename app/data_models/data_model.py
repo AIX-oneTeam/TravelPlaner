@@ -1,4 +1,5 @@
 from datetime import datetime, time
+from sqlalchemy import DECIMAL
 from typing import List, Optional
 import phonenumbers
 from pydantic import field_validator
@@ -78,12 +79,11 @@ class Spot(SQLModel, table=True):
     eng_name: Optional[str] = Field(default=None, max_length=255)
     description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
     url: Optional[str] = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    likes: Optional[int] = None
-    satisfaction: Optional[float] = None
+    latitude: float = Field(sa_column=DECIMAL(9,6))
+    longitude: float = Field(sa_column=DECIMAL(9,6))
     spot_category: int
     phone_number: Optional[str] = Field(default=None, max_length=300)
     business_status: Optional[bool] = None

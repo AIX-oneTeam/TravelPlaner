@@ -1,6 +1,11 @@
 
 import enum
 
+class SpotType(enum):
+    숙소 = 0
+    관광지 = 1
+    맛집 = 2
+    카페 = 3
 
 class AccomodationType(enum):
     HOTEL = "호텔"
