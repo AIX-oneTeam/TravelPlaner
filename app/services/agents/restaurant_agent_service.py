@@ -10,6 +10,7 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, Double
 from typing import List, Dict
+import time
 import aiohttp
 import asyncio
 
@@ -36,6 +37,7 @@ class TravelPlan(BaseModel):
     main_location: str
     start_date: str
     end_date: str
+    ages: str
     companions: List[Companion]
     concepts: List[str]
 
@@ -127,18 +129,21 @@ class RestaurantBasicSearchTool(BaseTool):
 
         lat, lng = coordinates.split(",")
 
-        # 첫 20개 요청
         params = {
             "query": f"{location} 맛집",
             "language": "ko",
             "type": "restaurant",
+            "location": f"{lat},{lng}",
+            "radius": "5000",
             "key": GOOGLE_MAP_API_KEY,
         }
 
         try:
+            # 첫 20개 요청
             response = requests.get(url, params=params)
             response.raise_for_status()
             data = response.json()
+            print(f"첫 요청 결과 수: {len(data.get('results', []))}")
 
             for place in data.get("results", []):
                 place_id = place.get("place_id")
@@ -147,22 +152,34 @@ class RestaurantBasicSearchTool(BaseTool):
                     if details:
                         all_candidates.append(details)
 
-            # 추가 20개 요청
-            if data.get("next_page_token"):
-                time.sleep(2)
-                params["pagetoken"] = data["next_page_token"]
-                response = requests.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
+            # 추가 20개 요청을 위한 반복 시도
+            next_page_token = data.get("next_page_token")
+            if next_page_token:
+                max_retries = 3
+                for _ in range(max_retries):
+                    try:
+                        time.sleep(5)
+                        params["pagetoken"] = next_page_token
+                        response = requests.get(url, params=params)
+                        response.raise_for_status()
+                        data = response.json()
+                        print(f"두 번째 요청 결과 수: {len(data.get('results', []))}")
 
-                for place in data.get("results", []):
-                    if len(all_candidates) >= 40:
-                        break
-                    place_id = place.get("place_id")
-                    if place_id:
-                        details = self.get_place_details(place_id)
-                        if details:
-                            all_candidates.append(details)
+                        for place in data.get("results", []):
+                            if len(all_candidates) >= 40:
+                                break
+                            place_id = place.get("place_id")
+                            if place_id:
+                                details = self.get_place_details(place_id)
+                                if details:
+                                    all_candidates.append(details)
+                        break  # 성공하면 반복 중단
+                    except Exception as e:
+                        print(f"Token retry error: {e}")
+                        if _ == max_retries - 1:  # 마지막 시도였다면
+                            raise  # 에러 발생
+
+            print(f"최종 수집된 맛집 수: {len(all_candidates)}")
 
         except Exception as e:
             print(f"[RestaurantBasicSearchTool] Search Error: {e}")
@@ -170,7 +187,7 @@ class RestaurantBasicSearchTool(BaseTool):
         return all_candidates
 
 
-# 맛집 필터링 도구 - 기존과 동일
+# 맛집 필터링 도구
 class RestaurantFilterTool(BaseTool):
     name: str = "RestaurantFilterTool"
     description: str = (
@@ -197,7 +214,7 @@ class NaverWebSearchTool(BaseTool):
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
-        params = {"query": query, "display": 1, "start": 1, "sort": "random"}
+        params = {"query": query, "display": 2, "start": 1, "sort": "random"}
 
         try:
             response = requests.get(url, headers=headers, params=params)
@@ -338,15 +355,49 @@ restaurant_filter_agent = Agent(
     verbose=True,
 )
 
+
 # 네이버 웹 검색 에이전트
-naver_web_search_agent = Agent(
-    role="네이버 웹 검색 에이전트",
-    goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
-    backstory="네이버 웹 검색을 통해 식당의 상세 텍스트 정보를 제공합니다.",
-    tools=[NaverWebSearchTool()],
-    llm=llm,
-    verbose=True,
-)
+def naver_web_search_agent(input_data: dict) -> Agent:
+    travel_plan = TravelPlan(**input_data)
+    print(f"[DEBUG1] input_data: {input_data}")
+
+    return Agent(
+        role="네이버 웹 검색 에이전트",
+        goal=(
+            f"{travel_plan.main_location} 지역에서 {travel_plan.start_date}부터 {travel_plan.end_date}까지 여행하는 여행객을 위한 맛집 정보를 검색한다. "
+            f"연령대: {travel_plan.ages}, 동반자 유형: {travel_plan.companions}, "
+            f"여행 컨셉: {', '.join(travel_plan.concepts)}을 고려하여 관련된 최고의 맛집 정보를 제공한다. "
+            f"검색 최적화를 위해 '{travel_plan.main_location} {', '.join(travel_plan.concepts)} 맛집 추천'을 키워드로 활용한다. "
+            f"검색 결과는 반드시 정확한 JSON 형식으로 반환하며, 추가적인 설명이나 불필요한 텍스트를 포함하지 않는다.\n\n"
+            "JSON 형식:\n"
+            "{\n"
+            '  "kor_name": string,  # 식당의 한국어 이름\n'
+            '  "eng_name": string or null,  # 식당의 영어 이름 (없으면 null)\n'
+            '  "description": string,  # 식당에 대한 설명\n'
+            '  "address": string,  # 식당의 주소\n'
+            '  "url": string or null,  # 공식 웹사이트 URL (없으면 null)\n'
+            '  "image_url": string,  # 식당 대표 이미지 URL\n'
+            '  "map_url": string,  # 구글 지도에서 검색 가능한 URL\n'
+            '  "latitude": number,  # 위도 값\n'
+            '  "longitude": number,  # 경도 값\n'
+            '  "food_category": number,  # 음식 카테고리 (예: 1=한식, 2=일식, 3=중식, 4=양식 등)\n'
+            '  "phone_number": string or null,  # 전화번호 (없으면 null)\n'
+            '  "business_status": boolean or null,  # 영업 상태 (True/False, 없으면 null)\n'
+            '  "business_hours": string or null,  # 운영 시간 (없으면 null)\n'
+            '  "recommended_menu": list of string or null  # 추천 메뉴 리스트 (없으면 null)\n'
+            "}"
+        ),
+        backstory=(
+            f"나는 {travel_plan.main_location} 지역의 미식 전문가로서, 최신 데이터와 정보를 바탕으로 사용자의 여행 스타일과 조건을 고려하여 "
+            "최적의 식당을 추천할 수 있다. 나는 사용자의 연령대(예: 10대, 20대), 동반자 정보(연령대 및 인원수), "
+            "여행 컨셉을 종합적으로 분석하여 적합한 식당을 선별하며, 네이버 이미지 검색을 활용하여 해당 식당의 대표적인 이미지를 제공한다. "
+            "내가 제공하는 데이터는 신뢰성이 높으며, 사용자가 쉽게 이해하고 활용할 수 있도록 정확한 JSON 형식으로 구조화된다."
+        ),
+        tools=[NaverImageSearchTool()],
+        llm=llm,
+        verbose=True,
+    )
+
 
 # 네이버 이미지 검색 에이전트
 naver_image_search_agent = Agent(
@@ -358,31 +409,65 @@ naver_image_search_agent = Agent(
     verbose=True,
 )
 
+
 # 최종 추천 생성 에이전트
-final_recommendation_agent = Agent(
-    role="최종 추천 에이전트",
-    goal="수집된 모든 정보를 종합하여 최종 맛집 추천 리스트를 생성한다.",
-    backstory="나는 데이터 구조화 전문가로, 모든 수집 정보를 종합하여 여행 일정에 맞는 맛집 추천 리스트를 구성한다.",
-    tools=[FinalRecommendationTool()],
-    llm=llm,
-    verbose=True,
-    output_pydantic=spots_pydantic,
-)
+def final_recommendation_agent(input_data: dict) -> Agent:
+
+    travel_plan = TravelPlan(**input_data)
+    print(f"[DEBUG2] input_data: {input_data}")
+
+    return Agent(
+        role="최종 추천 에이전트",
+        goal=(
+            f"사용자에게 {travel_plan.main_location} 지역에서 {travel_plan.start_date}부터 {travel_plan.end_date}까지 여행하는 여행객의 정보를 바탕으로, "
+            f"연령대: {travel_plan.ages}, 동반자 정보: {travel_plan.companions}, 여행 컨셉: {', '.join(travel_plan.concepts)}을 고려하여 식당 정보를 추천하라. "
+            "각 식당 정보는 반드시 아래 JSON 객체 형식을 준수해야 하며, 추가적인 설명이나 불필요한 텍스트를 포함하지 말라.\n\n"
+            "JSON 형식:\n"
+            "{\n"
+            '  "kor_name": string,  # 식당의 한국어 이름\n'
+            '  "eng_name": string or null,  # 식당의 영어 이름 (없으면 null)\n'
+            '  "description": string,  # 식당에 대한 설명\n'
+            '  "address": string,  # 식당의 주소\n'
+            '  "url": string or null,  # 공식 웹사이트 URL (없으면 null)\n'
+            '  "image_url": string,  # 식당 대표 이미지 URL\n'
+            '  "map_url": string,  # 구글 지도에서 검색 가능한 URL\n'
+            '  "latitude": number,  # 위도 값\n'
+            '  "longitude": number,  # 경도 값\n'
+            '  "spot_category": 2,  # 맛집 카테고리 고정값\n'
+            '  "phone_number": string or null,  # 전화번호 (없으면 null)\n'
+            '  "business_status": boolean or null,  # 영업 상태 (True/False, 없으면 null)\n'
+            '  "business_hours": string or null,  # 운영 시간 (없으면 null)\n'
+            '  "spot_time": string or null  # 추천 방문 시간 (없으면 null)\n'
+            "}"
+        ),
+        backstory=(
+            f"나는 {travel_plan.main_location} 지역에서 {travel_plan.start_date}부터 {travel_plan.end_date}까지 여행하는 여행객을 위해 최적의 맛집을 추천하는 데이터 분석 전문가이다. "
+            "사용자의 연령대(예: 10대, 20대), 동반자 정보(연령대 및 인원수), 여행 컨셉을 기반으로 데이터를 분석하며, "
+            "네이버 및 구글 데이터를 종합하여 신뢰할 수 있는 정보를 제공한다. "
+            "추천 맛집은 사용자의 여행 일정과 동선을 고려하여 최적화되며, "
+            "각 식당에 대한 정보를 JSON 형식으로 정리하여 제공한다."
+        ),
+        tools=[FinalRecommendationTool()],
+        llm=llm,
+        verbose=True,
+        output_pydantic=spots_pydantic,
+    )
 
 
 # ------------------------- Task & Crew ------------------------------
 def create_recommendation(input_data: dict) -> dict:
     try:
         travel_plan = TravelPlan(**input_data)
+        print(f"[DEBUG3] input_data: {input_data}")
 
         # Task 정의
         tasks = [
             Task(
                 description=f"{travel_plan.main_location}의 좌표 조회",
                 agent=geocoding_agent,
-                expected_output="{'location': '부산광역시', 'coordinates': '35.1796,129.0756'}",
+                expected_output=f"{{'location': '{travel_plan.main_location}', 'coordinates': '위도,경도'}}",
                 tools=[GeocodingTool()],
-                config={},  # 빈 딕셔너리로 config 추가
+                config={"location": travel_plan.main_location},
             ),
             Task(
                 description="맛집 기본 정보 조회",
@@ -400,10 +485,10 @@ def create_recommendation(input_data: dict) -> dict:
             ),
             Task(
                 description="맛집 세부 정보 조회",
-                agent=naver_web_search_agent,
+                agent=naver_web_search_agent(travel_plan.dict()),
                 expected_output="각 식당의 네이버 웹 검색 결과에서 세부 정보 (주소, 설명, 전화번호 등) 포함",
                 tools=[NaverWebSearchTool()],
-                config={},
+                config={"location": travel_plan.main_location},
             ),
             Task(
                 description="맛집 이미지 조회",
@@ -414,7 +499,7 @@ def create_recommendation(input_data: dict) -> dict:
             ),
             Task(
                 description="최종 추천 리스트 생성",
-                agent=final_recommendation_agent,
+                agent=final_recommendation_agent(travel_plan.dict()),
                 expected_output="spot_pydantic 구조를 따르는 최종 추천 리스트",
                 tools=[FinalRecommendationTool()],
                 config={
@@ -430,11 +515,11 @@ def create_recommendation(input_data: dict) -> dict:
                 geocoding_agent,
                 restaurant_basic_search_agent,
                 restaurant_filter_agent,
-                naver_web_search_agent,
+                naver_web_search_agent(travel_plan.dict()),  # ✅ Agent 객체 전달
                 naver_image_search_agent,
-                final_recommendation_agent
+                final_recommendation_agent(travel_plan.dict()),  # ✅ Agent 객체 전달
             ],
-            verbose=True
+            verbose=True,
         )
 
         result = crew.kickoff()
