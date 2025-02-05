@@ -15,7 +15,7 @@ class spot_pydantic(BaseModel):
     eng_name: str = Field(default=None, max_length=255)
     description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    url: str  = Field(default=None, max_length=2083)
+    url: str = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
     latitude: float = Field(sa_column=Column(Double, nullable=False))
