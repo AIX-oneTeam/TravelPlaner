@@ -7,6 +7,7 @@ from datetime import datetime, time
 from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+from sqlalchemy import Column, Double
 
 class spot_pydantic(BaseModel):
 
@@ -14,12 +15,11 @@ class spot_pydantic(BaseModel):
     eng_name: str = Field(default=None, max_length=255)
     description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
     url: str  = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    likes: int = None
-    satisfaction: float = None
+    latitude: float = Field(sa_column=Column(Double, nullable=False))
+    longitude: float = Field(sa_column=Column(Double, nullable=False))
     spot_category: int
     phone_number: str = Field(default=None, max_length=300)
     business_status: bool = None
@@ -28,6 +28,7 @@ class spot_pydantic(BaseModel):
     order: int
     day_x: int
     spot_time: str = None
+    
 class spots_pydantic(BaseModel):
     spots: list[spot_pydantic]
 
