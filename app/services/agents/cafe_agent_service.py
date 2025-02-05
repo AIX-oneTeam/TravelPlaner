@@ -1,9 +1,8 @@
 from crewai import Agent, Task, Crew, LLM, Process
 from crewai_tools import SerperDevTool
 from app.services.agents.cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
-from app.services.agents.travel_agent_service import spot_pydantic, spots_pydantic
-from pydantic import BaseModel,Field
-from typing import List
+from app.services.agents.travel_all_schedule_agent_service import spots_pydantic
+from cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
 import os
 from dotenv import load_dotenv
 import traceback
@@ -26,12 +25,14 @@ my_llm = LLM(
     max_tokens=4000
 )
 
-def cafe_agent(user_input, user_prompt=None):
+def cafe_agent(user_input, user_prompt=""):
     """
     CrewAI를 실행하여 사용자 맞춤 카페를 추천해주는 서비스.
     반환값은 JSON 형식
     """
-
+    user_input["concepts"] = ''.join(user_input.get('concepts'))
+    user_input["user_prompt"] = user_prompt
+    
     try:
 
         # 에이전트 정의
@@ -47,7 +48,7 @@ def cafe_agent(user_input, user_prompt=None):
             """,
             tools=[search_dev_tool],
             allow_delegation=False,
-            max_iter=3,
+            max_iter=1,
             llm=my_llm,
             verbose=True
         )
@@ -56,7 +57,7 @@ def cafe_agent(user_input, user_prompt=None):
             role="카페 검증 전문가",
             goal="researcher가 분석한 데이터를 기반으로 정보가 정확한지 검증하고, 수정하세요.",
             backstory="resercher가 찾지 못한 정보를 보완하고, 잘못 찾은 정보는 정확한 정보로 수정해주세요",
-            # max_iter=2,
+            max_iter=1,
             allow_delegation=False,
             tools=[multi_tool],
             llm=my_llm,
@@ -69,34 +70,36 @@ def cafe_agent(user_input, user_prompt=None):
             고객이 최고의 여행을 할 수 있도록 고객의 상황과 취향에 맞는 카페 3곳을 찾고 카페 정보를 반환해주세요.
 
             카페는 반드시 고객의 여행 지역인 {main_location}에 위치해야하고, 폐업 또는 휴업하지 않은 카페여야합니다. 
-            고객의 선호도({concepts})와, 주 연령대({ages})와 애견동반 여부({pet_friendly})를 반영해 카페를 찾아주세요.
+            고객의 선호도({concepts})와, 주 연령대({ages})와 요구사항({user_prompt})을 반영해 카페를 찾아주세요.
             협찬을 받고 작성한 글이나 광고 글은 제외하고 조사해주세요.
             시그니처 메뉴는 "다양한"과 같은 추상적인 단어를 사용하지 않고 정확한 메뉴의 이름을 명시해주세요.
             description에는 카페의 최신 리뷰와 사진을 분석해 해당 카페의 분위기, 시그니처 메뉴, 사람들이 공통적으로 좋아했던 주요 특징을 간략히 적어주세요.
-            description에는 나이, 연령대, 주차, 애견동반 여부에 대한 언급 하지마세요.
+            description에는 절대 나이, 연령대에 대한 언급을 하지마세요.
             모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
             
             반드시 서로 다른 3곳의 카페를 반환해주세요.
-            고객의 선호도({concepts})에 "프랜차이즈"가 포함되지 않는 경우, 프랜차이즈 카페는 3곳에서 제외해주세요.
+            고객의 선호도({concepts})와 요구사항({user_prompt})에 "프랜차이즈"가 포함되지 않는 경우, 프랜차이즈 카페는 3곳에서 제외해주세요.
             프랜차이즈 카페 : 스타벅스, 투썸플레이스, 이디야, 빽다방, 메가커피 등 전국에 매장이 5개 이상인 커피 전문점 
             """,
             expected_output="""
             3개의 카페 리스트를 json 형태로 반환해주세요.
-            예시: {"cafes": [<Cafe1>, <Cafe2>, <Cafe3>]}
             """,
-            output_json=CafeSimpleList,
-            agent=researcher,
+            output_json=spots_pydantic,
+            agent=researcher
         )
 
         checker_task = Task(
             description="""
-            researcher가 반환한 카페들의 kor_name + {location}을 검색해 Cafe에 필요한 정보들을 찾아 입력해주세요. 
+            researcher가 반환한 카페들의 kor_name + {main_location}을 검색해 spots_pydantic에 필요한 정보들을 찾아 입력해주세요. 
             """,
             expected_output="""
             검증된 정확한 정보를 json 형태로 반환해주세요.
-            예시: {"cafes": [<Cafe1>, <Cafe2>, <Cafe3>]}
+            spot_category: 3
+            order: 0
+            day_x: 0
+            spot_time: str = None
             """,
-            output_json=CafeList,
+            output_json=spots_pydantic,
             agent=checker
         )
 
@@ -129,13 +132,14 @@ def cafe_agent(user_input, user_prompt=None):
                         
 if __name__ == "__main__":
     user_input = {
-    "location":"석촌",  # 사용자의 지역
-    "age" : "30대",
-    "concepts":"조용한, 베이글",  # 취향
-    "parking":True,  # 주차 가능 여부
-    "pet_friendly":True  # 반려동물 동반 가능 여부
+    "ages" : "30대",
+    "companion_count": [{"label":"성인", "count": 2},{"label":"영유아", "count": 1}],
+    "start_date":"2025-02-18",  
+    "end_date":"2025-02-20",
+    "concepts":["조용한, 베이글"], 
+    "main_location":"서울시 강남구"
     }
-                   
+    
     agent_result = cafe_agent(user_input)
     print(f"------------------------")
     print(f"type of agent_result : {type(agent_result)}")

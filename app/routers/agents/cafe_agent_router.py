@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.services.agents.cafe_agent6 import cafe_agent
+from app.services.agents.cafe_agent_service import cafe_agent
 from app.routers.agents.travel_all_schedule_agent_router import TravelPlanRequest
 
 router = APIRouter()
@@ -15,7 +15,7 @@ async def cafe_response_test(user_input: TravelPlanRequest):
         return {
             "status": "success",
             "message": "카페 리스트가 생성되었습니다.",
-            "data": result.json_dict.get("cafes",[]),
+            "data": result,
         }
 
     except Exception as e:
