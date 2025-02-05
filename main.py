@@ -18,12 +18,21 @@ from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 from app.routers.agents.accommodation_agent_router import router as accommodation_router
+from app.routers.agents.cafe_agent_router import router as agent_router
 
 import os
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
+# 로그 설정
+logging.basicConfig(
+    filename='app.log',  # 파일로 저장
+    level=logging.INFO,  # 로그 레벨 설정
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'  # 로그 형식
+)
+logger = logging.getLogger(__name__)
 
 # FastAPI 애플리케이션 생성
 app = FastAPI(lifespan=lifespan)
@@ -55,27 +64,42 @@ async def jwt_auth_middleware(request: Request, call_next):
     """
     JWT 인증 미들웨어
     """
-    # 현재 요청 경로 확인
-    path = request.url.path
-    
-    # 정확한 경로 매칭 확인
-    if path in PUBLIC_PATHS:
-        return await call_next(request)
-    
-    print("JWT 인증 미들웨어")
-    token = request.cookies.get("access_token")  # 쿠키에서 JWT 가져오기
-    print("token : ", token)
-    if token:
+    try:
+        # 현재 요청 경로 확인
+        path = request.url.path
+        logger.info(f"요청 경로: {request.url.path}")
+        
+        # 공개 경로는 인증 없이 통과
+        if path in PUBLIC_PATHS:
+            return await call_next(request)
+        
+        token = request.cookies.get("access_token")
+
+        
+        if not token:
+            logger.warning("토큰이 없습니다.")
+            request.state.user = None
+            return await call_next(request)
+            
         try:
-            user_data = decode_jwt(token)  # JWT 디코딩 및 검증
-            request.state.user = user_data  # 사용자 정보를 요청 상태에 저장
-            response = await call_next(request)
-        except HTTPException:
-            # 액세스 토큰이 만료되었으면 리프레시 토큰을 사용하여 새 액세스 토큰을 발급
+            # JWT 토큰 검증
+            user_data = decode_jwt(token)
+            request.state.user = user_data
+            return await call_next(request)
+            
+        except HTTPException as he:
+
+            # 액세스 토큰 만료 시 리프레시 토큰으로 재발급 시도
+            logger.info("액세스 토큰 만료 시 리프레시 토큰으로 재발급 시도")
             refresh_token = request.cookies.get("refresh_token")
-            if refresh_token:
+            if not refresh_token:
+                logger.warning("리프레시 토큰이 없습니다.")
+                request.state.user = None
+                return await call_next(request)
+                
+            try:
+                logger.info("리프레시 토큰으로 액세스 토큰 재발급 시도")
                 new_access_token = await refresh_access_token_naver(refresh_token)
-                # 새 액세스 토큰을 쿠키에 저장
                 response = await call_next(request)
                 response.set_cookie(
                     key="access_token",
@@ -83,13 +107,25 @@ async def jwt_auth_middleware(request: Request, call_next):
                     httponly=True,
                     secure=True,
                     samesite="Lax",
+                    max_age=3600  # 쿠키 만료 시간 추가
                 )
                 return response
-            request.state.user = None
-    else:
-        request.state.user = None  # 쿠키가 없으면 None으로 설정
-    response = await call_next(request)
-    return response
+                
+            except Exception as e:
+                # 리프레시 토큰 갱신 실패
+                logger.warning("리프레시 토큰 갱신 실패")
+                print(f"리프레시 토큰 갱신 실패: {str(e)}")
+                response = await call_next(request)
+                response.delete_cookie("access_token")
+                response.delete_cookie("refresh_token")
+                return response
+                
+    except Exception as e:
+        logger.warning(f"JWT 미들웨어 오류 : {str(e)}")
+        # 예상치 못한 오류 처리
+        print(f"JWT 미들웨어 오류: {str(e)}")
+        request.state.user = None
+        return await call_next(request)
 
 
 # 요청 데이터 검증 오류 처리
@@ -182,3 +218,4 @@ app.include_router(agent_router, prefix="/agents", tags=["agents"])
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()
+
