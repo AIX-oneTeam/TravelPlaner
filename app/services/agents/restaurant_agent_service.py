@@ -403,19 +403,9 @@ restaurant_filter_agent = Agent(
 
 # 네이버 웹 검색 에이전트
 naver_web_search_agent = Agent(
-    role="웹 검색 에이전트",
+    role="네이버 웹 검색 에이전트",
     goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
-    backstory="""저는 정보 분석가로서 네이버 웹 검색을 활용하여 각 식당의 상세 텍스트 정보를 체계적으로 수집합니다. 신뢰할 수 있는 데이터를 제공함으로써, 사용자의 여행 경험을 극대화합니다.""",
-    tools=[NaverWebSearchTool()],
-    llm=llm,
-    verbose=True,
-)
-
-# 최종 추천 생성 에이전트
-final_recommendation_agent = Agent(
-    role="최종 추천 에이전트",
-    goal="필터링된 맛집 후보와 네이버 텍스트 기반 세부 정보를, 여행 계획을 고려하여 최종 맛집 추천 리스트를 생성한다.",
-    backstory="나는 데이터 구조화 전문가로, 후보 식당의 기본 정보, 네이버에서 수집한 텍스트 세부 정보와 여행 계획 정보를 종합하여 최종 추천 리스트를 구성한다.",
+    backstory="네이버 웹 검색을 통해 식당의 상세 텍스트 정보를 제공합니다.",
     tools=[NaverWebSearchTool()],
     llm=llm,
     verbose=True,
@@ -423,10 +413,21 @@ final_recommendation_agent = Agent(
 
 # 네이버 이미지 검색 에이전트
 naver_image_search_agent = Agent(
-    role="이미지 검색 전문가",
+    role="네이버 이미지 검색 에이전트",
     goal="네이버 이미지 검색 API를 사용해 식당의 이미지 URL을 조회한다.",
-    backstory="""저는 이미지 수집가로서 네이버 이미지 검색을 통해 각 식당의 고품질 이미지를 수집합니다.""",
+    backstory="네이버 이미지 검색을 통해 식당의 이미지를 제공합니다.",
     tools=[NaverImageSearchTool()],
+    llm=llm,
+    verbose=True,
+)
+
+
+# 최종 추천 생성 에이전트
+final_recommendation_agent = Agent(
+    role="최종 추천 에이전트",
+    goal="필터링된 맛집 후보와 네이버 텍스트 기반 세부 정보를, 여행 계획을 고려하여 최종 맛집 추천 리스트를 생성한다.",
+    backstory="나는 데이터 구조화 전문가로, 후보 식당의 기본 정보, 네이버에서 수집한 텍스트 세부 정보와 여행 계획 정보를 종합하여 최종 추천 리스트를 구성한다.",
+    tools=[NaverWebSearchTool()],
     llm=llm,
     verbose=True,
 )
@@ -441,76 +442,75 @@ def create_recommendation(input_data: dict) -> dict:
         # Task 정의
         tasks = [
             Task(
-                description=f"""{travel_plan.main_location}의 좌표 조회""",
+                description=f"{travel_plan.main_location}의 좌표 조회",
                 agent=geocoding_agent,
                 expected_output="위치 좌표",
-                context={"location": travel_plan.main_location},
+                config={"location": travel_plan.main_location},
             ),
             Task(
-                description="""맛집 기본 정보 조회""",
+                description="맛집 기본 정보 조회",
                 agent=restaurant_basic_search_agent,
                 expected_output="맛집 기본 정보 리스트",
-                context={
-                    "geocoding_result": "$prev_task_0"  # 첫 번째 태스크의 결과 참조
-                },
+                config={},
             ),
             Task(
-                description="""맛집 필터링 (평점 4.0 이상, 리뷰 500개 이상)""",
+                description="맛집 필터링 (평점 4.0 이상, 리뷰 500개 이상)",
                 agent=restaurant_filter_agent,
                 expected_output="필터링된 맛집 리스트",
                 config={},
             ),
             Task(
-                description="""세부 정보 조회""",
+                description="세부 정보 조회",
                 agent=naver_web_search_agent,
                 expected_output="각 후보 식당의 세부 정보(연락처, 영업시간, 가격대, 웹사이트, 사진, 분류/타입, 비즈니스 상태)를 포함하는 details_map",
             ),
             Task(
-                description=f"""이전 단계에서 수집한 {travel_plan.main_location} 지역의 맛집 데이터를 바탕으로, {travel_plan.start_date}부터 {travel_plan.end_date}까지 여행하는 {travel_plan.ages} 연령대의 고객과 동반자({', '.join([f'{c.label} {c.count}명' for c in travel_plan.companions])})의 {', '.join(travel_plan.concepts)} 컨셉에 맞는 최종 맛집 리스트를 추천하라.
-                최종 추천 과정에서는 다음 사항을 반드시 반영할 것:
-                1. 수집된 데이터를 활용하여, 사용자 여행 일정, 동선, 연령대, 동반자 정보, 그리고 여행 컨셉에 최적화된 맛집 리스트를 구성한다.
-                2. 각 맛집의 최신 정보(주소, 설명, 전화번호, 영업 상태 등)를 네이버 웹 검색 결과를 통해 확인하고 검증한다.
-                3. 추천된 맛집 정보는 아래 JSON 객체 형식을 엄격하게 준수하여 반환해야 하며, 형식에 맞지 않거나 불필요한 부가 텍스트가 포함되어서는 안 된다.
-                {{
-                "kor_name": "string",
-                "eng_name": "string",
-                "description": "string",
-                "address": "string",
-                "url": "string",
-                "image_url": "string",
-                "map_url": "string",
-                "latitude": "float",
-                "longitude": "float",
-                "spot_category": 2,
-                "phone_number": "string",
-                "business_status": true,
-                "business_hours": "string",
-                "order": int,
-                "day_x": int,
-                "spot_time": "string"
-                }}
-                - 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정한다.
-                - day_x는 반드시 1부터 시작하여 증가하는 숫자이며, 여행 기간의 각각의 날짜를 의미한다.
-                - order는 반드시 1부터 시작하여 증가하는 숫자이며, 각 날짜 내에서 장소의 방문 순서를 의미한다.
-                - spot_time 형식은 '%H:%M:%S' 형식의 문자열로 변환한다.""",
+                description="네이버 이미지 검색으로 맛집 이미지 수집",
+                agent=naver_image_search_agent,
+                expected_output="맛집 이미지 URL",
+                config={},
+            ),
+            Task(
+                description=(
+                    f"이전 단계에서 수집한 {travel_plan.main_location} 지역의 맛집 데이터를 바탕으로, "
+    f"{travel_plan.start_date}부터 {travel_plan.end_date}까지 여행하는 {travel_plan.ages} 연령대의 고객과 "
+    f"동반자({', '.join([f'{c.label} {c.count}명' for c in travel_plan.companions])})의 "
+    f"{', '.join(travel_plan.concepts)} 컨셉에 맞는 최종 맛집 리스트를 추천하라.\n\n"
+    "최종 추천 과정에서는 다음 사항을 반드시 반영할 것:\n"
+    "1. 수집된 데이터를 활용하여, 사용자 여행 일정, 동선, 연령대, 동반자 정보, 그리고 여행 컨셉에 최적화된 맛집 리스트를 구성한다.\n"
+    "2. 각 맛집의 최신 정보(주소, 설명, 전화번호, 영업 상태 등)를 네이버 웹 검색 결과를 통해 확인하고 검증한다.\n"
+    "3. 추천된 맛집 정보는 아래 JSON 객체 형식을 엄격하게 준수하여 반환해야 하며, 형식에 맞지 않거나 불필요한 부가 텍스트가 포함되어서는 안 된다.\n\n"
+                    "JSON 형식:\n"
+                    "{\n"
+                    '  "kor_name": "string",'
+                    '  "eng_name": "string",'
+                    '  "description": "string",'
+                    '  "address": "string",'
+                    '  "url": "string",'
+                    '  "image_url": "string",'
+                    '  "map_url": "string",'
+                    '  "latitude": "float",'
+                    '  "longitude": "float",'
+                    '  "spot_category": 2,'
+                    '  "phone_number": "string",'
+                    '  "business_status": true,'
+                    '  "business_hours": "string",'
+                    '  "order": int,'
+                    '  "day_x": int,'
+                    '  "spot_time": "string"'
+                    "}\n"
+                    "- 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정한다.\n"
+                    "- day_x는 반드시 1부터 시작하여 증가하는 숫자이며, 여행 기간의 각각의 날짜를 의미한다.\n"
+                    "- order는 반드시 1부터 시작하여 증가하는 숫자이며, 각 날짜 내에서 장소의 방문 순서를 의미한다.\n"
+                    "- spot_time 형식은 '%H:%M:%S' 형식의 문자열로 변환한다."
+                ),
                 agent=final_recommendation_agent,
                 expected_output="최종 추천 맛집 리스트",
-                output_pydantic=spots_pydantic,
+                output_json=spots_pydantic,
                 config={
                     "travel_plan": travel_plan.dict(),
                     "previous_results": "이전 태스크 결과",
                 },
-            ),
-            Task(
-                description=f"""[이미지 삽입]
-                - CrewAI가 생성한 여행 일정 pydantic 형식에서 각 장소의 `kor_name`을 기반으로 이미지를 검색한다.
-                - 검색된 이미지는 해당 장소의 `image_url` 필드에 추가한다.
-                - 각 장소 정보를 spot_request 형식으로 변환한다.
-                - 모든 장소는 기간 구분 없이 단일 리스트인 `spots`에 포함시킨다.""",
-                agent=naver_image_search_agent,
-                expected_output="pydantic 형식의 여행 일정 데이터",
-                output_pydantic=spots_pydantic,
-                config={},
             ),
         ]
 
@@ -521,8 +521,8 @@ def create_recommendation(input_data: dict) -> dict:
                 restaurant_basic_search_agent,
                 restaurant_filter_agent,
                 naver_web_search_agent,
-                final_recommendation_agent,
                 naver_image_search_agent,
+                final_recommendation_agent,
             ],
             verbose=True,
         )
