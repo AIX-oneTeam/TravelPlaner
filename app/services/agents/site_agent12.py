@@ -112,7 +112,7 @@ class NaverImageSearchTool(BaseTool):
     def _run(self, query: str) -> str:
         if not AGENT_NAVER_CLIENT_ID or not AGENT_NAVER_CLIENT_SECRET:
             return "[NaverImageSearchTool] 네이버 API 자격 증명이 없습니다."
-        url = "https://openapi.naver.com/v1/search/image"
+        url = "https://openapi.naver.com/v1/search/image";
         headers = {
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
