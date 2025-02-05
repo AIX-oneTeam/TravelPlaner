@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
-from app.services.agents.restaurant_agent_service import TravelPlanRequest
+from app.services.agents.restaurant_agent_service import (
+    create_recommendation,
+)  # ✅ 올바른 함수 임포트
 
 router = APIRouter()
 
@@ -24,10 +26,17 @@ class TravelPlanRequest(BaseModel):
 
 @router.post("/restaurant")
 async def generate_plan(user_input: TravelPlanRequest):
+    """
+    맛집 추천 엔드포인트
+    """
     try:
         print("프론트에서 받은 데이터:", user_input)
-        print("Python dict 변환:", user_input.model_dump())
-        result = TravelPlanRequest(user_input.model_dump())
+        user_data = user_input.model_dump()
+
+        print("Python dict 변환:", user_data)
+        result = create_recommendation(user_data)
+        print("맛집 추천 결과:", result)
+
         return {
             "status": "success",
             "message": "맛집 리스트가 생성되었습니다.",

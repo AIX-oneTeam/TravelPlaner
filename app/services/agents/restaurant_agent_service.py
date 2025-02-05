@@ -343,16 +343,15 @@ final_recommendation_agent = Agent(
 # ------------------------- Task & Crew ------------------------------
 def create_recommendation(input_data: dict) -> dict:
     try:
-        travel_plan = TravelPlan(**input_data)
-        print(f"[DEBUG3] input_data: {input_data}")
+        print(f"[DEBUG3] input_data: {input_data}")  # 받은 데이터 확인
 
         # Task 정의
         tasks = [
             Task(
-                description=f"{travel_plan.main_location}의 좌표 조회",
+                description=f"{input_data['main_location']}의 좌표 조회",
                 agent=geocoding_agent,
                 expected_output="위치 좌표",
-                config={"location": travel_plan.main_location},
+                config={"location": input_data["main_location"]},
             ),
             Task(
                 description="맛집 기본 정보 조회",
@@ -379,43 +378,16 @@ def create_recommendation(input_data: dict) -> dict:
             ),
             Task(
                 description=(
-                    f"이전 단계에서 수집한 {travel_plan.main_location} 지역의 맛집 데이터를 바탕으로, "
-    f"{travel_plan.start_date}부터 {travel_plan.end_date}까지 여행하는 {travel_plan.ages} 연령대의 고객과 "
-    f"동반자({', '.join([f'{c.label} {c.count}명' for c in travel_plan.companions])})의 "
-    f"{', '.join(travel_plan.concepts)} 컨셉에 맞는 최종 맛집 리스트를 추천하라.\n\n"
-    "최종 추천 과정에서는 다음 사항을 반드시 반영할 것:\n"
-    "1. 수집된 데이터를 활용하여, 사용자 여행 일정, 동선, 연령대, 동반자 정보, 그리고 여행 컨셉에 최적화된 맛집 리스트를 구성한다.\n"
-    "2. 각 맛집의 최신 정보(주소, 설명, 전화번호, 영업 상태 등)를 네이버 웹 검색 결과를 통해 확인하고 검증한다.\n"
-    "3. 추천된 맛집 정보는 아래 JSON 객체 형식을 엄격하게 준수하여 반환해야 하며, 형식에 맞지 않거나 불필요한 부가 텍스트가 포함되어서는 안 된다.\n\n"
-                    "JSON 형식:\n"
-                    "{\n"
-                    '  "kor_name": "string",'
-                    '  "eng_name": "string",'
-                    '  "description": "string",'
-                    '  "address": "string",'
-                    '  "url": "string",'
-                    '  "image_url": "string",'
-                    '  "map_url": "string",'
-                    '  "latitude": "float",'
-                    '  "longitude": "float",'
-                    '  "spot_category": 2,'
-                    '  "phone_number": "string",'
-                    '  "business_status": true,'
-                    '  "business_hours": "string",'
-                    '  "order": int,'
-                    '  "day_x": int,'
-                    '  "spot_time": "string"'
-                    "}\n"
-                    "- 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정한다.\n"
-                    "- day_x는 반드시 1부터 시작하여 증가하는 숫자이며, 여행 기간의 각각의 날짜를 의미한다.\n"
-                    "- order는 반드시 1부터 시작하여 증가하는 숫자이며, 각 날짜 내에서 장소의 방문 순서를 의미한다.\n"
-                    "- spot_time 형식은 '%H:%M:%S' 형식의 문자열로 변환한다."
+                    f"이전 단계에서 수집한 {input_data['main_location']} 지역의 맛집 데이터를 바탕으로, "
+                    f"{input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 "
+                    f"동반자({', '.join([f'{c['label']} {c['count']}명' for c in input_data['companions']])})의 "
+                    f"{', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 추천하라."
                 ),
                 agent=final_recommendation_agent,
                 expected_output="최종 추천 맛집 리스트",
                 output_json=spots_pydantic,
                 config={
-                    "travel_plan": travel_plan.dict(),
+                    "travel_plan": input_data,  # dict 그대로 사용
                     "previous_results": "이전 태스크 결과",
                 },
             ),
