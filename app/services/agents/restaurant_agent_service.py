@@ -11,8 +11,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, Double
 from typing import List, Dict
 import time
-import aiohttp
-import asyncio
 
 app = FastAPI()
 
@@ -25,22 +23,6 @@ AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
 llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
-
-
-# 모델 정의
-class Companion(BaseModel):
-    label: str
-    count: int
-
-
-class TravelPlan(BaseModel):
-    main_location: str
-    start_date: str
-    end_date: str
-    ages: str
-    companions: List[Companion]
-    concepts: List[str]
-
 
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
@@ -213,7 +195,7 @@ class NaverWebSearchTool(BaseTool):
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
         params = {
-            "query": f"{query} 맛집 리뷰",  # 검색어 최적화
+            "query": f"{query}",  # 검색어 최적화
             "display": 3,  # 결과 수를 3개로 증가
             "start": 1,
             "sort": "sim",  # 정확도순 정렬
@@ -269,7 +251,7 @@ class NaverImageSearchTool(BaseTool):
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
         params = {
-            "query": f"{query} 맛집 대표메뉴",  # 검색어 최적화
+            "query": f"{query}",  # 검색어 최적화
             "display": 1,
             "sort": "sim",
             "filter": "large",  # 고품질 이미지 필터링
@@ -293,81 +275,6 @@ class NaverImageSearchTool(BaseTool):
         for restaurant in restaurant_list:
             results[restaurant] = self.fetch(restaurant)
         return results
-
-
-# class FinalRecommendationTool(BaseTool):
-#     name: str = "FinalRecommendationTool"
-#     description: str = (
-#         "필터링된 맛집 후보와 상세 정보를 결합하여 최종 추천 리스트를 생성합니다."
-#     )
-
-#     def _run(self, inputs: Dict) -> Dict:
-#         try:
-#             filtered_list = inputs.get("filtered_list", [])
-#             text_details = inputs.get("text_details", {})
-#             image_urls = inputs.get("image_urls", {})
-#             travel_plan = inputs.get("travel_plan", {})
-
-#             # 날짜 처리 예외 처리 추가
-#             start_date = travel_plan.get("start_date")
-#             end_date = travel_plan.get("end_date")
-
-#             if not start_date or not end_date:
-#                 raise ValueError("여행 날짜 정보가 누락되었습니다.")
-
-#             start_date = datetime.strptime(start_date, "%Y-%m-%d")
-#             end_date = datetime.strptime(end_date, "%Y-%m-%d")
-#             total_days = (end_date - start_date).days + 1
-
-#             spots = []
-#             day_x = 1
-#             order = 1
-
-#             for restaurant in filtered_list:
-#                 name = restaurant.get("title", "")
-#                 details = text_details.get(name, {})
-
-#                 # 시간대별 방문 시간 설정
-#                 spot_time = (
-#                     "08:00 AM"
-#                     if order == 1
-#                     else "12:00 PM" if order == 2 else "07:00 PM"
-#                 )
-
-#                 spot = spot_pydantic(
-#                     kor_name=name,
-#                     eng_name=details.get("eng_name"),
-#                     description=details.get("description", "정보 없음"),
-#                     address=details.get("address", "주소 없음"),
-#                     latitude=restaurant.get("latitude", 0.0),
-#                     longitude=restaurant.get("longitude", 0.0),
-#                     url=details.get("url"),
-#                     image_url=image_urls.get(name, ""),
-#                     map_url=f"https://maps.google.com/?q={restaurant.get('latitude', 0.0)},{restaurant.get('longitude', 0.0)}",
-#                     spot_category=2,
-#                     phone_number=details.get("phone_number"),
-#                     business_status=details.get("business_status", True),
-#                     business_hours=details.get("business_hours"),
-#                     order=order,
-#                     day_x=day_x,
-#                     spot_time=spot_time,
-#                 )
-#                 spots.append(spot)
-
-#                 if order == 3:
-#                     order = 1
-#                     day_x += 1
-#                     if day_x > total_days:
-#                         break
-#                 else:
-#                     order += 1
-
-#             return {"spots": spots}
-
-#         except Exception as e:
-#             print(f"FinalRecommendationTool 오류: {str(e)}")
-#             raise
-
 
 # ------------------------- Agent ------------------------------
 # 좌표 조회 에이전트
@@ -533,20 +440,3 @@ def create_recommendation(input_data: dict) -> dict:
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# FastAPI 엔드포인트
-@app.post("/restaurant")
-async def get_restaurant_recommendations(travel_plan: TravelPlan):
-    try:
-        result = create_recommendation(travel_plan.dict())
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 서버 실행 설정
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
