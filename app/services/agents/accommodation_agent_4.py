@@ -14,9 +14,9 @@ import json
 
 
 load_dotenv()
-OPENAI_API_KEY = "key"
-X_API_KEY = "KEY"
-GOOGLE_API_KEY = "KEY"
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+SERP_API_KEY = os.getenv('SERP_API_KEY')
+GOOGLE_SERPER_API_KEY = os.getenv('GOOGLE_SERPER_API_KEY')
 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
 
@@ -33,24 +33,40 @@ class AccommodationResponse(BaseModel):
     phone_number: Optional[str] = None
     business_status: Optional[bool] = None
     business_hours: Optional[str] = None
-    keywords: List[str]    
+    keywords: List[str]  
+    
+# 위도와 경도를 계산하는 툴
+class GeoCoordinateTool(BaseTool):
+    name: str = "GeoCoordinate Tool"
+    description: str = "지역의 위도 경도를 계산"
+    
+    def _run(self, location: str) -> str:
+        try:
+            geo_local = Nominatim(user_agent='South Korea')
+            geo = geo_local.geocode(location)
+            if geo:
+                location_coordinates = [geo.latitude, geo.longitude]
+                return location_coordinates
+        except Exception as e:
+            return f"[GeoCoordinateTool] 에러: {str(e)}"      
 
 # 구글 맵 툴 
 class GoogleMapTool(BaseTool):
     name: str = "GoogleMapTool"
     description: str = "구글 맵 api를 사용하여 숙소 리스트 검색 툴"
     
-    def _run(self, location: str) -> str:
+    def _run(self, location: str, location_coordinates:str) -> str:
         try:
             url = "https://google.serper.dev/places"
 
             payload = json.dumps({
             "q": location,
+            'll': f"@{location_coordinates},15.1z", 
             "gl": "kr",
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': X_API_KEY,
+            'X-API-KEY': SERP_API_KEY,
             'Content-Type': 'application/json'
             }
             response = requests.request("POST", url, headers=headers, data=payload)
@@ -75,7 +91,7 @@ class GoogleReviewTool(BaseTool):
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': X_API_KEY,
+            'X-API-KEY': SERP_API_KEY,
             'Content-Type': 'application/json'
             }
             response = requests.request("POST", url, headers=headers, data=payload)
@@ -104,7 +120,7 @@ class GoogleHotelSearchTool(BaseTool):
                 "currency": "KRW",
                 "gl": "kr",
                 "hl": "ko",
-                "api_key": GOOGLE_API_KEY
+                "api_key": SERP_API_KEY
             }
             
             search = GoogleSearch(params)
@@ -126,7 +142,7 @@ class AiLatestDevelopment():
         return Agent(
             config=self.agents_config['accommodation_recommendation_expert'],
             verbose=True,
-            tools=[GoogleMapTool(), GoogleReviewTool(),GoogleHotelSearchTool()],
+            tools=[ GeoCoordinateTool(), GoogleMapTool(), GoogleReviewTool(),GoogleHotelSearchTool()],
             manager_llm=llm 
         )
 

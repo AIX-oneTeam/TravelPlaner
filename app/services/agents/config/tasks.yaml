@@ -1,5 +1,6 @@
 accommodation_recommendation_task:
   description: >
+    - GeoCoordinateTool()을 사용하여 {location}의 위도 계산 후 GoogleMapTool()로 전달.
     - {location} 지역의 다양한 숙소를 GoogleMapTool()을 통해 검색.
     - GoogleMapTool() 결과에서 최소 10개 이상의 다양한 숙소 이름과 cid, fid, latitude, longitude, website, phoneNumber,description, address,type, website, thumbnailUrl를 추출합니다.
     - 추출한 각 숙소 이름으로 GoogleHotelSearchTool()을 사용하여 상세 정보를 검색합니다. 이때 {check_in_date}와 {check_out_date}를 파라미터로 사용합니다.
