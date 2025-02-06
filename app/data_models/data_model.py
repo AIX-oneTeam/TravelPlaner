@@ -1,11 +1,11 @@
 from datetime import datetime, time
+from sqlalchemy import Column, Double
 from typing import List, Optional
 import phonenumbers
 from pydantic import field_validator
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import text
 from pydantic import validator
-
 
 class AdministrativeDivision(SQLModel, table=True):
     __tablename__ = "administrative_division"
@@ -78,12 +78,11 @@ class Spot(SQLModel, table=True):
     eng_name: Optional[str] = Field(default=None, max_length=255)
     description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
     url: Optional[str] = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    likes: Optional[int] = None
-    satisfaction: Optional[float] = None
+    latitude: float = Field(sa_column=Column(Double, nullable=False))
+    longitude: float = Field(sa_column=Column(Double, nullable=False))
     spot_category: int
     phone_number: Optional[str] = Field(default=None, max_length=300)
     business_status: Optional[bool] = None
