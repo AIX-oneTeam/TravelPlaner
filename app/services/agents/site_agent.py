@@ -2,8 +2,8 @@ import json
 import re
 import traceback
 import os
-import requests
-import concurrent.futures
+import asyncio
+import aiohttp
 from decimal import Decimal
 from sqlalchemy import Column, Numeric
 from crewai import Agent, Task, Crew, LLM
@@ -63,14 +63,14 @@ class spots_pydantic(BaseModel):
 
 
 # ──────────────────────────────
-# 헬퍼 함수 및 API 도구 (네이버 웹/이미지 검색 등)
+# 비동기 헬퍼 함수 및 API 도구 (네이버 웹/이미지 검색 등)
 # ──────────────────────────────
 
 
-def check_url_openable(url: str) -> bool:
+async def async_check_url_openable(session: aiohttp.ClientSession, url: str) -> bool:
     try:
-        resp = requests.head(url, allow_redirects=True, timeout=5)
-        return 200 <= resp.status_code < 400
+        async with session.head(url, allow_redirects=True, timeout=5) as resp:
+            return 200 <= resp.status < 400
     except Exception:
         return False
 
@@ -88,7 +88,7 @@ class NaverWebSearchTool(BaseTool):
     name: str = "NaverWebSearch"
     description: str = "네이버 웹 검색 API를 사용해 관광지에 맞는 정보를 검색"
 
-    def _run(self, query: str) -> str:
+    async def _run(self, query: str) -> str:
         if not AGENT_NAVER_CLIENT_ID or not AGENT_NAVER_CLIENT_SECRET:
             return "[NaverWebSearchTool] 네이버 API 자격 증명이 없습니다."
         url = "https://openapi.naver.com/v1/search/webkr.json"
@@ -98,19 +98,21 @@ class NaverWebSearchTool(BaseTool):
         }
         params = {"query": query, "display": 3, "start": 1, "sort": "sim"}
         try:
-            resp = requests.get(url, headers=headers, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-            items = data.get("items", [])
-            if not items:
-                return f"[NaverWebSearchTool] '{query}' 검색 결과 없음."
-            results = []
-            for item in items:
-                title = item.get("title", "")
-                link = item.get("link", "")
-                desc = item.get("description", "")
-                results.append(f"제목: {title}\n링크: {link}\n설명: {desc}\n")
-            return "\n".join(results)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, headers=headers, params=params, timeout=5
+                ) as resp:
+                    data = await resp.json()
+                    items = data.get("items", [])
+                    if not items:
+                        return f"[NaverWebSearchTool] '{query}' 검색 결과 없음."
+                    results = []
+                    for item in items:
+                        title = item.get("title", "")
+                        link = item.get("link", "")
+                        desc = item.get("description", "")
+                        results.append(f"제목: {title}\n링크: {link}\n설명: {desc}\n")
+                    return "\n".join(results)
         except Exception as e:
             return f"[NaverWebSearchTool] 에러: {str(e)}"
 
@@ -119,12 +121,11 @@ class NaverImageSearchTool(BaseTool):
     name: str = "NaverImageSearch"
     description: str = "네이버 이미지 검색 API를 사용해 관광지에 맞는 이미지 URL을 검색"
 
-    def _run(self, query: str) -> str:
+    async def _run(self, query: str) -> str:
         if not query.strip():
             return ""
         if not AGENT_NAVER_CLIENT_ID or not AGENT_NAVER_CLIENT_SECRET:
             return "[NaverImageSearchTool] 네이버 API 자격 증명이 없습니다."
-
         url = "https://openapi.naver.com/v1/search/image"
         headers = {
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
@@ -138,28 +139,29 @@ class NaverImageSearchTool(BaseTool):
             "filter": "all",
         }
         try:
-            resp = requests.get(url, headers=headers, params=params, timeout=5)
-            resp.raise_for_status()
-            data = resp.json()
-            items = data.get("items", [])
-            if not items:
-                return ""
-            keywords = query.split()
-            items_sorted = sorted(
-                items,
-                key=lambda item: relevance_score(item.get("title", ""), keywords),
-                reverse=True,
-            )
-            valid_items = []
-            for item in items_sorted:
-                link = item.get("link")
-                if link and "wikimedia.org" in link:
-                    continue
-                if link and check_url_openable(link):
-                    valid_items.append(item)
-            if not valid_items:
-                return ""
-            return valid_items[0].get("link", "")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, headers=headers, params=params, timeout=5
+                ) as resp:
+                    data = await resp.json()
+                    items = data.get("items", [])
+                    if not items:
+                        return ""
+                    keywords = query.split()
+                    items_sorted = sorted(
+                        items,
+                        key=lambda item: relevance_score(
+                            item.get("title", ""), keywords
+                        ),
+                        reverse=True,
+                    )
+                    for item in items_sorted:
+                        link = item.get("link")
+                        if link and "wikimedia.org" in link:
+                            continue
+                        if link and await async_check_url_openable(session, link):
+                            return link
+                    return ""
         except Exception as e:
             return f"[NaverImageSearchTool] 에러: {str(e)}"
 
@@ -188,32 +190,29 @@ def extract_recommendations_from_output(output) -> list:
         return []
 
 
-def get_image_url_for_place(query: str) -> str:
+async def get_image_url_for_place(query: str) -> str:
     modified_query = f"{query} 관광지"
     tool = NaverImageSearchTool()
-    return tool._run(modified_query)
+    return await tool._run(modified_query)
 
 
-def add_images_to_recommendations(recommendations: list) -> list:
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_place = {
-            executor.submit(
-                get_image_url_for_place,
-                (place.get("kor_name", "").strip() or place.get("address", "").strip()),
-            ): place
-            for place in recommendations
-        }
-        for future in concurrent.futures.as_completed(future_to_place):
-            place = future_to_place[future]
-            try:
-                image_url = future.result()
-            except Exception:
-                image_url = ""
-            place["image_url"] = image_url
+async def add_images_to_recommendations_async(recommendations: list) -> list:
+    tasks = []
+    for place in recommendations:
+        query = place.get("kor_name", "").strip() or place.get("address", "").strip()
+        tasks.append(get_image_url_for_place(query))
+    image_urls = await asyncio.gather(*tasks, return_exceptions=True)
+    for place, image_url in zip(recommendations, image_urls):
+        if isinstance(image_url, Exception):
+            image_url = ""
+        place["image_url"] = image_url
     return recommendations
 
 
-def create_tourist_plan(user_input: dict):
+# 관광지 생성은 비동기
+
+
+async def create_tourist_plan_async(user_input: dict):
     """
     user_input 예시:
     {
@@ -233,6 +232,7 @@ def create_tourist_plan(user_input: dict):
         companion_count = user_input["companion_count"]
         concepts = user_input["concepts"]
 
+        # CrewAI 관련 Agent와 Task는 동기 방식으로 생성
         tourist_agent = Agent(
             role="관광지 추천 에이전트",
             goal=(
@@ -288,7 +288,10 @@ def create_tourist_plan(user_input: dict):
         raw_output = tourist_task.output
 
         recommendations = extract_recommendations_from_output(raw_output)
-        recommendations_with_images = add_images_to_recommendations(recommendations)
+        # 비동기로 이미지 URL 추가
+        recommendations_with_images = await add_images_to_recommendations_async(
+            recommendations
+        )
 
         spots_list = []
         for idx, rec in enumerate(recommendations_with_images, start=1):
@@ -331,3 +334,19 @@ def create_tourist_plan(user_input: dict):
         return {"message": "관광지 추천 처리 중 오류가 발생했습니다.", "error": str(e)}
 
 
+# ──────────────────────────────
+# 예시 실행 코드
+# ──────────────────────────────
+
+if __name__ == "__main__":
+    sample_input = {
+        "main_location": "서울",
+        "start_date": "2024-03-01",
+        "end_date": "2024-03-03",
+        "ages": "20-30",
+        "companion_count": [2, 1],
+        "concepts": ["문화", "역사"],
+    }
+    # 동기 환경에서 실행할 경우 asyncio.run()을 사용하여 최상위 비동기 함수를 실행합니다.
+    result = asyncio.run(create_tourist_plan_async(sample_input))
+    print(result.json(indent=2, ensure_ascii=False))
