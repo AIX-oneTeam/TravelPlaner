@@ -107,11 +107,9 @@ class NaverLocalSearchTool(BaseTool):
 
             title = first_cafe.get('title', '정보 없음')
             address = first_cafe.get('roadAddress', '정보 없음')
-            telephone = first_cafe.get('telephone', '정보 없음')
-            description = first_cafe.get('description', '정보 없음')
             url = first_cafe.get('link', '정보 없음')
   
-            results.append(f"이름: {title}\n주소: {address}\n웹사이트: {url}\n전화번호: {telephone}\n설명: {description}\n---")
+            results.append(f"이름: {title}\n주소: {address}\n웹사이트: {url}---")
             return "\n".join(results)
 
         else:
@@ -146,3 +144,4 @@ class MultiToolWrapper(BaseTool):
         naver_search_result = self._naver_tool._run(query)
         
         return f"구글 맵 검색 결과:\n{google_search_result}\n\n 네이버 로컬 검색 결과:\n{naver_search_result}"
+
