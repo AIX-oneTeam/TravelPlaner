@@ -26,7 +26,6 @@ class Cafe(BaseModel):
     eng_name: str =  Field(..., description="카페 이름 (영문)")
     description: str =  Field(..., description="카페 주요 특징, 분위기, 시그니처 메뉴 요약")
     address: str =  Field(..., description="카페 도로명 주소")
-    zip: str =  Field(..., description="카페 우편번호")
     url: str =  Field(..., description="카페 대표 홈페이지 url")
     image_url: str =  Field(..., description="카페 썸네일 url")
     map_url: str =  Field(..., description="카페 지도 url(google, naver, kakao 중 택1)")
