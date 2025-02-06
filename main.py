@@ -19,7 +19,7 @@ from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 from app.routers.agents.accommodation_agent_router import router as accommodation_router
 from app.routers.agents.cafe_agent_router import router as agent_router
-
+from app.routers.agents.site_agent_router import router as site_agent_router
 import os
 from dotenv import load_dotenv
 import logging
@@ -214,8 +214,7 @@ app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
 app.include_router(agent_router, prefix="/agents", tags=["agents"])
-
+app.include_router(site_agent_router, prefix="/agents/site", tags=["Site Agent"])
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()
-

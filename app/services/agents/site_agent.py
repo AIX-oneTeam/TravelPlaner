@@ -5,25 +5,25 @@ import os
 import requests
 import concurrent.futures
 from decimal import Decimal
-from sqlalchemy import Column, Numeric  # SQLAlchemy의 Column과 Numeric 임포트
+from sqlalchemy import Column, Numeric
 from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
-from fastapi import FastAPI
 from typing import List, Optional
 
-app = FastAPI()
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
+AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello World"}
-
+llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
 
 # ──────────────────────────────
-# 1. 입력 데이터용 파이덴틱 모델
+# Pydantic 모델 정의
 # ──────────────────────────────
+
+
 class TravelPlanRequest(BaseModel):
     main_location: str = Field(..., max_length=255, description="사용자가 선택한 지역")
     start_date: str = Field(
@@ -39,9 +39,6 @@ class TravelPlanRequest(BaseModel):
     )
 
 
-# ──────────────────────────────
-# 2. 출력 데이터용 파이덴틱 모델
-# ──────────────────────────────
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
     eng_name: Optional[str] = Field(default=None, max_length=255)
@@ -50,8 +47,8 @@ class spot_pydantic(BaseModel):
     url: Optional[str] = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    latitude: float = Field(sa_column=Column(Numeric(9, 6)))
-    longitude: float = Field(sa_column=Column(Numeric(9, 6)))
+    latitude: float = Field(..., description="위도", example=37.5665)
+    longitude: float = Field(..., description="경도", example=126.9780)
     spot_category: int
     phone_number: Optional[str] = Field(default=None, max_length=300)
     business_status: Optional[bool] = None
@@ -66,19 +63,10 @@ class spots_pydantic(BaseModel):
 
 
 # ──────────────────────────────
-# 3. 환경변수, LLM, Tool 설정
+# 헬퍼 함수 및 API 도구 (네이버 웹/이미지 검색 등)
 # ──────────────────────────────
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
-AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
-
-llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
 
 
-# ──────────────────────────────
-# 헬퍼 함수 1) URL 접근 가능 여부 체크
-# ──────────────────────────────
 def check_url_openable(url: str) -> bool:
     try:
         resp = requests.head(url, allow_redirects=True, timeout=5)
@@ -87,9 +75,6 @@ def check_url_openable(url: str) -> bool:
         return False
 
 
-# ──────────────────────────────
-# 헬퍼 함수 2) 연관성 점수 계산
-# ──────────────────────────────
 def relevance_score(item_title: str, keywords: List[str]) -> int:
     title_clean = re.sub(r"<.*?>", "", item_title)
     score = 0
@@ -99,14 +84,7 @@ def relevance_score(item_title: str, keywords: List[str]) -> int:
     return score
 
 
-# ──────────────────────────────
-# 네이버 웹 검색 도구
-# ──────────────────────────────
 class NaverWebSearchTool(BaseTool):
-    """
-    네이버 웹 검색 API를 사용하여 관광지와 관련된 정보를 검색합니다.
-    """
-
     name: str = "NaverWebSearch"
     description: str = "네이버 웹 검색 API를 사용해 관광지에 맞는 정보를 검색"
 
@@ -137,14 +115,7 @@ class NaverWebSearchTool(BaseTool):
             return f"[NaverWebSearchTool] 에러: {str(e)}"
 
 
-# ──────────────────────────────
-# 네이버 이미지 검색 도구
-# ──────────────────────────────
 class NaverImageSearchTool(BaseTool):
-    """
-    네이버 이미지 검색 API를 사용하여 관광지와 관련된 최적의 이미지 URL을 반환합니다.
-    """
-
     name: str = "NaverImageSearch"
     description: str = "네이버 이미지 검색 API를 사용해 관광지에 맞는 이미지 URL을 검색"
 
@@ -182,7 +153,6 @@ class NaverImageSearchTool(BaseTool):
             valid_items = []
             for item in items_sorted:
                 link = item.get("link")
-                # Wikimedia URL 필터링
                 if link and "wikimedia.org" in link:
                     continue
                 if link and check_url_openable(link):
@@ -194,13 +164,7 @@ class NaverImageSearchTool(BaseTool):
             return f"[NaverImageSearchTool] 에러: {str(e)}"
 
 
-# ──────────────────────────────
-# 4. JSON 파싱 헬퍼 함수
-# ──────────────────────────────
 def extract_json_from_text(text: str) -> str:
-    """
-    문자열 내에서 첫 번째 JSON 배열([ ... ])을 추출합니다.
-    """
     try:
         match = re.search(r"\[.*?\]", text, re.DOTALL)
         if match:
@@ -211,9 +175,6 @@ def extract_json_from_text(text: str) -> str:
 
 
 def extract_recommendations_from_output(output) -> list:
-    """
-    에이전트가 반환한 JSON 문자열을 파싱하여 리스트로 변환합니다.
-    """
     try:
         if not isinstance(output, (str, bytes, bytearray)):
             output = str(output)
@@ -227,24 +188,13 @@ def extract_recommendations_from_output(output) -> list:
         return []
 
 
-# ──────────────────────────────
-# 5. 관광지별 이미지 URL 병렬 검색 함수
-# ──────────────────────────────
 def get_image_url_for_place(query: str) -> str:
-    """
-    NaverImageSearchTool을 사용하여 관광지 이름 또는 주소를 기반으로 이미지 URL을 반환합니다.
-    쿼리에 '관광지'라는 키워드를 추가하여 보다 구체적인 결과를 유도합니다.
-    """
     modified_query = f"{query} 관광지"
     tool = NaverImageSearchTool()
     return tool._run(modified_query)
 
 
 def add_images_to_recommendations(recommendations: list) -> list:
-    """
-    추천 목록의 각 관광지에 대해 이미지 URL을 추가합니다.
-    만약 'kor_name'이 비어있다면 'address'를 대신 사용합니다.
-    """
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_place = {
             executor.submit(
@@ -263,9 +213,6 @@ def add_images_to_recommendations(recommendations: list) -> list:
     return recommendations
 
 
-# ──────────────────────────────
-# 6. CrewAI를 활용한 관광지 추천 생성 및 최종 모델 변환
-# ──────────────────────────────
 def create_tourist_plan(user_input: dict):
     """
     user_input 예시:
@@ -286,7 +233,6 @@ def create_tourist_plan(user_input: dict):
         companion_count = user_input["companion_count"]
         concepts = user_input["concepts"]
 
-        # 에이전트 생성: 여기서는 웹 검색 도구를 사용합니다.
         tourist_agent = Agent(
             role="관광지 추천 에이전트",
             goal=(
@@ -318,7 +264,6 @@ def create_tourist_plan(user_input: dict):
             verbose=True,
         )
 
-        # 태스크 생성
         tourist_task = Task(
             description=(
                 f"'{location}' 지역의 관광지 추천을 위해 아래 요구사항을 충족하는 관광지를 최소 5곳 추천하라.\n"
@@ -339,19 +284,14 @@ def create_tourist_plan(user_input: dict):
             verbose=True,
         )
 
-        # CrewAI 태스크 실행
         crew.kickoff()
-        raw_output = tourist_task.output  # 에이전트가 반환한 JSON 문자열
+        raw_output = tourist_task.output
 
-        # JSON 파싱 및 각 관광지에 이미지 URL 추가
         recommendations = extract_recommendations_from_output(raw_output)
         recommendations_with_images = add_images_to_recommendations(recommendations)
 
-        # 추천 결과를 spot_pydantic 구조로 변환
         spots_list = []
         for idx, rec in enumerate(recommendations_with_images, start=1):
-            # map_url 처리:
-            # 원본 map_url이 비어있거나 네이버 지도 URL("https://map.naver.com")이 포함되어 있지 않은 경우, 좌표 기반 URL로 대체합니다.
             orig_map_url = rec.get("map_url", "").strip()
             if not orig_map_url or "map.naver.com" not in orig_map_url:
                 longitude = rec.get("longitude", 0.0)
@@ -377,14 +317,13 @@ def create_tourist_plan(user_input: dict):
                 business_status=rec.get("business_status", None),
                 business_hours=rec.get("business_hours", None),
                 order=idx,
-                day_x=1,  # 필요에 따라 변경 가능
+                day_x=1,
                 spot_time=rec.get("spot_time", None),
             )
             spots_list.append(spot)
 
-        # 최종 결과를 spots_pydantic 모델로 감싸기
-        response = spots_pydantic(spots=spots_list)
-        return response
+        site_response = spots_pydantic(spots=spots_list)
+        return site_response
 
     except Exception as e:
         print(f"[ERROR] {e}")
@@ -392,15 +331,3 @@ def create_tourist_plan(user_input: dict):
         return {"message": "관광지 추천 처리 중 오류가 발생했습니다.", "error": str(e)}
 
 
-# ──────────────────────────────
-# 7. FastAPI 엔드포인트
-# ──────────────────────────────
-@app.post("/tourist_plan")
-def get_tourist_plan(request: TravelPlanRequest):
-    """
-    Swagger UI (http://127.0.0.1:8000/docs)에서
-    main_location, start_date, end_date, ages, companion_count, concepts 등을
-    JSON 형식으로 입력하여 관광지 추천 요청을 보낼 수 있습니다.
-    """
-    result = create_tourist_plan(request.dict())
-    return result
