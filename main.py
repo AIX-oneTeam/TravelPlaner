@@ -18,7 +18,7 @@ from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 from app.routers.agents.accommodation_agent_router import router as accommodation_router
-from app.routers.agents.cafe_agent_router import router as agent_router
+from app.routers.agents.cafe_agent_router import router as cafe_router
 
 import os
 from dotenv import load_dotenv
