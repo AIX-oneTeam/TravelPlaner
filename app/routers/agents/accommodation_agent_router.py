@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException
 import asyncio
-from app.services.agents.accommodation_agent_3 import run
+from app.services.agents.accommodation_agent_4 import run
 import json
 
 router = APIRouter()
@@ -33,7 +33,8 @@ async def get_accommodations(user_input: UserInputData):
             children=user_input.children,
             keyword=user_input.keyword
         )
-        return {"accommodations": [accommodation.dict() for accommodation in crew_output]}
+
+        return {crew_output}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"[숙소 추천 API] 에러: {str(e)}")

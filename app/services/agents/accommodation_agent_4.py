@@ -11,12 +11,12 @@ from serpapi import GoogleSearch
 from geopy.geocoders import Nominatim
 from typing import List, Optional
 import json
+import http.client
 
 
 load_dotenv()
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-SERP_API_KEY = os.getenv('SERP_API_KEY')
-GOOGLE_SERPER_API_KEY = os.getenv('GOOGLE_SERPER_API_KEY')
+OPENAI_API_KEY ='KEY'
+GOOGLE_API_KEY ="KEY"
 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
 
@@ -57,21 +57,23 @@ class GoogleMapTool(BaseTool):
     
     def _run(self, location: str, location_coordinates:str) -> str:
         try:
-            url = "https://google.serper.dev/places"
+            conn = http.client.HTTPSConnection("google.serper.dev")
 
             payload = json.dumps({
-            "q": location,
+            "q": f"{location}숙소",
             'll': f"@{location_coordinates},15.1z", 
             "gl": "kr",
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': SERP_API_KEY,
+            'X-API-KEY': 'KEY',
             'Content-Type': 'application/json'
             }
-            response = requests.request("POST", url, headers=headers, data=payload)
-            
-            print(response.text)
+            conn.request("POST", "/maps", payload, headers)
+            res = conn.getresponse()
+            data = res.read()
+            print(data.decode("utf-8"))
+            return json.loads(data.decode("utf-8"))
         except Exception as e:
             return f"[GoogleMapTool] 에러: {str(e)}"
 
@@ -82,7 +84,7 @@ class GoogleReviewTool(BaseTool):
     
     def _run(self, cid: str, fid: str) -> str:
         try:            
-            url = "https://google.serper.dev/reviews"
+            conn = http.client.HTTPSConnection("google.serper.dev")
 
             payload = json.dumps({
             "cid": cid,
@@ -91,12 +93,14 @@ class GoogleReviewTool(BaseTool):
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': SERP_API_KEY,
+            'X-API-KEY': 'KEY,
             'Content-Type': 'application/json'
             }
-            response = requests.request("POST", url, headers=headers, data=payload)
-
-            print(response.text)
+            conn.request("POST", "/reviews", payload, headers)
+            res = conn.getresponse()
+            data = res.read()
+            print(data.decode("utf-8"))
+            return json.loads(data.decode("utf-8"))
             
         except Exception as e:
             return f"[GoogleReviewTool] 에러: {str(e)}"
@@ -108,11 +112,10 @@ class GoogleHotelSearchTool(BaseTool):
     
     def _run(self, location: str, check_in_date: str, check_out_date: str, adults: int, children: int) -> str:
         try:            
-            decoded_location = location.encode('utf-8').decode('unicode_escape')
             
             params = {
                 "engine": "google_hotels",
-                'q': f"{decoded_location} 숙소", 
+                'q': f"{location} 숙소", 
                 "check_in_date": check_in_date,
                 "check_out_date": check_out_date,
                 "adults": adults,
@@ -120,7 +123,7 @@ class GoogleHotelSearchTool(BaseTool):
                 "currency": "KRW",
                 "gl": "kr",
                 "hl": "ko",
-                "api_key": SERP_API_KEY
+                "api_key": GOOGLE_API_KEY
             }
             
             search = GoogleSearch(params)
@@ -182,7 +185,6 @@ def run(location: str, check_in_date: str, check_out_date: str,
     
     result = crew_instance.kickoff(inputs=inputs)
     print(type(result)) 
-    # CrewOutput 객체에서 raw 속성을 직접 접근
     raw_output = result.raw
     
     # raw_output이 문자열인 경우 JSON으로 파싱
