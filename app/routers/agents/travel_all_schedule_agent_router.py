@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
 from app.services.agents.travel_all_schedule_agent_service import create_plan
-from app.services.agents.cafe_agent4 import cafe_agent
 
 router = APIRouter()
 
@@ -41,28 +40,4 @@ async def generate_plan(user_input: TravelPlanRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class CafeUserInput(BaseModel):
-    location: str
-    age: str
-    concepts: str
-    parking: bool
-    pet_friendly: bool
 
-
-# 프론트 response 테스트용    
-@router.post("/cafe")
-async def cafe_response_test(user_input: CafeUserInput):
-    """
-    카페 정보를 가져오는 엔드포인트.
-    - CrewAI 실행 후 일정(JSON) 반환.
-    """
-    try:
-        result = cafe_agent(user_input.model_dump())
-        return {
-            "status": "success",
-            "message": "카페 3곳이 추천되었습니다.",
-            "data": result.json_dict.get("cafes",[]),
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

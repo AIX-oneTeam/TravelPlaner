@@ -18,6 +18,11 @@ from app.utils.oauths.jwt_utils import decode_jwt, refresh_access_token_naver
 from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 from app.routers.agents.accommodation_agent_router import router as accommodation_router
+from app.routers.agents.restaurant_agent_router import router as agent_router
+
+from app.routers.agents.site_agent_router import router as site_agent_router
+
+from app.routers.agents.cafe_agent_router import router as cafe_router
 
 import os
 from dotenv import load_dotenv
@@ -27,9 +32,9 @@ load_dotenv()
 
 # 로그 설정
 logging.basicConfig(
-    filename='app.log',  # 파일로 저장
+    filename="app.log",  # 파일로 저장
     level=logging.INFO,  # 로그 레벨 설정
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'  # 로그 형식
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # 로그 형식
 )
 logger = logging.getLogger(__name__)
 
@@ -40,7 +45,10 @@ app = FastAPI(lifespan=lifespan)
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://easytravel.jomalang.com", "http://localhost:3000"],  # 모든 출처 허용
+    allow_origins=[
+        "https://easytravel.jomalang.com",
+        "http://localhost:3000",
+    ],  # 모든 출처 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,11 +60,12 @@ PUBLIC_PATHS = {
     "/docs",  # Swagger UI
     "/openapi.json",  # OpenAPI 스키마
     "/oauths/google/callback",  # 구글 OAuth
-    "/oauths/kakao/callback",   # 카카오 OAuth
-    "/oauths/naver/callback",   # 네이버 OAuth
-    "/refresh-token", # 토큰 갱신 
-    "/test/", #테스트 경로  
+    "/oauths/kakao/callback",  # 카카오 OAuth
+    "/oauths/naver/callback",  # 네이버 OAuth
+    "/refresh-token",  # 토큰 갱신
+    "/test/",  # 테스트 경로
 }
+
 
 @app.middleware("http")
 async def jwt_auth_middleware(request: Request, call_next):
@@ -67,25 +76,24 @@ async def jwt_auth_middleware(request: Request, call_next):
         # 현재 요청 경로 확인
         path = request.url.path
         logger.info(f"요청 경로: {request.url.path}")
-        
+
         # 공개 경로는 인증 없이 통과
         if path in PUBLIC_PATHS:
             return await call_next(request)
-        
+
         token = request.cookies.get("access_token")
 
-        
         if not token:
             logger.warning("토큰이 없습니다.")
             request.state.user = None
             return await call_next(request)
-            
+
         try:
             # JWT 토큰 검증
             user_data = decode_jwt(token)
             request.state.user = user_data
             return await call_next(request)
-            
+
         except HTTPException as he:
 
             # 액세스 토큰 만료 시 리프레시 토큰으로 재발급 시도
@@ -95,7 +103,7 @@ async def jwt_auth_middleware(request: Request, call_next):
                 logger.warning("리프레시 토큰이 없습니다.")
                 request.state.user = None
                 return await call_next(request)
-                
+
             try:
                 logger.info("리프레시 토큰으로 액세스 토큰 재발급 시도")
                 new_access_token = await refresh_access_token_naver(refresh_token)
@@ -106,10 +114,10 @@ async def jwt_auth_middleware(request: Request, call_next):
                     httponly=True,
                     secure=True,
                     samesite="Lax",
-                    max_age=3600  # 쿠키 만료 시간 추가
+                    max_age=3600,  # 쿠키 만료 시간 추가
                 )
                 return response
-                
+
             except Exception as e:
                 # 리프레시 토큰 갱신 실패
                 logger.warning("리프레시 토큰 갱신 실패")
@@ -118,7 +126,7 @@ async def jwt_auth_middleware(request: Request, call_next):
                 response.delete_cookie("access_token")
                 response.delete_cookie("refresh_token")
                 return response
-                
+
     except Exception as e:
         logger.warning(f"JWT 미들웨어 오류 : {str(e)}")
         # 예상치 못한 오류 처리
@@ -147,8 +155,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "message": "요청 데이터 검증 실패",
             "errors": error_details,
-            "request_data": request_data
-        }
+            "request_data": request_data,
+        },
     )
 
 
@@ -213,9 +221,13 @@ app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
 app.include_router(agent_router, prefix="/agents", tags=["agents"])
+<<<<<<< HEAD
 app.include_router(accommodation_router, prefix="/accommodation-agnet", tags=["agents"])
 
 
+=======
+app.include_router(site_agent_router, prefix="/agents/site", tags=["Site Agent"])
+>>>>>>> origin
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()

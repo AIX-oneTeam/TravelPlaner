@@ -7,6 +7,7 @@ from datetime import datetime, time
 from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+from sqlalchemy import Column, Double
 
 class spot_pydantic(BaseModel):
 
@@ -14,12 +15,11 @@ class spot_pydantic(BaseModel):
     eng_name: str = Field(default=None, max_length=255)
     description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
-    url: str  = Field(default=None, max_length=2083)
+    url: str = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    likes: int = None
-    satisfaction: float = None
+    latitude: float = Field(sa_column=Column(Double, nullable=False))
+    longitude: float = Field(sa_column=Column(Double, nullable=False))
     spot_category: int
     phone_number: str = Field(default=None, max_length=300)
     business_status: bool = None
@@ -28,6 +28,7 @@ class spot_pydantic(BaseModel):
     order: int
     day_x: int
     spot_time: str = None
+    
 class spots_pydantic(BaseModel):
     spots: list[spot_pydantic]
 
@@ -248,7 +249,6 @@ def create_plan(user_input):
                 "eng_name": "string",
                 "description": "string",
                 "address": "string",
-                "zip": "string",
                 "url": "string",
                 "image_url": "string",
                 "map_url": "string",
@@ -258,9 +258,12 @@ def create_plan(user_input):
                 "phone_number": "string",
                 "business_status":True,
                 "business_hours": "string",
+                "latitude": 0,
+                "longitude": 0,
                 "order": 0,
                 "day_x": 0,
                 "spot_time": "2025-06-01T06:27:43.593Z"
+
             }}
             - 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정.
             - day_x는 반드시 1부터 시작하여 증가하는 숫자이며, 여행 기간의 각각의 날짜를 의미함.
