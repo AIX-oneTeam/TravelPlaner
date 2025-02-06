@@ -57,6 +57,26 @@ AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")
 llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
 
+# 커스텀 JSON 인코더 (직렬화 불가능한 객체 처리)
+class CustomEncoder(json.JSONEncoder):
+    def default(self, o):
+        try:
+            return o.__dict__
+        except AttributeError:
+            return str(o)
+
+# 외부 서비스 결과 직렬화 helper 함수
+def serialize_service_result(result):
+    if result is None:
+        return None
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "json_dict"):
+        return result.json_dict
+    if hasattr(result, "__dict__"):
+        return result.__dict__
+    return str(result)
+
 # 카카오 로컬 검색 툴
 class KakaoLocalSearchTool(BaseTool):
     name: str = "KakaoLocalSearch"
@@ -90,7 +110,7 @@ class KakaoLocalSearchTool(BaseTool):
         except Exception as e:
             return f"[KakaoLocalSearchTool] 에러: {str(e)}"
 
-# 경로 계산 Tool (최적 경로 계산)
+# 경로 계산 Tool
 class KakaoMapRouteTool(BaseTool):
     name: str = "KakaoMapRoute"
     description: str = "여행 일정의 최적 경로를 계산하고 각 장소 간 거리 정보를 제공"
@@ -137,6 +157,7 @@ class KakaoMapRouteTool(BaseTool):
                         unvisited.remove(next_place)
                         current = next_place
                 optimized_routes[day] = route
+            print(f"[DEBUG] Optimized routes: {optimized_routes}")
             return json.dumps(optimized_routes, ensure_ascii=False)
         except Exception as e:
             return f"[KakaoMapRouteTool] 에러: {str(e)}"
@@ -163,7 +184,7 @@ def extract_recommendations_from_output(output) -> list:
         print(f"파싱 오류: {e}")
         return []
 
-# DummyTask: 외부 서비스 결과를 planning_task의 context로 전달하기 위한 래퍼
+# DummyTask 래퍼
 class DummyTask:
     def __init__(self, output):
         self.output = output
@@ -180,7 +201,7 @@ def calculate_trip_days(start_date_str, end_date_str):
 # ──────────────────────────────
 async def create_plan(user_input: dict):
     """
-    외부 서비스 파일에 정의된 결과값(예: 음식점, 관광지, 숙소 추천 결과)을 받아서,
+    외부 서비스 결과(예: 음식점, 관광지, 숙소, 카페 추천 결과)를 받아서,
     planning_agent가 이 데이터를 바탕으로 최적 경로를 고려한 여행 일정을 생성한다.
     
     user_input 예시:
@@ -189,58 +210,101 @@ async def create_plan(user_input: dict):
         "start_date": "2025-03-01",
         "end_date": "2025-03-05",
         "main_location": "서울",
-        "selected_options": ["restaurant", "site"]  # 예: 음식점과 관광지 선택
+        "selected_options": ["restaurant", "site", "cafe"]
     }
     """
     try:
         main_location = user_input.get("main_location", "Unknown Location")
         trip_days = calculate_trip_days(user_input["start_date"], user_input["end_date"])
-        selected = user_input.get("selected_options", [])
+        selected = user_input.get("selected_options") or user_input.get("agent_type") or []
+        user_input["trip_days"] = trip_days     
 
         # 외부 서비스 결과 호출
-        # 실제 경로와 함수명은 프로젝트에 맞게 수정하세요.
-        from app.services.agents.site_agent12 import create_restaurant_plan
+        from app.services.agents.site_agent import create_tourist_plan
         from app.services.agents.cafe_agent_service import cafe_agent
         from app.services.agents.accommodation_agent_3 import run as run_accommodation
 
         context_tasks = []
         if "site" in selected:
-            site_result = create_restaurant_plan(user_input)
-            context_tasks.append(DummyTask({"site_result": site_result}))
+            site_result = create_tourist_plan(user_input)
+            context_tasks.append({
+                "site_result": serialize_service_result(site_result),
+                "description": "Tourist site recommendations",
+                "expected_output": json.dumps(serialize_service_result(site_result), ensure_ascii=False)
+            })
         if "accommodation" in selected:
-            accommodation_result = run_accommodation(user_input)
-            context_tasks.append(DummyTask({"accommodation_result": accommodation_result}))
+            accomodation_result = run_accommodation(user_input)
+            context_tasks.append({
+                "accomodation_result": serialize_service_result(accomodation_result),
+                "description": "Accommodation recommendations",
+                "expected_output": json.dumps(serialize_service_result(accomodation_result), ensure_ascii=False)
+            })
         if "cafe" in selected:
             cafe_result = cafe_agent(user_input)
-            context_tasks.append(DummyTask({"cafe_result": cafe_result}))
+            context_tasks.append({
+                "cafe_result": serialize_service_result(cafe_result),
+                "description": "Cafe recommendations",
+                "expected_output": json.dumps(serialize_service_result(cafe_result), ensure_ascii=False)
+            })
+
+        # 디버깅: 외부 서비스 결과 출력 (JSON 내 중괄호 이스케이프 처리)
+        try:
+            external_data = json.dumps(context_tasks, ensure_ascii=False, indent=2, cls=CustomEncoder)
+            # 중괄호를 이스케이프하여 format() 호출 시 템플릿 변수로 인식되지 않도록 함
+            escaped_external_data = external_data.replace("{", "{{").replace("}", "}}")
+            print("DEBUG: 외부 서비스 결과 (context_tasks):")
+            print(escaped_external_data)
+        except Exception as e:
+            print(f"[DEBUG ERROR] JSON 직렬화 실패: {e}")
         
         if not context_tasks:
             raise ValueError("최소 한 가지 서비스 옵션(restaurant, site, accommodation, cafe)을 선택해야 합니다.")
 
-        # planning_agent 생성 (최종 일정 생성 전용)
-        # 여기서 플래닝 에이전트는 오직 context로 전달된 외부 결과만을 참고하여 일정을 생성한다.
+        # 프롬프트 지시문에 외부 데이터를 그대로 사용하라는 명령 추가
+        prompt_instruction = (
+            "다음 JSON 데이터는 외부 서비스로부터 받은 실제 추천 장소 정보입니다. "
+            "아래 데이터를 그대로 사용하여, 새로운 장소나 임의의 데이터를 생성하지 말고, 이 데이터를 재배열하여 일정 초안을 작성하세요.\n\n"
+            "=== 외부 데이터 ===\n"
+            f"{escaped_external_data}\n"
+            "=== 끝 ===\n\n"
+        )
+        
+        # planning_agent 생성
         planning_agent = Agent(
-            role="여행 일정 플래너",
+            role="여행 일정 최적화 플래너",
             goal=(
-                "외부 서비스에서 받은 여행 스팟 정보(예: 음식점, 관광지, 숙소, 카페 추천 결과)만을 사용하여, "
-                "최적 경로와 이동 시간을 고려한 전체 여행 일정을 생성하라. "
-                "참고 자료나 추가 입력 없이, 오직 전달된 서비스 결과만으로 일정을 구성해야 한다."
+                "위에 제공된 외부 JSON 데이터를 그대로 사용하여, 일정 초안을 작성합니다. "
+                "절대 새로운 장소를 생성하지 마세요."
             ),
-            backstory="나는 오직 외부 에이전트 결과만을 기반으로 여행 동선과 최적 경로를 계산하는 AI 플래너이다.",
-            tools=[KakaoLocalSearchTool(), KakaoMapRouteTool()],
+            backstory=(
+                "나는 외부 서비스에서 받은 실제 장소 데이터만을 사용하여 일정을 구성합니다. "
+                "제공된 JSON 데이터를 재구성하여 최종 출력에 반영합니다."
+            ),
+            tools=[KakaoMapRouteTool()],
             llm=llm,
             verbose=True,
         )
-
+        
+        # 디버깅: planning_agent에 전달될 context_tasks 출력
+        print("DEBUG: planning_agent에 전달될 context_tasks:")
+        print(json.dumps(context_tasks, ensure_ascii=False, indent=2, cls=CustomEncoder))
+        
         planning_task = Task(
-            description="""
+            description=prompt_instruction + """
             [최종 여행 일정 생성]
-            - 여행 기간: {start_date} ~ {end_date} (총 {trip_days}일)
-            - 외부 서비스 결과만을 활용하여, 최적 경로 및 이동 시간을 고려한 여행 스팟 리스트를 JSON 형식으로 생성하라.
-            - 각 스팟에는 day_x, order, spot_category 등의 필드를 포함해야 한다.
+            - 여행 기간: {start_date} ~ {end_date} ({trip_days}일)
+            - 위의 JSON 데이터를 그대로 활용하여, 날짜별로 최적의 순서로 재배열하고,
+              각 장소의 방문 순서를 지정하세요.
+            - 이동 거리와 시간을 고려하여 효율적인 동선을 구성하세요.
+            
+            출력 형식 (pydantic 모델 준수):
+            - 각 장소는 반드시 위 JSON 데이터에서 제공된 것이어야 합니다.
+            - day_x: 방문 날짜
+            - order: 해당 날짜의 방문 순서
+            - 나머지 필드는 그대로 유지
             """,
             agent=planning_agent,
-            context=context_tasks,  # 외부 서비스 결과 DummyTask 객체들을 context로 전달
+            context=context_tasks,
             expected_output="pydantic 형식의 여행 일정 데이터",
             output_pydantic=spots_pydantic,
             async_execution=False,
@@ -249,11 +313,19 @@ async def create_plan(user_input: dict):
         # Crew 실행: planning_agent를 사용하여 최종 일정 생성
         Crew(agents=[planning_agent], tasks=[planning_task], verbose=True).kickoff(inputs=user_input)
         
-        print("최종 결과:", planning_task.output.pydantic.model_dump())
+        # 디버깅: planning_task의 raw 출력 확인
+        if hasattr(planning_task.output, 'raw'):
+            print("DEBUG: planning_task.raw 출력:")
+            print(planning_task.output.raw)
+        
+        print("DEBUG: 최종 planning_task의 pydantic 모델 출력:")
+        
+        
+        
         response_json = {
             "message": "요청이 성공적으로 처리되었습니다.",
             "plan": {
-                "name": user_input.get("name", "여행 일정"),
+                "name": user_input.get("name", "여행 일정"),    
                 "start_date": user_input["start_date"],
                 "end_date": user_input["end_date"],
                 "main_location": main_location,
@@ -268,3 +340,5 @@ async def create_plan(user_input: dict):
         print(f"[ERROR] {e}")
         traceback.print_exc()
         return {"message": "요청 처리 중 오류가 발생했습니다.", "error": str(e)}
+
+# For local testing via uvicorn, run: uvicorn app:app --reload
