@@ -19,13 +19,15 @@ class spot_request(BaseModel):
     eng_name: str | None = Field(default=None, max_length=255)
     description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
     url: str | None = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
+    longitude: float
+    latitude: float
     likes: int | None = None
     satisfaction: float | None = None
     spot_category: int
+
     phone_number: str | None = Field(default=None, max_length=300)
     business_status: bool | None = None
     business_hours: str | None = Field(default=None, max_length=255)
@@ -62,7 +64,6 @@ def create_plan(request_data: PlanRequest, request: Request, session: Session = 
                 eng_name=spot.eng_name,
                 description=spot.description,
                 address=spot.address,
-                zip=spot.zip,
                 url=spot.url,
                 image_url=spot.image_url,
                 map_url=spot.map_url,
@@ -71,10 +72,13 @@ def create_plan(request_data: PlanRequest, request: Request, session: Session = 
                 spot_category=spot.spot_category,
                 phone_number=spot.phone_number,
                 business_status=spot.business_status,
-                business_hours=spot.business_hours
+                business_hours=spot.business_hours,
+                longitude=spot.longitude,
+                latitude=spot.latitude,
             ), session)
             # 3. 일정-장소 매핑 저장
             save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
+
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 등록되었습니다.")
     except Exception as e:
         return ErrorResponse(message="일정 등록에 실패했습니다.", error_detail=e)
