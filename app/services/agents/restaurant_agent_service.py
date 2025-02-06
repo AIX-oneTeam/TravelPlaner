@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, Double
-from typing import List, Dict
+from typing import List, Dict, Optional
 import time
 
 app = FastAPI()
@@ -22,7 +22,7 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
-llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
+llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
 
 
 class spot_pydantic(BaseModel):
@@ -158,7 +158,7 @@ class RestaurantBasicSearchTool(BaseTool):
                                 details = self.get_place_details(place_id)
                                 if details:
                                     all_candidates.append(details)
-                        break  # 성공하면 반복 중단
+                        break
                     except Exception as e:
                         print(f"Token retry error: {e}")
                         if _ == max_retries - 1:  # 마지막 시도였다면
@@ -186,7 +186,7 @@ class RestaurantFilterTool(BaseTool):
             if r.get("rating", 0) >= 4.0 and r.get("reviews", 0) >= 500
         ]
 
-
+# 네이버 웹 검색 도구
 class NaverWebSearchTool(BaseTool):
     name: str = "NaverWebSearch"
     description: str = "네이버 웹 검색 API를 사용해 식당의 상세 정보를 검색합니다."
@@ -240,7 +240,7 @@ class NaverWebSearchTool(BaseTool):
             results[restaurant] = self.fetch(restaurant)
         return results
 
-
+# 네이버 이미지 검색 도구
 class NaverImageSearchTool(BaseTool):
     name: str = "NaverImageSearch"
     description: str = (
@@ -345,13 +345,17 @@ final_recommendation_agent = Agent(
 
 
 # ------------------------- Task & Crew ------------------------------
-def create_recommendation(input_data: dict) -> dict:
+def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dict:
     try:
-        print(f"[입력 데이터] input_data: {input_data}") # 받은 데이터 확인
+        print(f"[입력 데이터] input_data: {input_data}")  # 받은 데이터 확인
+        print(
+            f"[프롬프트 입력] prompt: {prompt}"
+        )
 
-        # prompt가 존재할 경우에만 추가 문구 포함
-        prompt_text = f'추가 참고: "{input_data["prompt"]}" 도 참고하여 추천해주세요.\n' if input_data.get("prompt") else ""
-        print(f"[프롬프트 입력] input_data: {prompt_text}")
+        # 프롬프트 입력 여부 체크하여 description에 추가
+        prompt_text = (
+            f'추가 참고: "{prompt}" 도 참고하여 추천해주세요.\n' if prompt else ""
+        )
 
         # Task 정의
         tasks = [
@@ -438,7 +442,7 @@ def create_recommendation(input_data: dict) -> dict:
 
         result = crew.kickoff()
 
-        # 마지막 Task(final_recommendation_agent)의 결과 접근
+        # 마지막 Task(final_recommendation_agent)의 결과 변환
         if hasattr(result, "tasks_output") and result.tasks_output:
             final_task_output = result.tasks_output[-1]  # 마지막 Task의 결과
             if hasattr(final_task_output, "pydantic"):
