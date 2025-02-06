@@ -17,12 +17,13 @@ app = FastAPI()
 # 환경 변수 로드
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+# SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
-llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
+llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
+
 
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
@@ -134,20 +135,22 @@ class RestaurantBasicSearchTool(BaseTool):
                     if details:
                         all_candidates.append(details)
 
-            # 추가 20개 요청을 위한 반복 시도
+            # 추가 20개 요청을 위한 반복 시도, 결과 중 최대 10개만 처리
             next_page_token = data.get("next_page_token")
             if next_page_token:
-                max_retries = 3
+                max_retries = 1
                 for _ in range(max_retries):
                     try:
-                        time.sleep(5)
+                        time.sleep(3)
                         params["pagetoken"] = next_page_token
                         response = requests.get(url, params=params)
                         response.raise_for_status()
                         data = response.json()
-                        print(f"두 번째 요청 결과 수: {len(data.get('results', []))}")
+                        # 두 번째 요청 결과에서 최대 10개만 처리하도록 슬라이싱
+                        second_results = data.get("results", [])[:10]
+                        print(f"두 번째 요청 결과 수: {len(second_results)}")
 
-                        for place in data.get("results", []):
+                        for place in second_results:
                             if len(all_candidates) >= 40:
                                 break
                             place_id = place.get("place_id")
@@ -195,10 +198,10 @@ class NaverWebSearchTool(BaseTool):
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
         params = {
-            "query": f"{query}",  # 검색어 최적화
-            "display": 3,  # 결과 수를 3개로 증가
+            "query": f"{query}",
+            "display": 3,
             "start": 1,
-            "sort": "sim",  # 정확도순 정렬
+            "sort": "sim",
         }
 
         try:
@@ -214,7 +217,7 @@ class NaverWebSearchTool(BaseTool):
             descriptions = []
             for item in items:
                 desc = item.get("description", "").strip()
-                if desc and len(desc) > 30:  # 의미있는 설명만 추가
+                if desc and len(desc) > 30:
                     descriptions.append(desc)
 
             combined_description = " ".join(descriptions)
@@ -276,6 +279,7 @@ class NaverImageSearchTool(BaseTool):
             results[restaurant] = self.fetch(restaurant)
         return results
 
+
 # ------------------------- Agent ------------------------------
 # 좌표 조회 에이전트
 geocoding_agent = Agent(
@@ -312,7 +316,7 @@ restaurant_filter_agent = Agent(
 naver_web_search_agent = Agent(
     role="네이버 웹 검색 에이전트",
     goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
-    backstory="네이버 웹 검색을 통해 식당의 상세 텍스트 정보를 제공합니다.",
+    backstory="나는 네이버 웹 검색 전문가로, 식당의 상세 텍스트 정보를 제공합니다. 최신 검색 기술과 데이터를 활용하여 정확하고 신뢰할 수 있는 식당 정보를 제공합니다. ",
     tools=[NaverWebSearchTool()],
     llm=llm,
     verbose=True,
@@ -322,7 +326,7 @@ naver_web_search_agent = Agent(
 naver_image_search_agent = Agent(
     role="네이버 이미지 검색 에이전트",
     goal="네이버 이미지 검색 API를 사용해 식당의 이미지 URL을 조회한다.",
-    backstory="네이버 이미지 검색을 통해 식당의 이미지를 제공합니다.",
+    backstory="나는 네이버 이미지 검색 전문가로, 식당의 정확한 이미지를 제공합니다.",
     tools=[NaverImageSearchTool()],
     llm=llm,
     verbose=True,
@@ -343,7 +347,7 @@ final_recommendation_agent = Agent(
 # ------------------------- Task & Crew ------------------------------
 def create_recommendation(input_data: dict) -> dict:
     try:
-        print(f"[DEBUG3] input_data: {input_data}")  # 받은 데이터 확인
+        print(f"[입력 데이터] input_data: {input_data}")  # 받은 데이터 확인
 
         # Task 정의
         tasks = [
@@ -351,19 +355,16 @@ def create_recommendation(input_data: dict) -> dict:
                 description=f"{input_data['main_location']}의 좌표 조회",
                 agent=geocoding_agent,
                 expected_output="위치 좌표",
-                config={"location": input_data["main_location"]},
             ),
             Task(
                 description="맛집 기본 정보 조회",
                 agent=restaurant_basic_search_agent,
                 expected_output="맛집 기본 정보 리스트",
-                config={},
             ),
             Task(
                 description="맛집 필터링 (평점 4.0 이상, 리뷰 500개 이상)",
                 agent=restaurant_filter_agent,
                 expected_output="필터링된 맛집 리스트",
-                config={},
             ),
             Task(
                 description=(
@@ -395,7 +396,6 @@ def create_recommendation(input_data: dict) -> dict:
                 description="네이버 이미지 검색으로 맛집 이미지 수집",
                 agent=naver_image_search_agent,
                 expected_output="맛집 이미지 URL",
-                config={},
             ),
             Task(
                 description=(
@@ -415,18 +415,9 @@ def create_recommendation(input_data: dict) -> dict:
                 ),
                 agent=final_recommendation_agent,
                 expected_output="최종 추천 맛집 리스트",
-                output_json=spots_pydantic,
-                config={
-                    "travel_plan": input_data,  # dict 그대로 사용
-                    "previous_results": "이전 태스크 결과",
-                },
+                output_pydantic=spots_pydantic,
             ),
         ]
-
-        # 디버깅: 각 Task의 description과 config 출력
-        for i, task in enumerate(tasks, start=1):
-            print(f"[DEBUG] Task {i} description: {task.description}")
-            print(f"[DEBUG] Task {i} config: {task.config}")
 
         crew = Crew(
             tasks=tasks,
@@ -442,7 +433,39 @@ def create_recommendation(input_data: dict) -> dict:
         )
 
         result = crew.kickoff()
-        return result
+
+        # 마지막 Task(final_recommendation_agent)의 결과 접근
+        if hasattr(result, "tasks_output") and result.tasks_output:
+            final_task_output = result.tasks_output[-1]  # 마지막 Task의 결과
+            if hasattr(final_task_output, "pydantic"):
+                spots_data = final_task_output.pydantic.model_dump()
+            else:
+                # raw 문자열을 파싱하는 방식으로 폴백
+                spots_data = json.loads(final_task_output.raw)
+        else:
+            spots_data = {"spots": []}
+
+        restaurant_response = {
+            "message": "요청이 성공적으로 처리되었습니다.",
+            "plan": {
+                "name": input_data.get("name", "여행 일정"),
+                "start_date": input_data["start_date"],
+                "end_date": input_data["end_date"],
+                "main_location": input_data["main_location"],
+                "ages": input_data.get("ages", 0),
+                "companion_count": sum(
+                    companion.get("count", 0)
+                    for companion in input_data.get("companions", [])
+                ),
+                "concepts": ", ".join(input_data.get("concepts", [])),
+                "member_id": input_data.get("member_id", 0),
+                "created_at": datetime.now().strftime("%Y-%m-%d"),
+                "updated_at": datetime.now().strftime("%Y-%m-%d"),
+            },
+            "spots": spots_data.get("spots", []),
+        }
+
+        return restaurant_response
 
     except Exception as e:
         traceback.print_exc()

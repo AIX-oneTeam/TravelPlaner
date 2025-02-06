@@ -31,11 +31,10 @@ async def generate_plan(user_input: TravelPlanRequest):
     """
     try:
         print("프론트에서 받은 데이터:", user_input)
-        user_data = user_input.model_dump()
 
-        print("Python dict 변환:", user_data)
-        result = create_recommendation(user_data)
-        print("맛집 추천 결과:", result)
+        print("Python dict 변환:", user_input.model_dump())
+        result = create_recommendation(user_input.model_dump())
+        print("restaurant_response:", result)
 
         return {
             "status": "success",
