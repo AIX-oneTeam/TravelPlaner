@@ -22,7 +22,7 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
-llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
+llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
 
 
 class spot_pydantic(BaseModel):
@@ -347,7 +347,11 @@ final_recommendation_agent = Agent(
 # ------------------------- Task & Crew ------------------------------
 def create_recommendation(input_data: dict) -> dict:
     try:
-        print(f"[입력 데이터] input_data: {input_data}")  # 받은 데이터 확인
+        print(f"[입력 데이터] input_data: {input_data}") # 받은 데이터 확인
+
+        # prompt가 존재할 경우에만 추가 문구 포함
+        prompt_text = f'추가 참고: "{input_data["prompt"]}" 도 참고하여 추천해주세요.\n' if input_data.get("prompt") else ""
+        print(f"[프롬프트 입력] input_data: {prompt_text}")
 
         # Task 정의
         tasks = [
@@ -403,7 +407,7 @@ def create_recommendation(input_data: dict) -> dict:
                     f"{input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 "
                     f"동반자({', '.join([f'{c['label']} {c['count']}명' for c in input_data['companions']])})의 "
                     f"{', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 추천하라."
-                    f"추가 참고: \"{input_data['prompt']}\" 도 참고하여 추천해주세요.\n\n"
+                    f"{prompt_text}"
                     "필수:\n"
                     "- spot_category는 2로 고정한다.\n"
                     "- day_x는 가게가 추천되는 날을 의미한다. (예: 1일차, 2일차 등)\n"

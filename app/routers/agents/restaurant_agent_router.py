@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
 from app.services.agents.restaurant_agent_service import (
     create_recommendation,
 )  # ✅ 올바른 함수 임포트
@@ -21,7 +21,7 @@ class TravelPlanRequest(BaseModel):
     ages: str
     companions: List[Companion]
     concepts: List[str]
-    prompt: str
+    prompt: Optional[str] = Field(default=None)
 
 
 @router.post("/restaurant")
