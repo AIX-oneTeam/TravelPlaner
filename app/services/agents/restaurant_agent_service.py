@@ -409,8 +409,8 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 description=(
                     f"이전 단계에서 수집한 {input_data['main_location']} 지역의 맛집 데이터를 바탕으로, "
                     f"{input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 "
-                    f"동반자({', '.join([f'{c['label']} {c['count']}명' for c in input_data['companions']])})의 "
-                    f"{', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 중복없이 추천하라."
+                    f"동반자({', '.join([f'{c['label']} {c['count']}명' for c in input_data['companion_count']])})의 "
+                    f"{', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.\n"
                     f"{prompt_text}"
                     "필수:\n"
                     "- spot_category는 2로 고정한다.\n"

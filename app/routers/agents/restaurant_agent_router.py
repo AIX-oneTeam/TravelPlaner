@@ -4,6 +4,7 @@ from typing import List, Optional
 from app.services.agents.restaurant_agent_service import (
     create_recommendation,
 )
+from app.routers.agents.travel_all_schedule_agent_router import TravelPlanRequest
 
 router = APIRouter()
 
@@ -13,17 +14,8 @@ class Companion(BaseModel):
     label: str
     count: int
 
-
-class TravelPlanRequest(BaseModel):
-    main_location: str
-    start_date: str
-    end_date: str
-    ages: str
-    companions: List[Companion]
-    concepts: List[str]
-
-@router.post("/")
-async def generate_plan(
+@router.post("/restaurant")
+async def get_restaurants(
     user_input: TravelPlanRequest = Body(...),
     prompt: Optional[str] = Query(None),
 ):
