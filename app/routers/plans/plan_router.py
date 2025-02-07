@@ -59,25 +59,10 @@ def create_plan(request_data: PlanRequest, request: Request, session: Session = 
         plan_id = reg_plan(request_data.plan, member_id, session)
         # 2. 장소 저장
         for spot in request_data.spots:
-            spot_id = reg_spot(Spot( #SQL Model
-                kor_name=spot.kor_name,
-                eng_name=spot.eng_name,
-                description=spot.description,
-                address=spot.address,
-                url=spot.url,
-                image_url=spot.image_url,
-                map_url=spot.map_url,
-                likes=spot.likes,
-                satisfaction=spot.satisfaction,
-                spot_category=spot.spot_category,
-                phone_number=spot.phone_number,
-                business_status=spot.business_status,
-                business_hours=spot.business_hours,
-                longitude=spot.longitude,
-                latitude=spot.latitude,
-            ), session)
+            spot_id = reg_spot(Spot(**spot.model_dump(exclude={"order", "day_x", "spot_time"})), session)
             # 3. 일정-장소 매핑 저장
             save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
+
 
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 등록되었습니다.")
     except Exception as e:
@@ -111,8 +96,17 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
         
         # 1. 일정 수정
         edit_plan(plan_id, request_data.plan, member_id, session)
+        # 2. 장소 수정
+        for spot in request_data.spots:
+            spot_id = reg_spot(Spot(**spot.model_dump(exclude={"order", "day_x", "spot_time"})), session)
+        
+        # 3. 일정-장소 매핑 수정
+        for spot in request_data.spots:
+            save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
+        
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 수정되었습니다.")
     except Exception as e:
+
 
 
         return ErrorResponse(message="일정 수정에 실패했습니다.", error_detail=e)
