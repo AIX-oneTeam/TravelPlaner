@@ -375,28 +375,29 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 expected_output="필터링된 맛집 리스트",
             ),
             Task(
-                description=(
-                    f"이전 단계에서 평점 4.0 이상, 리뷰 수 500개 이상으로 필터링된 {input_data['main_location']} 지역의 맛집 후보 리스트를 바탕으로, 각 식당의 "
-                    "세부 정보를 최신 검색 결과를 활용하여 가져오라. "
-                    "검색 시 반드시 아래 JSON 스키마에 맞추어 정확하고 누락 없이 정보를 반환할 것. "
-                    "특히, 아래 항목들은 최신 정보에 기반하여 모두 포함되어야 한다:\n\n"
-                    "{\n"
-                    '  "kor_name": "string (가게 한글이름, 최대 255자)",\n'
-                    '  "eng_name": "string 또는 null (가게 영어이름, 최대 255자)",\n'
-                    '  "description": "string (가게 설명, 최대 255자)",\n'
-                    '  "address": "string (주소, 최대 255자)",\n'
-                    '  "url": "string 또는 null (웹사이트 URL, 최대 2083자)",\n'
-                    '  "image_url": "string (이미지 URL, 최대 2083자)",\n'
-                    '  "map_url": "string (map_url, 최대 2083자)",\n'
-                    '  "latitude": "number (위도)",\n'
-                    '  "longitude": "number (경도)",\n'
-                    '  "spot_category": "2",\n'
-                    '  "phone_number": "string 또는 null (전화번호, 최대 300자)",\n'
-                    '  "business_status": "string 또는 null (영업 상태)",\n'
-                    '  "business_hours": "string 또는 null (영업시간, 최대 255자)",\n'
-                    "}\n\n"
-                    "위 JSON 스키마에 맞추어 모든 필드를 채워서 결과를 반환하라."
-                ),
+                description=f"""
+                이전 단계에서 평점 4.0 이상, 리뷰 수 500개 이상으로 필터링된 {input_data['main_location']} 지역의 맛집 후보 리스트를 바탕으로, 각 식당의 
+                세부 정보를 최신 검색 결과를 활용하여 가져오라. 
+                검색 시 반드시 아래 JSON 스키마에 맞추어 정확하고 누락 없이 정보를 반환할 것. 
+                특히, 아래 항목들은 최신 정보에 기반하여 모두 포함되어야 한다:
+
+                {{
+                "kor_name": "string (가게 한글이름, 최대 255자)",
+                "eng_name": "string 또는 null (가게 영어이름, 최대 255자)",
+                "description": "string (가게 설명, 최대 255자)",
+                "address": "string (주소, 최대 255자)",
+                "url": "string 또는 null (웹사이트 URL, 최대 2083자)",
+                "image_url": "string (이미지 URL, 최대 2083자)",
+                "map_url": "string (map_url, 최대 2083자)",
+                "latitude": "number (위도)",
+                "longitude": "number (경도)",
+                "spot_category": "2",
+                "phone_number": "string 또는 null (전화번호, 최대 300자)",
+                "business_status": "string 또는 null (영업 상태)",
+                "business_hours": "string 또는 null (영업시간, 최대 255자)"
+                }}
+
+                위 JSON 스키마에 맞추어 모든 필드를 채워서 결과를 반환하라.""",
                 agent=naver_web_search_agent,
                 expected_output="각 후보 식당의 세부 정보(가게 한글이름, 영어이름, 설명, 주소, 웹사이트 URL, 이미지 URL, map_url, 위도, 경도, 스팟 카테고리, 전화번호, 영업 상태, 영업시간)를 포함하는 details_map",
             ),
@@ -406,21 +407,23 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 expected_output="맛집 이미지 URL",
             ),
             Task(
-                description=(
-                    f"이전 단계에서 수집한 {input_data['main_location']} 지역의 맛집 데이터를 바탕으로, "
-                    f"{input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 "
-                    f"동반자({', '.join([f'{c['label']} {c['count']}명' for c in input_data['companion_count']])})의 "
-                    f"{', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.\n"
-                    f"{prompt_text}"
-                    "필수:\n"
-                    "- spot_category는 2로 고정한다.\n"
-                    "- day_x는 가게가 추천되는 날을 의미한다. (예: 1일차, 2일차 등)\n"
-                    "- order는 해당 day_x에서 가게가 추천되는 순서를 의미한다. (아침이면 1, 점심이면 2, 저녁이면 3)\n"
-                    "- spot_time은 아침, 점심, 저녁 시간대를 hh:mm:ss 형식으로 표시해야 한다.\n"
-                    "- order와 day_x는 사용자의 여행 일정 일수에 맞게 조정되어야 한다.\n"
-                    "- 최종 맛집 리스트의 개수는 하루 3끼 기준으로 결정된다. 예를 들어, 1박 2일이면 총 6개, 2박 3일이면 총 8개 이상 출력되어야 한다.\n"
-                    "- 위도, 경도, 이미지 데이터는 이전 태스크들에서 얻은 정보를 가져와서 입력한다."
-                ),
+                description=f"""
+                이전 단계에서 수집한 {input_data['main_location']} 지역의 맛집 데이터를 바탕으로, 
+                {input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 
+                동반자({', '.join([f"{c['label']} {c['count']}명" for c in input_data['companion_count']])})의 
+                {', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.
+
+                {prompt_text}
+
+                필수:
+                - spot_category는 2로 고정한다.
+                - day_x는 가게가 추천되는 날을 의미한다. (예: 1일차, 2일차 등)
+                - order는 해당 day_x에서 가게가 추천되는 순서를 의미한다. (아침이면 1, 점심이면 2, 저녁이면 3)
+                - spot_time은 아침, 점심, 저녁 시간대를 hh:mm:ss 형식으로 표시해야 한다.
+                - order와 day_x는 사용자의 여행 일정 일수에 맞게 조정되어야 한다.
+                - 최종 맛집 리스트의 개수는 하루 3끼 기준으로 결정된다. 예를 들어, 1박 2일이면 총 6개, 2박 3일이면 총 8개 이상 출력되어야 한다.
+                - 위도, 경도, 이미지 데이터는 이전 태스크들에서 얻은 정보를 가져와서 입력한다.
+                """,
                 agent=final_recommendation_agent,
                 expected_output="최종 추천 맛집 리스트",
                 output_pydantic=spots_pydantic,
@@ -463,7 +466,7 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 "ages": input_data.get("ages", 0),
                 "companion_count": sum(
                     companion.get("count", 0)
-                    for companion in input_data.get("companions", [])
+                    for companion in input_data.get("companion_count", [])
                 ),
                 "concepts": ", ".join(input_data.get("concepts", [])),
                 "member_id": input_data.get("member_id", 0),

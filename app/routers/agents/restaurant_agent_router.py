@@ -14,6 +14,7 @@ class Companion(BaseModel):
     label: str
     count: int
 
+
 @router.post("/restaurant")
 async def get_restaurants(
     user_input: TravelPlanRequest = Body(...),
@@ -23,13 +24,22 @@ async def get_restaurants(
     맛집 추천 엔드포인트
     """
     try:
+        # `model_dump()`로 변환
+        user_data = user_input.model_dump()
+
+        # prompt 값이 있을 경우, 딕셔너리에 추가 (user_input에는 직접 할당 불가)
         if prompt:
-            user_input.prompt = prompt
+            user_data["prompt"] = prompt
 
-        print("프론트에서 받은 데이터:", user_input)
-        print("Python dict 변환:", user_input.model_dump())
+        print("프론트에서 받은 데이터:", user_data)
 
-        result = create_recommendation(user_input.model_dump(), prompt)
+        # create_recommendation 호출 (에러 핸들링 추가)
+        try:
+            result = create_recommendation(user_data, prompt)
+        except Exception as e:
+            print(f"[ERROR] create_recommendation() 오류 발생: {e}")
+            raise HTTPException(status_code=500, detail="추천 생성 중 오류 발생")
+
         print("restaurant_response:", result)
 
         return {
@@ -37,5 +47,7 @@ async def get_restaurants(
             "message": "맛집 리스트가 생성되었습니다.",
             "data": result,
         }
+
     except Exception as e:
+        print(f"[ERROR] 요청 처리 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
