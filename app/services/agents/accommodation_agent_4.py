@@ -15,8 +15,10 @@ import http.client
 
 
 load_dotenv()
-OPENAI_API_KEY ='KEY'
-GOOGLE_API_KEY ="KEY"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+SERP_API_KEY = os.getenv("SERP_API_KEY")
+
 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
 
@@ -26,6 +28,8 @@ class AccommodationResponse(BaseModel):
     eng_name: Optional[str] = None
     description: str
     address: str
+    latitude : str 
+    longitude : str
     url: Optional[str] = None
     image_url: str
     map_url: str
@@ -33,9 +37,13 @@ class AccommodationResponse(BaseModel):
     phone_number: Optional[str] = None
     business_status: Optional[bool] = None
     business_hours: Optional[str] = None
-    keywords: List[str]  
+    keywords: List[str]
+
+    class Config:
+        frozen = True
     
-# 위도와 경도를 계산하는 툴
+    
+# 위도,경도 계산 툴
 class GeoCoordinateTool(BaseTool):
     name: str = "GeoCoordinate Tool"
     description: str = "지역의 위도 경도를 계산"
@@ -66,7 +74,7 @@ class GoogleMapTool(BaseTool):
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': 'KEY',
+            'X-API-KEY': SERP_API_KEY,
             'Content-Type': 'application/json'
             }
             conn.request("POST", "/maps", payload, headers)
@@ -93,7 +101,7 @@ class GoogleReviewTool(BaseTool):
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': 'KEY',
+            'X-API-KEY': SERP_API_KEY,
             'Content-Type': 'application/json'
             }
             conn.request("POST", "/reviews", payload, headers)
@@ -166,9 +174,9 @@ class AiLatestDevelopment():
         )
         
 
-# run 함수: 입력을 받아서 에이전트를 실행하고 결과 반환
+# 에이전트 실행 함수 
 def run(location: str, check_in_date: str, check_out_date: str, 
-        age_group: int, adults: int, children: int, keyword: list) -> list:
+        age_group: int, adults: int, children: int, keyword: list, prompt:str) -> list:
 
     ai_dev = AiLatestDevelopment()
     crew_instance = ai_dev.crew()
@@ -180,23 +188,15 @@ def run(location: str, check_in_date: str, check_out_date: str,
         "age_group": age_group,
         "adults": adults,
         "children": children,
-        "keyword": keyword
+        "keyword": keyword,
+        "prompt" : prompt
     }
     
-    result = crew_instance.kickoff(inputs=inputs)
-    print(type(result)) 
-    raw_output = result.raw
-    
-    # raw_output이 문자열인 경우 JSON으로 파싱
-    if isinstance(raw_output, str):
-        try:
-            parsed_output = json.loads(raw_output)
-        except json.JSONDecodeError:
-            return f"Error: Unable to parse JSON: {raw_output}"
-    elif isinstance(raw_output, list):
-        parsed_output = raw_output
+    crew_output = crew_instance.kickoff(inputs=inputs)
+    print(type(crew_output))
+
+    if 'raw' in crew_output.__dict__:
+        print(crew_output.__dict__['raw'])
+        return crew_output.__dict__['raw']
     else:
-        return f"Error: Unexpected output type: {type(raw_output)}"
-    
-    # 파싱된 결과를 JSON 문자열로 변환
-    return json.dumps(parsed_output, ensure_ascii=False, indent=2)
+        return {"error": "예상치 못한 출력 형식"}
