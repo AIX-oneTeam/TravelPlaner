@@ -19,9 +19,7 @@ from app.routers.regions.region_router import router as region_router
 from app.routers.agents.travel_all_schedule_agent_router import router as agent_router
 from app.routers.agents.accommodation_agent_router import router as accommodation_router
 from app.routers.agents.restaurant_agent_router import router as restaurant_agent_router
-
 from app.routers.agents.site_agent_router import router as site_agent_router
-
 from app.routers.agents.cafe_agent_router import router as cafe_router
 
 import os
@@ -221,10 +219,10 @@ app.include_router(spot_router, prefix="/spots", tags=["spots"])
 app.include_router(plan_spots_router, prefix="/plan_spots", tags=["plan_spots"])
 app.include_router(region_router, prefix="/regions", tags=["regions"])
 app.include_router(agent_router, prefix="/agents", tags=["agents"])
-app.include_router(accommodation_router, prefix="/accommodation-agnet", tags=["agents"])
-app.include_router(site_agent_router, prefix="/agents/site", tags=["Site Agent"])
-app.include_router(restaurant_agent_router, prefix="/agents/restaurant", tags=["restaurant Agent"])
-
+app.include_router(accommodation_router, prefix="/agents", tags=["agents"])
+app.include_router(restaurant_agent_router, prefix="/agents", tags=["agents"])
+app.include_router(site_agent_router, prefix="/agents", tags=["agents"])
+app.include_router(cafe_router, prefix="/agents", tags=["agents"])
 
 # 데이터베이스 초기화
 # init_table_by_SQLModel()

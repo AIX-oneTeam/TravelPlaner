@@ -66,9 +66,9 @@ class GoogleMapSearchTool(BaseTool):
         except Exception as e:
             return f"[GoogleMapSearchTool] 에러: {str(e)}"
 
-# tool = GoogleMapSearchTool()
-# result = tool._run("강남 투썸플레이스")
-# print(result)
+tool = GoogleMapSearchTool()
+result = tool._run("강남 마들렌")
+print(result)
 
 class NaverLocalSearchTool(BaseTool):
     """네이버 local 검색 API를 사용해 텍스트 정보를 검색"""
@@ -107,11 +107,9 @@ class NaverLocalSearchTool(BaseTool):
 
             title = first_cafe.get('title', '정보 없음')
             address = first_cafe.get('roadAddress', '정보 없음')
-            telephone = first_cafe.get('telephone', '정보 없음')
-            description = first_cafe.get('description', '정보 없음')
             url = first_cafe.get('link', '정보 없음')
   
-            results.append(f"이름: {title}\n주소: {address}\n웹사이트: {url}\n전화번호: {telephone}\n설명: {description}\n---")
+            results.append(f"이름: {title}\n주소: {address}\n웹사이트: {url}---")
             return "\n".join(results)
 
         else:
@@ -134,15 +132,12 @@ class MultiToolWrapper(BaseTool):
     
     def __init__(self, google_tool: GoogleMapSearchTool, naver_tool: NaverLocalSearchTool):
         super().__init__()
-        # self.__dict__["google_tool"] = google_tool  # Pydantic 관리 우회
-        # self.__dict__["naver_tool"] = naver_tool
-        self._google_tool = google_tool  # ✅ Private 속성으로 할당
+        self._google_tool = google_tool 
         self._naver_tool = naver_tool
         
     def _run(self, query: str) -> str:
-        # google_search_result = self.__dict__["google_tool"]._run(query)
-        # naver_search_result = self.__dict__["naver_tool"]._run(query)
         google_search_result = self._google_tool._run(query)
         naver_search_result = self._naver_tool._run(query)
         
         return f"구글 맵 검색 결과:\n{google_search_result}\n\n 네이버 로컬 검색 결과:\n{naver_search_result}"
+
