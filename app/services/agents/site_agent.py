@@ -1,4 +1,4 @@
-import json
+import json 
 import re
 import traceback
 import os
@@ -17,12 +17,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
-llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
+llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
 
 # ──────────────────────────────
 # Pydantic 모델 정의
 # ──────────────────────────────
-
 
 class TravelPlanRequest(BaseModel):
     main_location: str = Field(..., max_length=255, description="사용자가 선택한 지역")
@@ -37,7 +36,6 @@ class TravelPlanRequest(BaseModel):
     concepts: List[str] = Field(
         ..., description="여행 컨셉 목록 (예: ['문화', '역사'])"
     )
-
 
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
@@ -57,15 +55,12 @@ class spot_pydantic(BaseModel):
     day_x: int
     spot_time: Optional[str] = None
 
-
 class spots_pydantic(BaseModel):
     spots: List[spot_pydantic]
-
 
 # ──────────────────────────────
 # 헬퍼 함수 및 API 도구 (네이버 웹/이미지 검색 등)
 # ──────────────────────────────
-
 
 def check_url_openable(url: str) -> bool:
     try:
@@ -74,7 +69,6 @@ def check_url_openable(url: str) -> bool:
     except Exception:
         return False
 
-
 def relevance_score(item_title: str, keywords: List[str]) -> int:
     title_clean = re.sub(r"<.*?>", "", item_title)
     score = 0
@@ -82,7 +76,6 @@ def relevance_score(item_title: str, keywords: List[str]) -> int:
         if kw in title_clean:
             score += 1
     return score
-
 
 class NaverWebSearchTool(BaseTool):
     name: str = "NaverWebSearch"
@@ -113,7 +106,6 @@ class NaverWebSearchTool(BaseTool):
             return "\n".join(results)
         except Exception as e:
             return f"[NaverWebSearchTool] 에러: {str(e)}"
-
 
 class NaverImageSearchTool(BaseTool):
     name: str = "NaverImageSearch"
@@ -163,7 +155,6 @@ class NaverImageSearchTool(BaseTool):
         except Exception as e:
             return f"[NaverImageSearchTool] 에러: {str(e)}"
 
-
 def extract_json_from_text(text: str) -> str:
     try:
         match = re.search(r"\[.*?\]", text, re.DOTALL)
@@ -172,7 +163,6 @@ def extract_json_from_text(text: str) -> str:
     except Exception as e:
         print(f"JSON 추출 오류: {e}")
     return text
-
 
 def extract_recommendations_from_output(output) -> list:
     try:
@@ -187,12 +177,10 @@ def extract_recommendations_from_output(output) -> list:
         print(f"파싱 오류: {e}")
         return []
 
-
 def get_image_url_for_place(query: str) -> str:
     modified_query = f"{query} 관광지"
     tool = NaverImageSearchTool()
     return tool._run(modified_query)
-
 
 def add_images_to_recommendations(recommendations: list) -> list:
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -212,7 +200,6 @@ def add_images_to_recommendations(recommendations: list) -> list:
             place["image_url"] = image_url
     return recommendations
 
-
 def create_tourist_plan(user_input: dict):
     """
     user_input 예시:
@@ -222,10 +209,14 @@ def create_tourist_plan(user_input: dict):
       "end_date": "2024-03-03",
       "ages": "20-30",
       "companion_count": [2, 1],
-      "concepts": ["문화", "역사"]
+      "concepts": ["문화", "역사"],
+      "prompt": "좀 더 이색적인 장소 위주로 추천해줘!"   // (추가된 프롬프트, 있을 경우)
     }
     """
     try:
+        # 추가 프롬프트가 있다면 추출 (있지 않으면 빈 문자열)
+        extra_prompt = user_input.pop("prompt", "")
+        
         location = user_input["main_location"]
         start_date = user_input["start_date"]
         end_date = user_input["end_date"]
@@ -233,11 +224,15 @@ def create_tourist_plan(user_input: dict):
         companion_count = user_input["companion_count"]
         concepts = user_input["concepts"]
 
+        # 추가 프롬프트가 있을 경우 goal 메시지에 반영
+        extra_text = f" 추가 요청: {extra_prompt}" if extra_prompt else ""
+
         tourist_agent = Agent(
             role="관광지 추천 에이전트",
             goal=(
                 f"사용자에게 {location} 지역에서 {start_date}부터 {end_date}까지 여행하는 여행객의 정보를 바탕으로, "
-                f"연령대 {ages}, 동반자 수 {companion_count}명, 여행 컨셉 {concepts}을 고려하여 관광지 정보를 추천하라. "
+                f"연령대 {ages}, 동반자 수 {companion_count}명, 여행 컨셉 {concepts}을 고려하여 관광지 정보를 추천하라."
+                f"{extra_text} "  # 추가 프롬프트 반영
                 "각 관광지는 반드시 아래 JSON 객체 형식을 준수해야 하며, 다른 텍스트를 포함하지 말라.\n"
                 "{\n"
                 '  "kor_name": string,\n'
