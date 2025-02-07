@@ -34,7 +34,11 @@ async def get_accommodations(user_input: UserInputData):
             keyword=user_input.keyword
         )
 
-        return {crew_output}
+        # JSON 문자열을 파이썬 객체로 변환
+        parsed_output = json.loads(crew_output)
+        
+        # 파이썬 객체를 직접 반환
+        return {"result": parsed_output}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"[숙소 추천 API] 에러: {str(e)}")
