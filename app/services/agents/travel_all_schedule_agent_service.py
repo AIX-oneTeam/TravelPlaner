@@ -48,7 +48,7 @@ class spots_pydantic(BaseModel):
     spots: list[spot_pydantic]
 
 # ──────────────────────────────
-# 환경변수, LLM 설정
+# 환경변수, LLM, Tool 설정
 # ──────────────────────────────
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -57,13 +57,30 @@ AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")
 llm = LLM(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
 
-# ──────────────────────────────
+# 커스텀 JSON 인코더 (직렬화 불가능한 객체 처리)
+class CustomEncoder(json.JSONEncoder):
+    def default(self, o):
+        try:
+            return o.__dict__
+        except AttributeError:
+            return str(o)
+
+# 외부 서비스 결과 직렬화 helper 함수
+def serialize_service_result(result):
+    if result is None:
+        return None
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "json_dict"):
+        return result.json_dict
+    if hasattr(result, "__dict__"):
+        return result.__dict__
+    return str(result)
+
 # 카카오 로컬 검색 툴
-# ──────────────────────────────
 class KakaoLocalSearchTool(BaseTool):
     name: str = "KakaoLocalSearch"
     description: str = "카카오 로컬 API를 사용해 장소 정보를 검색 (키워드로)"
-    
     def _run(self, query: str) -> str:
         kakao_key = os.getenv("KAKAO_CLIENT_ID")
         if not kakao_key:
@@ -93,9 +110,58 @@ class KakaoLocalSearchTool(BaseTool):
         except Exception as e:
             return f"[KakaoLocalSearchTool] 에러: {str(e)}"
 
-# ──────────────────────────────
-# 기타 helper 함수들
-# ──────────────────────────────
+# 경로 계산 Tool
+class KakaoMapRouteTool(BaseTool):
+    name: str = "KakaoMapRoute"
+    description: str = "여행 일정의 최적 경로를 계산하고 각 장소 간 거리 정보를 제공"
+    
+    def calculate_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        from math import radians, sin, cos, sqrt, atan2
+        R = 6371  # km
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = sin(dlat/2)**2 + cos(lat1)*cos(lat2)*sin(dlon/2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1-a))
+        return R * c
+
+    def _run(self, spots: list) -> str:
+        try:
+            daily_spots = {}
+            for spot in spots:
+                day = spot.get("day_x", 1)
+                daily_spots.setdefault(day, []).append(spot)
+            
+            optimized_routes = {}
+            for day, places in daily_spots.items():
+                route = []
+                unvisited = places.copy()
+                if not unvisited:
+                    continue
+                current = unvisited.pop(0)
+                route.append(current)
+                while unvisited:
+                    min_dist = float('inf')
+                    next_place = None
+                    for place in unvisited:
+                        dist = self.calculate_distance(
+                            current["latitude"], current["longitude"],
+                            place["latitude"], place["longitude"]
+                        )
+                        if dist < min_dist:
+                            min_dist = dist
+                            next_place = place
+                    if next_place:
+                        next_place["distance_from_prev"] = min_dist
+                        route.append(next_place)
+                        unvisited.remove(next_place)
+                        current = next_place
+                optimized_routes[day] = route
+            print(f"[DEBUG] Optimized routes: {optimized_routes}")
+            return json.dumps(optimized_routes, ensure_ascii=False)
+        except Exception as e:
+            return f"[KakaoMapRouteTool] 에러: {str(e)}"
+
 def extract_json_from_text(text: str) -> str:
     try:
         match = re.search(r"\[.*?\]", text, re.DOTALL)
@@ -104,6 +170,24 @@ def extract_json_from_text(text: str) -> str:
     except Exception as e:
         print(f"JSON 추출 오류: {e}")
     return text
+
+def extract_recommendations_from_output(output) -> list:
+    try:
+        if not isinstance(output, (str, bytes, bytearray)):
+            output = str(output)
+        json_str = extract_json_from_text(output)
+        recommendations = json.loads(json_str)
+        if isinstance(recommendations, list):
+            return recommendations
+        return []
+    except Exception as e:
+        print(f"파싱 오류: {e}")
+        return []
+
+# DummyTask 래퍼
+class DummyTask:
+    def __init__(self, output):
+        self.output = output
 
 def calculate_trip_days(start_date_str, end_date_str):
     fmt = "%Y-%m-%d"
@@ -139,34 +223,42 @@ async def create_plan(user_input: dict):
         from app.services.agents.site_agent import create_tourist_plan
         from app.services.agents.cafe_agent_service import cafe_agent
         from app.services.agents.accommodation_agent_3 import run as run_accommodation
+        from app.services.agents.restaurant_agent_service import create_recommendation
 
         context_tasks = []
         if "site" in selected:
             site_result = create_tourist_plan(user_input)
             context_tasks.append({
-                "site_result": site_result,
+                "site_result": serialize_service_result(site_result),
                 "description": "Tourist site recommendations",
-                "expected_output": json.dumps(site_result, ensure_ascii=False)
+                "expected_output": json.dumps(serialize_service_result(site_result), ensure_ascii=False)
             })
         if "accommodation" in selected:
             accomodation_result = run_accommodation(user_input)
             context_tasks.append({
-                "accomodation_result": accomodation_result,
+                "accomodation_result": serialize_service_result(accomodation_result),
                 "description": "Accommodation recommendations",
-                "expected_output": json.dumps(accomodation_result, ensure_ascii=False)
+                "expected_output": json.dumps(serialize_service_result(accomodation_result), ensure_ascii=False)
             })
         if "cafe" in selected:
             cafe_result = await cafe_agent(user_input)
             context_tasks.append({
-                "cafe_result": cafe_result,
+                "cafe_result": serialize_service_result(cafe_result),
                 "description": "Cafe recommendations",
-                "expected_output": json.dumps(cafe_result, ensure_ascii=False)
+                "expected_output": json.dumps(serialize_service_result(cafe_result), ensure_ascii=False)
+            })
+        if "restaurant" in selected:
+            recommendation_result = create_recommendation(user_input)
+            context_tasks.append({
+                "recommendation_result": serialize_service_result(recommendation_result),
+                "description": "recommendation",
+                "expected_output": json.dumps(serialize_service_result(recommendation_result), ensure_ascii=False)
             })
 
-        # 디버깅: 외부 서비스 결과 출력 (단순 json.dumps 사용)
+        # 디버깅: 외부 서비스 결과 출력 (JSON 내 중괄호 이스케이프 처리)
         try:
-            external_data = json.dumps(context_tasks, ensure_ascii=False, indent=2)
-            # 중괄호 이스케이프 처리
+            external_data = json.dumps(context_tasks, ensure_ascii=False, indent=2, cls=CustomEncoder)
+            # 중괄호를 이스케이프하여 format() 호출 시 템플릿 변수로 인식되지 않도록 함
             escaped_external_data = external_data.replace("{", "{{").replace("}", "}}")
             print("DEBUG: 외부 서비스 결과 (context_tasks):")
             print(escaped_external_data)
@@ -176,7 +268,7 @@ async def create_plan(user_input: dict):
         if not context_tasks:
             raise ValueError("최소 한 가지 서비스 옵션(restaurant, site, accommodation, cafe)을 선택해야 합니다.")
 
-        # 프롬프트 지시문 구성
+        # 프롬프트 지시문에 외부 데이터를 그대로 사용하라는 명령 추가
         prompt_instruction = (
             "다음 JSON 데이터는 외부 서비스로부터 받은 실제 추천 장소 정보입니다. "
             "아래 데이터를 그대로 사용하여, 새로운 장소나 임의의 데이터를 생성하지 말고, 이 데이터를 재배열하여 일정 초안을 작성하세요.\n\n"
@@ -184,8 +276,9 @@ async def create_plan(user_input: dict):
             f"{escaped_external_data}\n"
             "=== 끝 ===\n\n"
         )
+        print("받은 데이터===================",context_tasks)
         
-        # planning_agent 생성 (tools는 사용하지 않음)
+        # planning_agent 생성
         planning_agent = Agent(
             role="여행 일정 최적화 플래너",
             goal=(
@@ -196,13 +289,14 @@ async def create_plan(user_input: dict):
                 "나는 외부 서비스에서 받은 실제 장소 데이터만을 사용하여 일정을 구성합니다. "
                 "제공된 JSON 데이터를 재구성하여 최종 출력에 반영합니다."
             ),
-            tools=[],
+            tools=[KakaoMapRouteTool()],
             llm=llm,
             verbose=True,
         )
         
+        # 디버깅: planning_agent에 전달될 context_tasks 출력
         print("DEBUG: planning_agent에 전달될 context_tasks:")
-        print(json.dumps(context_tasks, ensure_ascii=False, indent=2))
+        print(json.dumps(context_tasks, ensure_ascii=False, indent=2, cls=CustomEncoder))
         
         planning_task = Task(
             description=prompt_instruction + """
@@ -222,16 +316,19 @@ async def create_plan(user_input: dict):
             context=context_tasks,
             expected_output="pydantic 형식의 여행 일정 데이터",
             output_pydantic=spots_pydantic,
-            async_execution=False,
         )
 
+        # Crew 실행: planning_agent를 사용하여 최종 일정 생성
         Crew(agents=[planning_agent], tasks=[planning_task], verbose=True).kickoff(inputs=user_input)
         
+        # 디버깅: planning_task의 raw 출력 확인
         if hasattr(planning_task.output, 'raw'):
             print("DEBUG: planning_task.raw 출력:")
             print(planning_task.output.raw)
         
         print("DEBUG: 최종 planning_task의 pydantic 모델 출력:")
+        
+        
         
         response_json = {
             "message": "요청이 성공적으로 처리되었습니다.",
@@ -251,3 +348,5 @@ async def create_plan(user_input: dict):
         print(f"[ERROR] {e}")
         traceback.print_exc()
         return {"message": "요청 처리 중 오류가 발생했습니다.", "error": str(e)}
+
+# For local testing via uvicorn, run: uvicorn app:app --reload
