@@ -101,7 +101,11 @@ class GoogleReviewTool(BaseTool):
             "hl": "ko"
             })
             headers = {
+<<<<<<< HEAD
             'X-API-KEY': SERP_API_KEY,
+=======
+            'X-API-KEY': 'KEY',
+>>>>>>> origin
             'Content-Type': 'application/json'
             }
             conn.request("POST", "/reviews", payload, headers)

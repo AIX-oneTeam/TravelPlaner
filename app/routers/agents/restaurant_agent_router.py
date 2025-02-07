@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Query, Body
+from pydantic import BaseModel
 from typing import List, Optional
 from app.services.agents.restaurant_agent_service import (
     create_recommendation,
-)  # ✅ 올바른 함수 임포트
+)
+from app.routers.agents.travel_all_schedule_agent_router import TravelPlanRequest
 
 router = APIRouter()
 
@@ -14,26 +15,31 @@ class Companion(BaseModel):
     count: int
 
 
-class TravelPlanRequest(BaseModel):
-    main_location: str
-    start_date: str
-    end_date: str
-    ages: str
-    companions: List[Companion]
-    concepts: List[str]
-    prompt: Optional[str] = Field(default=None)
-
-
 @router.post("/restaurant")
-async def generate_plan(user_input: TravelPlanRequest):
+async def get_restaurants(
+    user_input: TravelPlanRequest = Body(...),
+    prompt: Optional[str] = Query(None),
+):
     """
     맛집 추천 엔드포인트
     """
     try:
-        print("프론트에서 받은 데이터:", user_input)
+        # `model_dump()`로 변환
+        user_data = user_input.model_dump()
 
-        print("Python dict 변환:", user_input.model_dump())
-        result = create_recommendation(user_input.model_dump())
+        # prompt 값이 있을 경우, 딕셔너리에 추가 (user_input에는 직접 할당 불가)
+        if prompt:
+            user_data["prompt"] = prompt
+
+        print("프론트에서 받은 데이터:", user_data)
+
+        # create_recommendation 호출 (에러 핸들링 추가)
+        try:
+            result = create_recommendation(user_data, prompt)
+        except Exception as e:
+            print(f"[ERROR] create_recommendation() 오류 발생: {e}")
+            raise HTTPException(status_code=500, detail="추천 생성 중 오류 발생")
+
         print("restaurant_response:", result)
 
         return {
@@ -41,5 +47,7 @@ async def generate_plan(user_input: TravelPlanRequest):
             "message": "맛집 리스트가 생성되었습니다.",
             "data": result,
         }
+
     except Exception as e:
+        print(f"[ERROR] 요청 처리 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
