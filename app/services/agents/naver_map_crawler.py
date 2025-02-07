@@ -1,12 +1,16 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
 from datetime import datetime
 import asyncio
 import aiohttp       
 import emoji
-from crewai.tools import tool
+from crewai.tools import BaseTool
+from typing import Any
+import json
 
 # 크롤링 시간 11초(75개) -> 9.7초(20개) -> time.sleep() 5초에서 1초로 변경 -> 5.8초
 def cafe_list_crawler(query):
@@ -24,21 +28,28 @@ def cafe_list_crawler(query):
     driver.get(url)
 
     # JavaScript가 실행되어 리스트가 생성될 때까지 기다림
-    time.sleep(1)  # (삭제하면 15개만 가져옴)
+    spots = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located(By.CSS_SELECTOR, "li._lazyImgContainer"))
 
+    # time.sleep(1)  # (삭제하면 15개만 가져옴, 1초하면 될때도 있고 안될때도 있음)
     # 특정 클래스의 <li> 태그 가져오기
-    spots = driver.find_elements(By.CSS_SELECTOR, "li._lazyImgContainer")
+    # spots = driver.find_elements(By.CSS_SELECTOR, "li._lazyImgContainer")
     spots_info = []
 
     for spot in spots:
         if len(spots_info) >= 20:  # 20개까지만 수집
             break
+        place_id = spot.get_attribute("data-id")
+        map_url = f"https://m.place.naver.com/restaurant/{place_id}/location?filter=location&selected_place_id={place_id}"
+        url = f"https://m.place.naver.com/restaurant/{place_id}/home"
         
         spot_info = {
-            "place_id": spot.get_attribute("data-id"),
+            "place_id": place_id,
             "kor_name": spot.get_attribute("data-title"),
             "address": spot.find_element(By.CLASS_NAME, "item_address").text.strip().replace("주소보기\n", ""),
+            "url": url,
             "image_url": spot.find_element(By.CLASS_NAME, "_itemThumb").find_element(By.TAG_NAME, "img").get_attribute("src"),
+            "map_url" : map_url,
             "latitude": spot.get_attribute("data-latitude"),
             "longitude": spot.get_attribute("data-longitude"),
             "phone_number": spot.get_attribute("data-tel")
@@ -86,34 +97,40 @@ async def fetch_all_reviews(place_id_list):
         tasks = [fetch_review(session, place_id) for place_id in place_id_list]
         return await asyncio.gather(*tasks)  # 모든 요청을 동시에 실행
 
-async def get_cafe_info(query: str) -> dict:
-    """
-    네이버 지도에서 특정 키워드(query)로 카페 정보를 크롤링하고 리뷰를 가져오는 CrewAI 도구.
-    """
-    # 시간 측정
-    start_time = datetime.now()
-    
-    # 동기 실행
-    cafes_info = cafe_list_crawler(query)
-    place_id_list = [cafe["place_id"] for cafe in cafes_info]
-    
-    # 비동기 실행
-    reviews = await fetch_all_reviews(place_id_list)
-    
-    
-    end_time = datetime.now()
-    print(f"정보 수집 시간: {(end_time - start_time).total_seconds()}초")  
-    
-    return {
-        "cafe_info" : cafes_info,
-        "reviews" : reviews
-    }
-    
+from crewai.tools import BaseTool
+from typing import Any
+
+class GetCafeInfoTool(BaseTool):
+    name: str = "get_cafe_info"
+    description: str = "네이버 지도에서 카페 정보를 검색하고 리뷰를 가져오는 CrewAI 도구"
+
+    def _run(self, query: str) -> str:
+        """
+        CrewAI에서 사용할 수 있도록 비동기 크롤링을 수행하는 도구.
+        """
+        start_time = datetime.now()
+
+        # 동기 크롤링 실행
+        cafes_info = cafe_list_crawler(query)
+        place_id_list = [cafe["place_id"] for cafe in cafes_info]
+
+        # 비동기 리뷰 크롤링 실행
+        reviews = asyncio.run(fetch_all_reviews(place_id_list)) 
+        
+        end_time = datetime.now()
+        print(f"정보 수집 시간: {(end_time - start_time).total_seconds()}초")
+
+        return json.dumps({
+            "cafe_info": cafes_info,
+            "reviews": reviews
+        }, ensure_ascii=False)
+        
 if __name__ == "__main__":
-    
+
+    get_cafe_info = GetCafeInfoTool()    
     # 크롤링할 네이버 페이지 URL
     query = "강남 조용한 카페" 
-    result = asyncio.run(cafe_info(query))
+    result = asyncio.run(get_cafe_info(query))
     print(result)
 
     # 가져온 카페 갯수 20개, 정보 수집시간 11초

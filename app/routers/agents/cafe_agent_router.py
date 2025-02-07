@@ -6,7 +6,7 @@ from datetime import datetime
 router = APIRouter()
 
 @router.post("/cafes")
-def get_cafes(user_input: TravelPlanRequest):
+async def get_cafes(user_input: TravelPlanRequest):
     """
     카페 정보를 가져오는 엔드포인트.
     - CrewAI 실행 후 일정(JSON) 반환.

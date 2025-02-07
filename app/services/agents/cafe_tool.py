@@ -102,7 +102,7 @@ class NaverLocalSearchTool(BaseTool):
             if not cafes:  # 검색 결과가 없으면 오류 방지
                 return f"[NaverLocalSearchTool] '{query}'에 대한 검색 결과가 없습니다."
 
-            # ✅ 첫 번째 결과가 있는지 확인 후 접근
+            # 첫 번째 결과가 있는지 확인 후 접근
             first_cafe = cafes[0] if len(cafes) > 0 else {}
 
             title = first_cafe.get('title', '정보 없음')

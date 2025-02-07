@@ -1,7 +1,6 @@
 from crewai import Agent, Task, Crew, LLM, Process
 from crewai_tools import SerperDevTool
-from app.services.agents.cafe_tool import GoogleMapSearchTool, NaverLocalSearchTool,MultiToolWrapper
-from app.services.agents.naver_map_crawler import get_cafe_info
+from app.services.agents.naver_map_crawler import GetCafeInfoTool
 from app.services.agents.travel_all_schedule_agent_service import spots_pydantic, calculate_trip_days
 
 import os
@@ -13,10 +12,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
 search_dev_tool = SerperDevTool()
-google_map_tool = GoogleMapSearchTool()
-naver_local_tool = NaverLocalSearchTool()
-multi_tool=MultiToolWrapper(google_map_tool,naver_local_tool) 
-
+get_cafe_tool = GetCafeInfoTool()
+# get_cafe_tool._run("강남구 조용한 카페")
 
 # LLM 초기화
 my_llm = LLM(
@@ -26,7 +23,7 @@ my_llm = LLM(
     max_tokens=4000
 )
 
-async def cafe_agent(user_input, user_prompt=""):
+def cafe_agent(user_input, user_prompt=""):
     """
     CrewAI를 실행하여 사용자 맞춤 카페를 추천해주는 서비스.
     """
@@ -34,7 +31,7 @@ async def cafe_agent(user_input, user_prompt=""):
     if user_input is None:
         raise ValueError("user_input이 없습니다. 잘못된 요청을 보냈는지 확인해주세요")
     
-    user_input["concepts"] = ', '.join(user_input.get('concepts',''))
+    user_input["concepts"] = ' '.join(user_input.get('concepts',''))
     user_input["user_prompt"] = user_prompt
     user_input["n"] = calculate_trip_days(user_input.get('start_date',''),user_input.get('end_date',''))*2
     
@@ -47,7 +44,7 @@ async def cafe_agent(user_input, user_prompt=""):
             backstory="""
             사용자의 여행을 특별하게 만들기 위해, 최적의 카페를 찾고 카페의 매력을 심층 분석하여 사용자가 최적의 선택을 할 수 있도록 하세요.
             """,
-            tools=[get_cafe_info],
+            tools=[get_cafe_tool],
             allow_delegation=False,
             max_iter=2,
             llm=my_llm,
@@ -60,7 +57,7 @@ async def cafe_agent(user_input, user_prompt=""):
             backstory="resercher가 준 카페리스트를 토대로 정확한 정보를 찾아주세요",
             # max_iter=1,
             allow_delegation=False,
-            tools=[search_dev_tool,google_map_tool,naver_local_tool],
+            tools=[search_dev_tool],
             llm=my_llm,
             verbose=True
         )
@@ -69,27 +66,27 @@ async def cafe_agent(user_input, user_prompt=""):
         researcher_task = Task(
             description="""
             고객이 최고의 여행을 할 수 있도록 고객의 상황과 취향에 맞는 카페를 고르기 위해 카페를 조사하고 최종적으로 고객의 needs를 만족하는 {n}개의 카페 정보를 반환해주세요.
-
+            tool 사용시 검색어는 "지역 이름 + 선호 또는 요구사항(" "를 기준으로 구분하여 1개 또는 2개 선택) + 카페"로 입력해주세요
+            tool output을 참고하여 카페의 특징을 분석하고 description을 작성해주세요
+            description에는 카페의 리뷰를 분석해 사람들이 공통적으로 좋아했던 카페의 주요 특징과 메뉴 이름을 포함해 간략히 적어주세요.
+            description에는 절대 나이, 연령대에 대한 언급을 하지마세요.
+            
             카페는 반드시 고객의 여행 지역인 {main_location}에 위치해야하고, 폐업 또는 휴업하지 않은 카페여야합니다. 
             고객의 선호도({concepts})와, 주 연령대({ages})와 요구사항({user_prompt})을 반영해 카페를 찾아주세요.
             고객의 선호도({concepts})와 요구사항({user_prompt})에 "프랜차이즈"가 포함되지 않는 경우, 프랜차이즈 카페는 제외해주세요.
             프랜차이즈 카페 : 스타벅스, 투썸플레이스, 이디야, 빽다방, 메가커피 등 전국에 매장이 5개 이상인 커피 전문점 
-
-            description에는 카페의 리뷰를 분석해 사람들이 공통적으로 좋아했던 카페의 주요 특징과 메뉴 이름을 포함해 간략히 적어주세요.
-            description에는 절대 나이, 연령대에 대한 언급을 하지마세요.
             
             모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
-            반드시 서로 다른 {n}개의 카페를 반환해주세요.
             """,
             expected_output="""
-            {n}개의 카페 정보를 반환해주세요.
+            반드시 서로 다른 이름의 {n}개의 카페를 반환해주세요.  
             다음 4가지 필드는 항상 해당 값으로 고정해주세요
             spot_category: 3
             order: 0
             day_x: 0
-            spot_time: null
+            spot_time: null 
             """,
-            output_json=spots_pydantic,
+            output_json=spots_pydantic,            
             agent=researcher
         )
 
@@ -112,8 +109,8 @@ async def cafe_agent(user_input, user_prompt=""):
 
         # 멀티 에이전트 시스템 설정
         crew = Crew(
-            agents=[researcher, checker],
-            tasks=[researcher_task, checker_task],
+            agents=[researcher],
+            tasks=[researcher_task],
             process=Process.sequential,
             verbose=True,
         )
