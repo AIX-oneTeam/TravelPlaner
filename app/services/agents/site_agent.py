@@ -216,7 +216,7 @@ def create_tourist_plan(user_input: dict):
     try:
         # 추가 프롬프트가 있다면 추출 (있지 않으면 빈 문자열)
         extra_prompt = user_input.pop("prompt", "")
-        
+
         location = user_input["main_location"]
         start_date = user_input["start_date"]
         end_date = user_input["end_date"]
@@ -252,7 +252,8 @@ def create_tourist_plan(user_input: dict):
                 "}"
             ),
             backstory=(
-                f"나는 {location} 지역의 관광지 전문가이며, 최신 정보와 데이터를 바탕으로 정확한 관광 정보를 제공할 수 있다."
+                f"나는 {location} 지역의 관광지 전문가로, 최신 정보와 데이터를 기반으로 여행객에게 최적의 관광지 추천을 제공할 수 있습니다. "
+                "내 역할은 사용자의 여행 계획에 맞춰 상세하고 신뢰할 수 있는 관광 정보를 제시하는 것입니다."
             ),
             tools=[NaverWebSearchTool()],
             llm=llm,
