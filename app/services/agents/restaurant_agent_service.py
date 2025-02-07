@@ -22,7 +22,7 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
-llm = LLM(model="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
+llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
 
 
 class spot_pydantic(BaseModel):
@@ -133,7 +133,8 @@ class RestaurantBasicSearchTool(BaseTool):
                 if place_id:
                     details = self.get_place_details(place_id)
                     if details:
-                        all_candidates.append(details)
+                        if details["rating"] >= 4.0 and details["reviews"] >= 500:
+                            all_candidates.append(details)
 
             # 추가 20개 요청을 위한 반복 시도, 결과 중 최대 10개만 처리
             next_page_token = data.get("next_page_token")
@@ -157,7 +158,11 @@ class RestaurantBasicSearchTool(BaseTool):
                             if place_id:
                                 details = self.get_place_details(place_id)
                                 if details:
-                                    all_candidates.append(details)
+                                    if (
+                                        details["rating"] >= 4.0
+                                        and details["reviews"] >= 500
+                                    ):
+                                        all_candidates.append(details)
                         break
                     except Exception as e:
                         print(f"Token retry error: {e}")
@@ -173,18 +178,19 @@ class RestaurantBasicSearchTool(BaseTool):
 
 
 # 맛집 필터링 도구
-class RestaurantFilterTool(BaseTool):
-    name: str = "RestaurantFilterTool"
-    description: str = (
-        "조회된 맛집 리스트 중 평점 4.0 이상, 리뷰 500개 이상인 식당만 필터링합니다."
-    )
+# class RestaurantFilterTool(BaseTool):
+#     name: str = "RestaurantFilterTool"
+#     description: str = (
+#         "조회된 맛집 리스트 중 평점 4.0 이상, 리뷰 500개 이상인 식당만 필터링합니다."
+#     )
 
-    def _run(self, candidates: List[Dict]) -> List[Dict]:
-        return [
-            r
-            for r in candidates
-            if r.get("rating", 0) >= 4.0 and r.get("reviews", 0) >= 500
-        ]
+#     def _run(self, candidates: List[Dict]) -> List[Dict]:
+#         return [
+#             r
+#             for r in candidates
+#             if r.get("rating", 0) >= 4.0 and r.get("reviews", 0) >= 500
+#         ]
+
 
 # 네이버 웹 검색 도구
 class NaverWebSearchTool(BaseTool):
@@ -213,7 +219,7 @@ class NaverWebSearchTool(BaseTool):
             if not items:
                 return {"description": "정보를 찾을 수 없습니다.", "url": ""}
 
-            # 여러 검색 결과를 조합하여 더 풍부한 설명 생성
+            # 여러 검색 결과를 하나로 합치기
             descriptions = []
             for item in items:
                 desc = item.get("description", "").strip()
@@ -239,6 +245,7 @@ class NaverWebSearchTool(BaseTool):
         for restaurant in restaurant_list:
             results[restaurant] = self.fetch(restaurant)
         return results
+
 
 # 네이버 이미지 검색 도구
 class NaverImageSearchTool(BaseTool):
@@ -302,14 +309,14 @@ restaurant_basic_search_agent = Agent(
 )
 
 # 맛집 필터링 에이전트
-restaurant_filter_agent = Agent(
-    role="맛집 필터링 전문가",
-    goal="평점과 리뷰 수 기준으로 식당 후보를 선별한다.",
-    backstory="나는 데이터 필터링 전문가로, 맛집 리뷰와 평점을 분석하여 신뢰할 수 있는 식당 후보를 추려낸다.",
-    tools=[RestaurantFilterTool()],
-    llm=llm,
-    verbose=True,
-)
+# restaurant_filter_agent = Agent(
+#     role="맛집 필터링 전문가",
+#     goal="평점과 리뷰 수 기준으로 식당 후보를 선별한다.",
+#     backstory="나는 데이터 필터링 전문가로, 맛집 리뷰와 평점을 분석하여 신뢰할 수 있는 식당 후보를 추려낸다.",
+#     tools=[RestaurantFilterTool()],
+#     llm=llm,
+#     verbose=True,
+# )
 
 
 # 네이버 웹 검색 에이전트
@@ -348,9 +355,18 @@ final_recommendation_agent = Agent(
 def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dict:
     try:
         print(f"[입력 데이터] input_data: {input_data}")  # 받은 데이터 확인
-        print(
-            f"[프롬프트 입력] prompt: {prompt}"
-        )
+        print(f"[프롬프트 입력] prompt: {prompt}")
+
+        # 맛집 관련 카테고리만 필터링
+        valid_concepts = ['맛집', '해산물 좋아', '고기 좋아', '가족 여행', '기념일', '낮술']
+        filtered_concepts = [concept for concept in input_data.get('concepts', []) 
+                         if concept in valid_concepts]
+
+        # 필터링된 컨셉이 없으면 기본값으로 맛집 추가
+        if not filtered_concepts:
+            filtered_concepts = ['맛집']
+
+        print(f"[컨셉 필터링] filtered_concepts: {filtered_concepts}")
 
         # 프롬프트 입력 여부 체크하여 description에 추가
         prompt_text = (
@@ -369,11 +385,11 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 agent=restaurant_basic_search_agent,
                 expected_output="맛집 기본 정보 리스트",
             ),
-            Task(
-                description="맛집 필터링 (평점 4.0 이상, 리뷰 500개 이상)",
-                agent=restaurant_filter_agent,
-                expected_output="필터링된 맛집 리스트",
-            ),
+            # Task(
+            #     description="맛집 필터링 (평점 4.0 이상, 리뷰 500개 이상)",
+            #     agent=restaurant_filter_agent,
+            #     expected_output="필터링된 맛집 리스트",
+            # ),
             Task(
                 description=f"""
                 이전 단계에서 평점 4.0 이상, 리뷰 수 500개 이상으로 필터링된 {input_data['main_location']} 지역의 맛집 후보 리스트를 바탕으로, 각 식당의 
@@ -411,7 +427,7 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 이전 단계에서 수집한 {input_data['main_location']} 지역의 맛집 데이터를 바탕으로, 
                 {input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 
                 동반자({', '.join([f"{c['label']} {c['count']}명" for c in input_data['companion_count']])})의 
-                {', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.
+                {', '.join(filtered_concepts)} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.
 
                 {prompt_text}
 
@@ -435,7 +451,7 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
             agents=[
                 geocoding_agent,
                 restaurant_basic_search_agent,
-                restaurant_filter_agent,
+                # restaurant_filter_agent,
                 naver_web_search_agent,
                 naver_image_search_agent,
                 final_recommendation_agent,
