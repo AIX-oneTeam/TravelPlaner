@@ -3,7 +3,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
 from datetime import datetime
 import asyncio
 import aiohttp       
@@ -11,6 +10,9 @@ import emoji
 from crewai.tools import BaseTool
 from typing import Any
 import json
+from crewai.tools import BaseTool
+from typing import Type
+from pydantic import BaseModel, Field
 
 # 크롤링 시간 11초(75개) -> 9.7초(20개) -> time.sleep() 5초에서 1초로 변경 -> 5.8초
 def cafe_list_crawler(query):
@@ -29,7 +31,7 @@ def cafe_list_crawler(query):
 
     # JavaScript가 실행되어 리스트가 생성될 때까지 기다림
     spots = WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located(By.CSS_SELECTOR, "li._lazyImgContainer"))
+        EC.visibility_of_all_elements_located((By.CSS_SELECTOR, "li._lazyImgContainer")))
 
     # time.sleep(1)  # (삭제하면 15개만 가져옴, 1초하면 될때도 있고 안될때도 있음)
     # 특정 클래스의 <li> 태그 가져오기
@@ -42,7 +44,8 @@ def cafe_list_crawler(query):
         place_id = spot.get_attribute("data-id")
         map_url = f"https://m.place.naver.com/restaurant/{place_id}/location?filter=location&selected_place_id={place_id}"
         url = f"https://m.place.naver.com/restaurant/{place_id}/home"
-        
+        # 테스트 : https://m.place.naver.com/restaurant/1932943275/location?reviewSort=recent&filter=location&selected_place_id=1932943275
+
         spot_info = {
             "place_id": place_id,
             "kor_name": spot.get_attribute("data-title"),
@@ -67,7 +70,6 @@ async def fetch_review(session, place_id):
     """
     비동기 리뷰 스크래퍼. 네이버 지도에서 카페를 정적 크롤링을 통해 검색하고 리뷰를 가져오는 도구.
     """
-    
     url = f"https://m.place.naver.com/restaurant/{place_id}/review/visitor?reviewSort=recent"
     headers = {
         "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
@@ -89,6 +91,7 @@ async def fetch_review(session, place_id):
             "reviews": reviews_list
         }
 
+
 async def fetch_all_reviews(place_id_list):
     """
     async를 사용하여 모든 place_id를 병렬 처리 
@@ -97,13 +100,18 @@ async def fetch_all_reviews(place_id_list):
         tasks = [fetch_review(session, place_id) for place_id in place_id_list]
         return await asyncio.gather(*tasks)  # 모든 요청을 동시에 실행
 
-from crewai.tools import BaseTool
-from typing import Any
 
+class QuerySchema(BaseModel):
+    query: str = Field(
+        ..., description="여행 지역, 취향 등 조건이 포함된 카페 검색어"
+    )
+    
 class GetCafeInfoTool(BaseTool):
+    """네이버 크롤링을 통해 카페 정보 수집"""
     name: str = "get_cafe_info"
     description: str = "네이버 지도에서 카페 정보를 검색하고 리뷰를 가져오는 CrewAI 도구"
-
+    args_schema: Type[BaseModel] = QuerySchema
+    
     def _run(self, query: str) -> str:
         """
         CrewAI에서 사용할 수 있도록 비동기 크롤링을 수행하는 도구.
@@ -134,3 +142,7 @@ if __name__ == "__main__":
     print(result)
 
     # 가져온 카페 갯수 20개, 정보 수집시간 11초
+    
+    
+    
+
