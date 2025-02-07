@@ -357,6 +357,17 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
         print(f"[입력 데이터] input_data: {input_data}")  # 받은 데이터 확인
         print(f"[프롬프트 입력] prompt: {prompt}")
 
+        # 맛집 관련 카테고리만 필터링
+        valid_concepts = ['맛집', '해산물 좋아', '고기 좋아', '가족 여행', '기념일', '낮술']
+        filtered_concepts = [concept for concept in input_data.get('concepts', []) 
+                         if concept in valid_concepts]
+
+        # 필터링된 컨셉이 없으면 기본값으로 맛집 추가
+        if not filtered_concepts:
+            filtered_concepts = ['맛집']
+
+        print(f"[컨셉 필터링] filtered_concepts: {filtered_concepts}")
+
         # 프롬프트 입력 여부 체크하여 description에 추가
         prompt_text = (
             f'추가 참고: "{prompt}" 도 참고하여 추천해주세요.\n' if prompt else ""
@@ -416,7 +427,7 @@ def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dic
                 이전 단계에서 수집한 {input_data['main_location']} 지역의 맛집 데이터를 바탕으로, 
                 {input_data['start_date']}부터 {input_data['end_date']}까지 여행하는 {input_data['ages']} 연령대의 고객과 
                 동반자({', '.join([f"{c['label']} {c['count']}명" for c in input_data['companion_count']])})의 
-                {', '.join(input_data['concepts'])} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.
+                {', '.join(filtered_concepts)} 컨셉에 맞는 최종 맛집 리스트를 중복 없이 추천하라.
 
                 {prompt_text}
 
