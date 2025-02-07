@@ -93,7 +93,7 @@ class GoogleReviewTool(BaseTool):
             "hl": "ko"
             })
             headers = {
-            'X-API-KEY': 'KEY,
+            'X-API-KEY': 'KEY',
             'Content-Type': 'application/json'
             }
             conn.request("POST", "/reviews", payload, headers)
