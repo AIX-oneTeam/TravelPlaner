@@ -66,9 +66,9 @@ class GoogleMapSearchTool(BaseTool):
         except Exception as e:
             return f"[GoogleMapSearchTool] 에러: {str(e)}"
 
-tool = GoogleMapSearchTool()
-result = tool._run("강남 마들렌")
-print(result)
+# tool = GoogleMapSearchTool()
+# result = tool._run("강남 마들렌")
+# print(result)
 
 class NaverLocalSearchTool(BaseTool):
     """네이버 local 검색 API를 사용해 텍스트 정보를 검색"""

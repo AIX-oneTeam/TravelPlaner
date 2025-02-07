@@ -6,7 +6,7 @@ from datetime import datetime
 router = APIRouter()
 
 @router.post("/cafes")
-async def get_cafes(user_input: TravelPlanRequest):
+def get_cafes(user_input: TravelPlanRequest):
     """
     카페 정보를 가져오는 엔드포인트.
     - CrewAI 실행 후 일정(JSON) 반환.
@@ -23,7 +23,7 @@ async def get_cafes(user_input: TravelPlanRequest):
         
         if not result:
             print("결과값이 없습니다")
-        print(f"✅ `cafe_agent()` 실행 시간: {execution_time:.4f}초")
+        print(f"`cafe_agent()` 실행 시간: {execution_time:.4f}초")
         return {
             "status": "success",
             "message": "카페 리스트가 생성되었습니다.",
