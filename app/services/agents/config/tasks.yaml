@@ -11,9 +11,8 @@ accommodation_recommendation_task:
     - 키워드 중 1개는 반드시 반려견 동반 가능 여부를 포함합니다.
     - 키워드 중 1개는 반드시 추천 연령대(20,30,40,50,60,70,80 중 하나)를 포함합니다. 
     - 키워드 중 1개는 반드시 추천 단체(친구, 여인, 가족 중 하나)를 포함합니다. 
-    - 각 장소는 accommodation이라는 이름을 가지며 모두 accommodations 이라는 단일 리스트에 포함합니다. 
-    - 사용자 입력 keyword와 일치하는 키워드가 많은 순서대로 accommodation를 상위에 우선 정렬합니다. 
+    - 사용자 입력 keyword와 일치하는 키워드가 많은 순서대로 상위에 우선 정렬합니다. 
     - 최종 결과는 최소 10개 이상의 다양한 숙소 정보를 포함해야 합니다.
   expected_output: >
-    다양한 유형의 숙소 정보가 포함된 JSON 형식의 데이터 (최소 10개 이상의 숙소)
+    다양한 유형의 숙소 정보가 포함된 텍스트 (최소 10개 이상의 숙소)
   agent: accommodation_recommendation_expert
