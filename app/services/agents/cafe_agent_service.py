@@ -48,7 +48,7 @@ def cafe_agent(user_input, user_prompt=""):
             """,
             tools=[search_dev_tool],
             allow_delegation=False,
-            max_iter=1,
+            # max_iter=1,
             llm=my_llm,
             verbose=True
         )
@@ -90,6 +90,7 @@ def cafe_agent(user_input, user_prompt=""):
             - description : "카페 설명"
             - address : "카페 주소"
             """,
+            output_json=spots_pydantic,
             agent=researcher
         )
 
@@ -150,3 +151,7 @@ if __name__ == "__main__":
     print(f"type of agent_result : {type(agent_result)}")
     print(f"------------------------")
     print(f"result of agent_result : {agent_result}")
+    
+    
+# 방법 1 :구글 검색 > 나온 카페들 지도에서 정보 검색(카페별로 1번씩)
+# 방법 2 :지도 검색 > 나온 카페들 후기 검색(카페별로 1번씩) 

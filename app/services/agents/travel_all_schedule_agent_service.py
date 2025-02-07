@@ -248,7 +248,6 @@ def create_plan(user_input):
                 "eng_name": "string",
                 "description": "string",
                 "address": "string",
-                "zip": "string",
                 "url": "string",
                 "image_url": "string",
                 "map_url": "string",
@@ -258,9 +257,12 @@ def create_plan(user_input):
                 "phone_number": "string",
                 "business_status":True,
                 "business_hours": "string",
+                "latitude": 0,
+                "longitude": 0,
                 "order": 0,
                 "day_x": 0,
                 "spot_time": "2025-06-01T06:27:43.593Z"
+
             }}
             - 각 장소는 day_x, order 필드로 일정에 포함될 날짜와 순서를 지정.
             - day_x는 반드시 1부터 시작하여 증가하는 숫자이며, 여행 기간의 각각의 날짜를 의미함.
