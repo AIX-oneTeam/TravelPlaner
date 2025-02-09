@@ -9,7 +9,9 @@ from app.data_models.data_model import Plan, Spot
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.repository.plans.plan_spots_repository import save_plan_spots
-from app.services.plans.plan_service import edit_plan, find_member_plans, reg_plan
+from app.repository.spots.spot_repository import delete_spot
+from app.services.plans.plan_service import edit_plan, find_member_plans, find_plan, reg_plan
+from app.services.plans.plan_spots_service import find_plan_spots
 from app.services.spots.spot_service import reg_spot
 from app.repository.plans.plan_repository import delete_plan
 
@@ -112,6 +114,26 @@ async def read_member_plans(request: Request, session: Session = Depends(get_ses
 @router.delete("/{plan_id}")
 async def erase_plan(plan_id: int, request: Request, session: Session = Depends(get_session_sync)):
     try:
+        if(request.state.user is not None):
+            member_email = request.state.user.get("email")
+            member_id = get_memberId_by_email(member_email, session)
+        else:
+            return ErrorResponse(message="로그인이 필요합니다.")
+        
+        # 1. 소유자 확인
+        plan = find_plan(plan_id, session)
+        if(plan.member_id != member_id):
+            return ErrorResponse(message="일정 삭제 권한이 없습니다.")
+        
+        #1. 장소 삭제
+        plan_spots = find_plan_spots(plan_id, session)
+        print("💡[ plan_router ] plan_spots : ", plan_spots)
+        for spot in plan_spots["detail"]:
+            print("💡[ plan_router ] spot : ", spot)
+            delete_spot(spot["spot"]["id"], session)
+        
+
+        # 2. 일정 삭제
         await delete_plan(plan_id, session)
         return SuccessResponse(message="일정이 성공적으로 삭제되었습니다.")
     except Exception as e:
