@@ -7,10 +7,6 @@ from app.repository.db import get_session_sync
 
 router = APIRouter()
 
-# 일정 저장
-@router.post("")
-async def create_plan_spot():
-    pass
 
 @router.get("/{plan_id}")
 async def read_plan_spots(plan_id: int, session: Session = Depends(get_session_sync)):

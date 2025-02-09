@@ -68,8 +68,8 @@ class Plan(SQLModel, table=True):
     updated_at: Optional[datetime] = None
     
     member: Member = Relationship(back_populates="plans")
-    checklist: Optional["Checklist"] = Relationship(back_populates="plan")
-    plan_spots: List["PlanSpotMap"] = Relationship(back_populates="plan")
+    checklist: Optional["Checklist"] = Relationship(back_populates="plan", cascade="all, delete-orphan")
+    plan_spots: List["PlanSpotMap"] = Relationship(back_populates="plan", cascade="all, delete-orphan")
 
 class Spot(SQLModel, table=True):
     __tablename__ = "spot"
@@ -94,7 +94,7 @@ class Spot(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), "nullable": False}
     )
     
-    plan_spots: List["PlanSpotMap"] = Relationship(back_populates="spot")
+    plan_spots: List["PlanSpotMap"] = Relationship(back_populates="spot", cascade="all, delete-orphan")
     spot_tags: List["PlanSpotTagMap"] = Relationship(back_populates="spot")
 
     @validator("business_status", pre=True, always=True)

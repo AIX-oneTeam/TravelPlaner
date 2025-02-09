@@ -1,4 +1,5 @@
 from datetime import time
+from typing import List
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from requests import request
@@ -9,7 +10,7 @@ from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.repository.plans.plan_spots_repository import save_plan_spots
 from app.services.plans.plan_service import edit_plan, find_member_plans, reg_plan
-from app.services.spots.spot_service import reg_spot
+from app.services.spots.spot_service import edit_spot, reg_spot
 
 
 router = APIRouter()
@@ -69,7 +70,7 @@ def create_plan(request_data: PlanRequest, request: Request, session: Session = 
         return ErrorResponse(message="일정 등록에 실패했습니다.", error_detail=e)
 
 # 일정 조회
-# 회원의 모든 일정 리스트 조회
+# 회원의 모든 일정만 리스트 조회
 @router.get("")
 async def read_member_plans(request: Request, session: Session = Depends(get_session_sync)):
     try:
@@ -96,19 +97,23 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
         
         # 1. 일정 수정
         edit_plan(plan_id, request_data.plan, member_id, session)
-        # 2. 장소 수정
-        for spot in request_data.spots:
-            spot_id = reg_spot(Spot(**spot.model_dump(exclude={"order", "day_x", "spot_time"})), session)
-        
+        # 2. 장소 수정 - 추가된 장소는 추가, 삭제될 장소는 삭제
+        spot_ids: List[str] = edit_spot(plan_id, request_data.spots, session)
         # 3. 일정-장소 매핑 수정
-        for spot in request_data.spots:
-            save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
+        save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
         
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 수정되었습니다.")
     except Exception as e:
 
-
-
         return ErrorResponse(message="일정 수정에 실패했습니다.", error_detail=e)
+
+# 일정 삭제
+@router.delete("/{plan_id}")
+async def delete_plan(plan_id: int, request: Request, session: Session = Depends(get_session_sync)):
+    try:
+        delete_plan(plan_id, session)
+        return SuccessResponse(message="일정이 성공적으로 삭제되었습니다.")
+    except Exception as e:
+        return ErrorResponse(message="일정 삭제에 실패했습니다.", error_detail=e)
 
 
