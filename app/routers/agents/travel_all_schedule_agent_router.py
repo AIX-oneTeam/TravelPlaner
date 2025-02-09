@@ -5,6 +5,7 @@ from app.services.agents.site_agent import create_tourist_plan
 from app.services.agents.cafe_agent_service import cafe_agent
 from app.services.agents.restaurant_agent_service import create_recommendation
 from app.services.agents.travel_all_schedule_agent_service import create_plan
+from app.services.agents.accommodation_agent_4 import run
 
 router = APIRouter()
 
@@ -31,15 +32,32 @@ async def generate_plan(
         
         input_dict = user_input.model_dump()
         input_dict["agent_type"] = agent_type  
+        
 
-        restaurant_result = create_recommendation(input_dict)
-        site_result = create_tourist_plan(input_dict)
-        cafe_result = await cafe_agent(input_dict)  # 만약 async라면 직접 await
+        
+        cafe_result = None
+        restaurant_result = None
+        site_result = None
+        accommodation_result = None
+
+
+        if "cafe" in agent_type:
+            cafe_result = await cafe_agent(input_dict)  # cafe_agent가 async라면 await
+        # 레스토랑 호출 여부
+        if "restaurant" in agent_type:
+            restaurant_result = create_recommendation(input_dict)
+        # 사이트 호출 여부
+        if "site" in agent_type:
+            site_result = create_tourist_plan(input_dict)
+        # 숙소(Hotel) 호출 여부
+        if "accommodation" in agent_type:
+            accommodation_result = run(input_dict)
 
         external_data ={
             "restaurant":restaurant_result,
             "site" :site_result,
-            "cafe" :cafe_result
+            "cafe" :cafe_result,
+            "accommodation":accommodation_result
         }
         user_input["external_data"] = external_data
 
