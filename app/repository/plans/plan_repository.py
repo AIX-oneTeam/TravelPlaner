@@ -74,4 +74,18 @@ def get_member_plans(member_id: int, session: Session):
         print("[ plan_repository ] get_member_plans() 에러 : ", e)
         raise e
 
+async def delete_plan(plan_id: int, session: Session):
+    try:
+        plan = session.get(Plan, plan_id)
+        if plan is None:
+            raise ValueError(f"ID가 {plan_id}인 Plan을 찾을 수 없습니다.")
+        session.delete(plan)
+        session.commit()
+        return True
+    except Exception as e:
+        print("[ plan_repository ] delete_plan() 에러 : ", e)
+        raise e
+
+
+
    

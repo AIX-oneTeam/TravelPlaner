@@ -10,7 +10,8 @@ from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.repository.plans.plan_spots_repository import save_plan_spots
 from app.services.plans.plan_service import edit_plan, find_member_plans, reg_plan
-from app.services.spots.spot_service import edit_spot, reg_spot
+from app.services.spots.spot_service import reg_spot
+from app.repository.plans.plan_repository import delete_plan
 
 
 router = APIRouter()
@@ -85,33 +86,33 @@ async def read_member_plans(request: Request, session: Session = Depends(get_ses
         return ErrorResponse(message="멤버의 일정정보 조회에 실패했습니다.", error_detail=e)
 
 # 일정 수정
-@router.post("/{plan_id}")
-async def update_plan(plan_id: int, request_data: PlanRequest, request: Request, session: Session = Depends(get_session_sync)):
-    try:
-        # 0. memberid 획득
-        if(request.state.user is not None):
-            member_email = request.state.user.get("email")
-            member_id = get_memberId_by_email(member_email, session)
-        else:
-            member_id = get_memberId_by_email(request_data.email, session)
+# @router.post("/{plan_id}")
+# async def update_plan(plan_id: int, request_data: PlanRequest, request: Request, session: Session = Depends(get_session_sync)):
+#     try:
+#         # 0. memberid 획득
+#         if(request.state.user is not None):
+#             member_email = request.state.user.get("email")
+#             member_id = get_memberId_by_email(member_email, session)
+#         else:
+#             member_id = get_memberId_by_email(request_data.email, session)
         
-        # 1. 일정 수정
-        edit_plan(plan_id, request_data.plan, member_id, session)
-        # 2. 장소 수정 - 추가된 장소는 추가, 삭제될 장소는 삭제
-        spot_ids: List[str] = edit_spot(plan_id, request_data.spots, session)
-        # 3. 일정-장소 매핑 수정
-        save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
+#         # 1. 일정 수정
+#         edit_plan(plan_id, request_data.plan, member_id, session)
+#         # 2. 장소 수정 - 추가된 장소는 추가, 삭제될 장소는 삭제
+#         spot_ids: List[str] = edit_spot(plan_id, request_data.spots, session)
+#         # 3. 일정-장소 매핑 수정
+#         # save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
         
-        return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 수정되었습니다.")
-    except Exception as e:
+#         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 수정되었습니다.")
+#     except Exception as e:
 
-        return ErrorResponse(message="일정 수정에 실패했습니다.", error_detail=e)
+#         return ErrorResponse(message="일정 수정에 실패했습니다.", error_detail=e)
 
 # 일정 삭제
 @router.delete("/{plan_id}")
-async def delete_plan(plan_id: int, request: Request, session: Session = Depends(get_session_sync)):
+async def erase_plan(plan_id: int, request: Request, session: Session = Depends(get_session_sync)):
     try:
-        delete_plan(plan_id, session)
+        await delete_plan(plan_id, session)
         return SuccessResponse(message="일정이 성공적으로 삭제되었습니다.")
     except Exception as e:
         return ErrorResponse(message="일정 삭제에 실패했습니다.", error_detail=e)
