@@ -123,7 +123,7 @@ def cafe_agent(user_input, user_prompt=""):
         try:
             result = crew.kickoff(inputs=user_input)
             print(result)
-            return result
+            return result.model_dump()
         except Exception as e:
             print(f"Error during execution: {e}")
 
