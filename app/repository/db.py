@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -38,7 +39,8 @@ def get_session_sync():
         print("세션을 생성합니다.")
         yield session
     except Exception as e:
-        print(f"[Error] 세션 생성 중 예외 발생: {e}")
+        logging.debug(f"💡logger: 데이터 베이스 예외 발생: {e}")
+        session.rollback()
         raise RuntimeError("데이터베이스 연결 실패") from e
     finally:
         print("세션을 종료합니다.")

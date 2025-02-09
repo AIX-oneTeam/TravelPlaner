@@ -16,6 +16,7 @@ def get_spot(spot_id: int, session:Session) -> Spot:
     try:
         query = select(Spot).where(Spot.id == spot_id)
         spot = session.exec(query).first()
+        session.commit()
         return spot if spot is not None else None
     except Exception as e:
         print("[ spotRepository ] get_spot() 에러 : ", e)

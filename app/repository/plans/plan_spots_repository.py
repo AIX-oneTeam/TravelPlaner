@@ -37,7 +37,9 @@ def get_plan_spots(plan_id: int, session:Session):
             for plan_spot, spot in spots
         ]}
 
+        session.commit()
         return plan_spots_with_spot_info if plan_spots_with_spot_info is not None else None
     except Exception as e:
         print("[ planRepository ] get_plan_spots() 에러 : ", e)
+
 
