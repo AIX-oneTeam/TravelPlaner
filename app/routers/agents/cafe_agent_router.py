@@ -27,7 +27,7 @@ async def get_cafes(user_input: TravelPlanRequest):
         return {
             "status": "success",
             "message": "카페 리스트가 생성되었습니다.",
-            "data": result.json_dict.get("spots",[]),
+            "data": result
         }
 
     except asyncio.CancelledError:

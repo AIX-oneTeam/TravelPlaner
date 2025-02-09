@@ -43,7 +43,7 @@ class AccommodationResponse(BaseModel):
         frozen = True
     
     
-# 위도와 경도를 계산하는 툴
+# 위도,경도 계산 툴
 class GeoCoordinateTool(BaseTool):
     name: str = "GeoCoordinate Tool"
     description: str = "지역의 위도 경도를 계산"
@@ -101,11 +101,7 @@ class GoogleReviewTool(BaseTool):
             "hl": "ko"
             })
             headers = {
-<<<<<<< HEAD
             'X-API-KEY': SERP_API_KEY,
-=======
-            'X-API-KEY': 'KEY',
->>>>>>> origin
             'Content-Type': 'application/json'
             }
             conn.request("POST", "/reviews", payload, headers)
@@ -178,9 +174,9 @@ class AiLatestDevelopment():
         )
         
 
-# run 함수: 입력을 받아서 에이전트를 실행하고 결과 반환
+# 에이전트 실행 함수 
 def run(location: str, check_in_date: str, check_out_date: str, 
-        age_group: int, adults: int, children: int, keyword: list) -> list:
+        age_group: int, adults: int, children: int, keyword: list, prompt:str) -> list:
 
     ai_dev = AiLatestDevelopment()
     crew_instance = ai_dev.crew()
@@ -192,7 +188,8 @@ def run(location: str, check_in_date: str, check_out_date: str,
         "age_group": age_group,
         "adults": adults,
         "children": children,
-        "keyword": keyword
+        "keyword": keyword,
+        "prompt" : prompt
     }
     
     crew_output = crew_instance.kickoff(inputs=inputs)
