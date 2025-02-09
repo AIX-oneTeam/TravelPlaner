@@ -112,7 +112,7 @@ class GetCafeInfoTool(BaseTool):
     description: str = "네이버 지도에서 카페 정보를 검색하고 리뷰를 가져오는 CrewAI 도구"
     args_schema: Type[BaseModel] = QuerySchema
     
-    def _run(self, query: str) -> str:
+    async def _run(self, query: str) -> str:
         """
         CrewAI에서 사용할 수 있도록 비동기 크롤링을 수행하는 도구.
         """
@@ -123,7 +123,7 @@ class GetCafeInfoTool(BaseTool):
         place_id_list = [cafe["place_id"] for cafe in cafes_info]
 
         # 비동기 리뷰 크롤링 실행
-        reviews = asyncio.run(fetch_all_reviews(place_id_list)) 
+        reviews = await fetch_all_reviews(place_id_list)
         
         end_time = datetime.now()
         print(f"정보 수집 시간: {(end_time - start_time).total_seconds()}초")
@@ -132,17 +132,16 @@ class GetCafeInfoTool(BaseTool):
             "cafe_info": cafes_info,
             "reviews": reviews
         }, ensure_ascii=False)
-        
-if __name__ == "__main__":
+   
 
-    get_cafe_info = GetCafeInfoTool()    
-    # 크롤링할 네이버 페이지 URL
-    query = "강남 조용한 카페" 
-    result = asyncio.run(get_cafe_info(query))
-    print(result)
+    async def run(self, *args, **kwargs):
+        """CrewAI에서 실행될 때 자동으로 await _run()이 실행되도록 수정"""
 
-    # 가져온 카페 갯수 20개, 정보 수집시간 11초
-    
-    
-    
+        return await self._run(*args, **kwargs)
+        # if asyncio.get_event_loop().is_running():
+        #     return asyncio.ensure_future(self._run(*args, **kwargs))
+        # else:
+        #     loop = asyncio.new_event_loop()
+        #     asyncio.set_event_loop(loop)
 
+        #     return loop.run_until_complete(self._run(*args, **kwargs))
