@@ -108,36 +108,33 @@ class QuerySchema(BaseModel):
     
 class GetCafeInfoTool(BaseTool):
     """네이버 크롤링을 통해 카페 정보 수집"""
-    name: str = "get_cafe_info"
-    description: str = "네이버 지도에서 카페 정보를 검색하고 리뷰를 가져오는 CrewAI 도구"
+    name: str = "Cafe Information Tool"
+    description: str = "카페 정보를 수집하는 도구입니다."
     args_schema: Type[BaseModel] = QuerySchema
     
-    async def _run(self, query: str) -> str:
-        """
-        CrewAI에서 사용할 수 있도록 비동기 크롤링을 수행하는 도구.
-        """
-        start_time = datetime.now()
-
-        # 동기 크롤링 실행
-        cafes_info = cafe_list_crawler(query)
-        place_id_list = [cafe["place_id"] for cafe in cafes_info]
-
-        # 비동기 리뷰 크롤링 실행
-        reviews = await fetch_all_reviews(place_id_list)
+    def _run(self, query: str) -> str:
+        """동기 실행을 위한 메서드"""
+        cafe_list = cafe_list_crawler(query)
+        loop = asyncio.get_event_loop()
+        reviews = loop.run_until_complete(fetch_all_reviews([cafe['place_id'] for cafe in cafe_list]))
         
-        end_time = datetime.now()
-        print(f"정보 수집 시간: {(end_time - start_time).total_seconds()}초")
+        for cafe in cafe_list:
+            cafe_reviews = next((r for r in reviews if r['place_id'] == cafe['place_id']), None)
+            if cafe_reviews:
+                cafe['reviews'] = cafe_reviews['reviews']
+            else:
+                cafe['reviews'] = []
 
-        return json.dumps({
-            "cafe_info": cafes_info,
-            "reviews": reviews
-        }, ensure_ascii=False)
-   
+        return json.dumps(cafe_list, ensure_ascii=False)
 
-    async def run(self, *args, **kwargs):
-        """CrewAI에서 실행될 때 자동으로 await _run()이 실행되도록 수정"""
+    async def _arun(self, query: str) -> str:
+        """비동기 실행을 위한 메서드"""
+        return self._run(query)
 
-        return await self._run(*args, **kwargs)
+    # async def _arun(self, *args, **kwargs):
+    #     """CrewAI에서 실행될 때 자동으로 await _run()이 실행되도록 수정"""
+
+    #     return await self._run(*args, **kwargs)
         # if asyncio.get_event_loop().is_running():
         #     return asyncio.ensure_future(self._run(*args, **kwargs))
         # else:
