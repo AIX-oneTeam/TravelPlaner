@@ -1,8 +1,10 @@
 from fastapi import APIRouter
-from app.services.agents.cafe_agent_service import cafe_agent
+from app.services.agents.cafe_agent_service import CafeAgentService
 from app.routers.agents.travel_all_schedule_agent_router import TravelPlanRequest
 from datetime import datetime
 router = APIRouter()
+
+cafe_service = CafeAgentService()
 
 @router.post("/cafe")
 async def get_cafes(user_input: TravelPlanRequest):
@@ -12,7 +14,7 @@ async def get_cafes(user_input: TravelPlanRequest):
     """
     start_time = datetime.now()   
 
-    result = await cafe_agent(user_input.model_dump())
+    result = await cafe_service.cafe_agent(user_input.model_dump())
     
     end_time = datetime.now()
     execution_time = (end_time - start_time).total_seconds()
