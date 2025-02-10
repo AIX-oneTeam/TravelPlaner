@@ -76,6 +76,7 @@ class GeocodingTool(BaseTool):
 
 
 # 2. Google Places API를 사용해 맛집 기본 정보를 조회하는 Tool
+# 2. Google Places API를 사용해 맛집 기본 정보를 조회하는 Tool
 class RestaurantBasicSearchTool(BaseTool):
     name: str = "RestaurantBasicSearchTool"
     description: str = (
@@ -121,10 +122,10 @@ class RestaurantBasicSearchTool(BaseTool):
         }
         try:
             async with aiohttp.ClientSession() as session:
+                # 첫 번째 요청
                 async with session.get(url, params=params) as response:
                     data = await response.json()
                     print(f"첫 요청 결과 수: {len(data.get('results', []))}")
-
                     for place in data.get("results", []):
                         place_id = place.get("place_id")
                         if place_id:
@@ -135,39 +136,37 @@ class RestaurantBasicSearchTool(BaseTool):
                                 and details["reviews"] >= 500
                             ):
                                 all_candidates.append(details)
-
                     next_page_token = data.get("next_page_token")
-                    if next_page_token:
-                        max_retries = 1
-                        for _ in range(max_retries):
-                            try:
-                                await asyncio.sleep(3)
-                                params["pagetoken"] = next_page_token
-                                async with session.get(url, params=params) as response:
-                                    data = await response.json()
-                                    second_results = data.get("results", [])
-                                    print(
-                                        f"두 번째 요청 결과 수: {len(second_results)}"
-                                    )
-                                    for place in second_results:
-                                        if len(all_candidates) >= 40:
-                                            break
-                                        place_id = place.get("place_id")
-                                        if place_id:
-                                            details = await self.get_place_details(
-                                                session, place_id
-                                            )
-                                            if (
-                                                details
-                                                and details["rating"] >= 4.0
-                                                and details["reviews"] >= 500
-                                            ):
-                                                all_candidates.append(details)
+
+                # 추가 요청: 후보 수가 10개 미만이면 추가로 요청
+                while next_page_token and len(all_candidates) < 15:
+                    try:
+                        await asyncio.sleep(3)  # next_page_token 유효 대기
+                        params["pagetoken"] = next_page_token
+                        async with session.get(url, params=params) as response:
+                            data = await response.json()
+                            new_results = data.get("results", [])
+                            print(f"추가 요청 결과 수: {len(new_results)}")
+                            for place in new_results:
+                                # 상한선(예: 40개)은 기존 코드와 동일하게 유지
+                                if len(all_candidates) >= 40:
                                     break
-                            except Exception as e:
-                                print(f"Token retry error: {e}")
-                                if _ == max_retries - 1:
-                                    raise
+                                place_id = place.get("place_id")
+                                if place_id:
+                                    details = await self.get_place_details(
+                                        session, place_id
+                                    )
+                                    if (
+                                        details
+                                        and details["rating"] >= 4.0
+                                        and details["reviews"] >= 500
+                                    ):
+                                        all_candidates.append(details)
+                            next_page_token = data.get("next_page_token")
+                    except Exception as e:
+                        print(f"추가 페이지 요청 오류: {e}")
+                        break
+
                 print(f"최종 수집된 맛집 수: {len(all_candidates)}")
         except Exception as e:
             print(f"[RestaurantBasicSearchTool] Search Error: {e}")
@@ -188,6 +187,7 @@ class NaverWebSearchTool(BaseTool):
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
+        print(f"[네이버 세부정부 검색어]: {query}")
         params = {
             "query": query,
             "display": 3,
@@ -242,9 +242,10 @@ class NaverImageSearchTool(BaseTool):
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
+        print(f"[네이버 이미지 검색어]: {query}")
         params = {
             "query": query,
-            "display": 1,
+            "display": 5,
             "sort": "sim",
             "filter": "large",
         }
@@ -387,7 +388,12 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
                 expected_output="각 후보 식당의 세부 정보(details_map)",
             ),
             Task(
-                description="네이버 이미지 검색으로 맛집 이미지 수집",
+                description=f"""이전 단계에서 평점 4.0 이상, 리뷰 수 500개 이상으로 필터링된 {input_data['main_location']} 지역의 맛집 후보 리스트를 바탕으로, 각 식당의 
+                이미지를 최신 검색 결과를 활용하여 다음 조건을 만족하는 이미지를 검색하라
+                - 반드시 실제 식당의 외관, 내부 또는 음식 사진을 선택할 것.
+                - 이미지의 해상도는 최소 300x300 이상이며, 최신 1년 이내의 고화질 이미지를 우선으로 한다.
+                - 로고, 지도, 텍스트가 포함된 이미지, 메뉴판 등은 제외한다.
+                - 각 식당에 대해 조건을 모두 만족하는 이미지 URL을 반환하라. """,
                 agent=naver_image_search_agent,
                 expected_output="맛집 이미지 URL",
             ),
@@ -400,6 +406,7 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
                 {prompt_text}
                 
                 필수:
+                - 만약, 추천된 식당 리스트의 개수가 위 조건에 맞는 최종 개수보다 적을 경우, 전체 후보 리스트(해산물 관련 여부와 무관하게)에서 중복 없이 부족한 항목을 보충하여 최종 리스트가 반드시 정해진 개수(하루 3끼 기준)가 되도록 하라.
                 - spot_category는 2로 고정한다.
                 - day_x는 가게가 추천되는 날(예: 1일차, 2일차 등)을 의미한다.
                 - order는 해당 day_x 내에서의 추천 순서(아침: 1, 점심: 2, 저녁: 3)를 의미한다.
