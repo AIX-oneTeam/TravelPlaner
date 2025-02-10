@@ -35,31 +35,31 @@ async def generate_plan(
         
 
         
-        cafe_result = None
-        restaurant_result = None
-        site_result = None
-        accommodation_result = None
+        # cafe_result = None
+        # restaurant_result = None
+        # site_result = None
+        # accommodation_result = None
 
 
-        if "cafe" in agent_type:
-            cafe_result = await cafe_agent(input_dict)  # cafe_agent가 async라면 await
-        # 레스토랑 호출 여부
-        if "restaurant" in agent_type:
-            restaurant_result = create_recommendation(input_dict)
-        # 사이트 호출 여부
-        if "site" in agent_type:
-            site_result = create_tourist_plan(input_dict)
-        # 숙소(Hotel) 호출 여부
-        if "accommodation" in agent_type:
-            accommodation_result = run(input_dict)
+        # if "cafe" in agent_type:
+        #     cafe_result = await cafe_agent(input_dict)  # cafe_agent가 async라면 await
+        # # 레스토랑 호출 여부
+        # if "restaurant" in agent_type:
+        #     restaurant_result = create_recommendation(input_dict)
+        # # 사이트 호출 여부
+        # if "site" in agent_type:
+        #     site_result = create_tourist_plan(input_dict)
+        # # 숙소(Hotel) 호출 여부
+        # if "accommodation" in agent_type:
+        #     accommodation_result = run(input_dict)
 
-        external_data ={
-            "restaurant":restaurant_result,
-            "site" :site_result,
-            "cafe" :cafe_result,
-            "accommodation":accommodation_result
-        }
-        user_input["external_data"] = external_data
+        # external_data ={
+        #     "restaurant":restaurant_result,
+        #     "site" :site_result,
+        #     "cafe" :cafe_result,
+        #     "accommodation":accommodation_result
+        # }
+        # user_input["external_data"] = external_data
 
 
         print("Python dict 변환:", input_dict)

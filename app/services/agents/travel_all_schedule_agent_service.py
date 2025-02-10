@@ -98,8 +98,31 @@ async def create_plan(user_input: dict):
     try:
         main_location = user_input.get("main_location", "Unknown Location")
         trip_days = calculate_trip_days(user_input["start_date"], user_input["end_date"])
+        user_input["trip_days"] = trip_days
+        from app.services.agents.site_agent import create_tourist_plan
+        from app.services.agents.cafe_agent_service import cafe_agent
+        from app.services.agents.restaurant_agent_service import create_recommendation
 
+        # 외부 에이전트 호출
+        agent_type = user_input.get("agent_type", [])
+        
+        tasks = {}
+        if "restaurant" in agent_type:
+            tasks["restaurant"] = asyncio.to_thread(create_recommendation,user_input)
+        if "site" in agent_type:
+            tasks["site"] = asyncio.to_thread(create_tourist_plan,user_input)
+        if "cafe" in agent_type:
+            tasks["cafe"] = cafe_agent(user_input)
 
+        # 비동기 병렬 호출
+        results = await asyncio.gather(*tasks.values())
+        external_data = {key: result for key, result in zip(tasks.keys(), results)}
+        # 통합 입력 데이터에 외부 데이터를 추가 (후속 작업에서 모두 참조할 수 있도록)
+        user_input["external_data"] = external_data
+
+        print("외부데이터 타입  =====================",type(tasks))
+
+        # Task 생성: description 필드에 모든 지시문을 포함 (플레이스홀더 사용)
         planning_agent = Agent(
             role="여행 일정 최적화 플래너",
             goal="제공된 외부 데이터를 사용하여 여행 일정을 구성한다. 새로운 장소는 생성하지 않는다.",
