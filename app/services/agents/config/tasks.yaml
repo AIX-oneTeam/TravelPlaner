@@ -21,3 +21,5 @@ accommodation_recommendation_task:
   expected_output: >
     다양한 유형의 숙소 정보가 포함된 텍스트 (7개의 숙소)
   agent: accommodation_recommendation_expert
+
+
