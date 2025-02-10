@@ -18,7 +18,7 @@ class UserInputData(BaseModel):
     prompt : str  = None   #프롬프트는 수정에서만 사용
   
 
-@router.post("/accommodations")
+@router.post("/accommodation")
 async def get_accommodations(user_input: UserInputData):
     """
     숙소 추천 API

@@ -13,6 +13,8 @@ from typing import List, Optional
 import json
 import http.client
 
+from app.utils.time_check import time_check
+
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -175,6 +177,7 @@ class AiLatestDevelopment():
         
 
 # 에이전트 실행 함수 
+@time_check
 def run(location: str, check_in_date: str, check_out_date: str, 
         age_group: int, adults: int, children: int, keyword: list, prompt:str) -> list:
 

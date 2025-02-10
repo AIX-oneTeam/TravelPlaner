@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 import logging
 import os
 import inspect
-import traceback
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from sqlalchemy import create_engine, text
@@ -13,6 +12,7 @@ from sqlmodel import SQLModel, Session
 print("--------------------db.py---------------------")
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
+
 
 engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session) # SQL모델의 세션 사용하도록 설정(exec()메서드 사용위함.)
@@ -38,10 +38,9 @@ async def lifespan(app: FastAPI):
 def get_session_sync():
     session = SessionLocal()
     try:
-        frame = inspect.stack()[2]
-        filename = frame.filename
-        function_name = frame.function
-        print(f"💡[ 세션 생성 ] {filename} - {function_name}")
+
+        caller_name = inspect.stack()[1].function
+        print(f"💡[ 세션 생성 ] {caller_name}")
 
         yield session
         session.commit()
@@ -50,8 +49,7 @@ def get_session_sync():
         session.rollback()
         raise RuntimeError("데이터베이스 연결 실패") from e
     finally:
-        print(f"💡[ 세션 종료 ] {filename} - {function_name}")
-
+        print(f"💡[ 세션 종료 ] {caller_name}")
         session.close()
 
 def init_table_by_SQLModel(): 
