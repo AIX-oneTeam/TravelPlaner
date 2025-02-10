@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from app.utils.time_check import time_check
+
 class spot_pydantic(BaseModel):
 
     kor_name: str = Field(max_length=255)
@@ -119,6 +121,8 @@ def calculate_trip_days(start_date_str, end_date_str):
     return delta.days + 1
 
 
+# 시간 측정용 데코레이터
+@time_check
 def create_plan(user_input):
     """
     CrewAI를 실행하여 여행 일정을 생성하는 서비스.

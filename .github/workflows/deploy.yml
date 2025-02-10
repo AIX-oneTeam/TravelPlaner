@@ -1,11 +1,10 @@
 name: CI/CD to AWS ECR AND EC2
 
 on:
-  push:
-    branches:
-      - dev
-      - docs/hj-git-action-#23
-  workflow_dispatch:
+  workflow_run:
+    workflows: Docker image build Test
+    types:
+      - completed
 
 jobs:
   build:
