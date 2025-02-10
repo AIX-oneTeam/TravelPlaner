@@ -17,4 +17,6 @@ class ChecklistResponse(BaseModel):
     text: str
     checked: bool
 
+class PlanId(BaseModel):
+    plan_id : int
 

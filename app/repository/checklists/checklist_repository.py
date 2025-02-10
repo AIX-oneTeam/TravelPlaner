@@ -15,14 +15,42 @@ def save_checklist_item(checklist_items: List[ChecklistCreate], session: Session
             session.commit()
             session.refresh(checklist_item)
             saved_items.append(checklist_item)
-        return saved_items
+        return f"saved checklist - {saved_items}" 
     except Exception as e:
-        print(f"Error saving checklist item: {e}")
-        raise HTTPException(status_code=500, detail="Error saving checklist item")
+        print(f"Error in save_checklist_item repository: {e}")
 
 
-#조회
+
+#읽기
+def read_checklist_item(plan_id: int, session: Session):
+    try:
+        existing_plan = session.exec(Checklist).filter(Checklist.plan_id == plan_id).first()
+
+        if not existing_plan:
+            return f"can not find plan_id - {plan_id}" 
+
+        got_checklist = session.exec(Checklist).filter(Checklist.plan_id == plan_id).all()
+        return f"got checklist - {got_checklist}" 
+    except Exception as e:
+        print(f"Error in read_checklist_item reposotiry: {e}")
 
 
 #삭제
+def delete_checklist_item(plan_id : int, session: Session):
+    try:
+        existing_plan = session.exec(Checklist).filter(Checklist.plan_id == plan_id).first()
+        
+        if not existing_plan:
+            return f"can not find plan_id - {plan_id}" 
+        
+        session.exec(Checklist).filter(Checklist.plan_id == plan_id).delete()
+        session.commit()
+        
+        return f"deleted checklist plan_id - {plan_id}"
+    except Exception as e:
+        print(f"Error int delete_checklist_item repository: {e}")
+
+
+    
+    
 
