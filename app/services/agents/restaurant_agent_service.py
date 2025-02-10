@@ -412,7 +412,7 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
                 - order는 해당 day_x 내에서의 추천 순서(아침: 1, 점심: 2, 저녁: 3)를 의미한다.
                 - spot_time은 아침, 점심, 저녁 시간대를 hh:mm:ss 형식으로 표시해야 한다.
                 - order와 day_x는 사용자의 여행 일정 일수에 맞게 조정되어야 한다.
-                - 최종 맛집 리스트의 개수는 하루 3끼 기준으로 결정된다. (예: 1박 2일이면 총 6개, 2박 3일이면 총 8개 이상)
+                - 최종 맛집 리스트의 개수는 하루 3끼 기준으로 결정된다. (예: 1박 2일이면 총 6개 이상, 2박 3일이면 총 9개 이상)
                 - 위도, 경도, 이미지 데이터는 이전 태스크들에서 얻은 정보를 활용한다.
                 """,
                 agent=final_recommendation_agent,
