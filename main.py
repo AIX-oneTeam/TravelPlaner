@@ -30,7 +30,7 @@ load_dotenv()
 
 # 로그 설정
 logging.basicConfig(
-    filename="app.log",  # 파일로 저장
+    # filename="app.log",  # 파일로 저장
     level=logging.INFO,  # 로그 레벨 설정
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # 로그 형식
 )
