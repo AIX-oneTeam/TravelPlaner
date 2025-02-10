@@ -6,22 +6,33 @@ from app.services.agents.travel_all_schedule_agent_service import spots_pydantic
 import os
 from dotenv import load_dotenv
 load_dotenv()
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 class CafeAgentService:
     """
-    CrewAI를 실행하여 사용자 맞춤 카페를 추천해주는 서비스.
+    카페 에이전트 인스턴스를 싱글톤 패턴으로 관리하는 클래스
     """
-    def __init__(self):
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(CafeAgentService, cls).__new__(cls)
+            cls._instance.initialize()  # 최초 한 번만 초기화
+        return cls._instance  # 동일한 인스턴스 반환
+
+    def initialize(self):
+        """CrewAI 관련 객체들을 한 번만 생성"""
+        print("CrewAISingleton 초기화 중...")
+                
         self.llm = LLM(
             model="gpt-4o-mini",
-            api_key=os.getenv("OPENAI_API_KEY"),
+            api_key=OPENAI_API_KEY,
             temperature=0,
             max_tokens=4000
         )
         self.get_cafe_tool = GetCafeInfoTool()
         self.search_dev_tool = SerperDevTool()
 
-        # 에이전트 정의
+        # 에이전트 정의(재사용)
         self.researcher = Agent(
             role="카페 정보 검색 및 분석 전문가",
             goal="고객 선호도를 분석해 최적의 카페를 찾을 수 있는 검색어를 추출하고, 정보 수집 후 각 카페의 주요 특징 분석",
@@ -46,6 +57,7 @@ class CafeAgentService:
         llm=self.llm,
         verbose=True
     )
+        self.crew = None   
         
     async def cafe_agent(self, user_input, user_prompt=""):
         """
