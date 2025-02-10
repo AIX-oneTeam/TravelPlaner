@@ -29,7 +29,7 @@ async def get_restaurants(
         if prompt:
             user_data["prompt"] = prompt
 
-        print("프론트에서 받은 데이터:", user_data)
+        # print("프론트에서 받은 데이터:", user_data)
 
         # create_recommendation 호출 시 await 사용 (비동기 함수이므로)
         try:
