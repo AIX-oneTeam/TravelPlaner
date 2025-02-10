@@ -22,8 +22,8 @@ class WebDriver:
             cls._instance = super().__new__(cls)
             if cls._driver is None:
                 options = webdriver.ChromeOptions()
-                # options.add_argument("--headless")
-                options.add_experimental_option("detach", True)
+                options.add_argument("--headless") # 크롬창 안보이게
+                # options.add_experimental_option("detach", True) # 확인용(크롬창 열림)
                 options.add_argument("user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36")
                 cls._driver = webdriver.Chrome(options=options)
         return cls._driver
@@ -47,13 +47,16 @@ def cafe_list_crawler(query):
         WebDriverWait(driver, 10).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
-        
+      
         spots = WebDriverWait(driver, 10).until(
             EC.visibility_of_all_elements_located((By.CSS_SELECTOR, "li._lazyImgContainer")))
+        
+        if not spots:  # 검색 결과가 없으면 예외를 발생시키지 않음 (정상적인 흐름)
+            return "검색어를 변경해주세요"
 
         for spot in spots:
-            if len(spots_info) >= 15:  # 15개까지만 수집
-                break
+            # if len(spots_info) >= 15:  # 15개까지만 수집
+            #     break
             place_id = spot.get_attribute("data-id")
             map_url = f"https://m.place.naver.com/restaurant/{place_id}/location?filter=location&selected_place_id={place_id}"
             url = f"https://m.place.naver.com/restaurant/{place_id}/home"
@@ -71,8 +74,7 @@ def cafe_list_crawler(query):
                 "phone_number": spot.get_attribute("data-tel")
             }
             spots_info.append(spot_info)
-
-
+        
         print(f"가져온 카페 개수: {len(spots_info)}")
         return spots_info
 
@@ -181,7 +183,14 @@ class GetCafeInfoTool(BaseTool):
     async def _arun(self, query: str) -> str:
         """비동기 실행을 위한 메서드"""
         cafe_list = cafe_list_crawler(query)
+        if not cafe_list:
+            return json.dumps({
+                "status": "no_results",
+                "message": "검색 결과가 없습니다."
+            })
+            
         reviews = await self._collect_reviews([cafe['place_id'] for cafe in cafe_list])
+
 
         for cafe in cafe_list:
             cafe_reviews = next((r for r in reviews if r['place_id'] == cafe['place_id']), None)
