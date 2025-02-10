@@ -64,7 +64,7 @@ async def cafe_agent(user_input, user_prompt=""):
     researcher_task = Task(
         description="""
         고객이 최고의 여행을 할 수 있도록 고객의 상황과 취향에 맞는 카페를 고르기 위해 카페를 조사하고 최종적으로 고객의 needs를 만족하는 {n}개의 카페 정보를 반환해주세요.
-        tool 사용시 검색어는 "지역 이름 + 선호 또는 요구사항(" "를 기준으로 구분하여 1개 또는 2개 선택) + 카페"로 입력해주세요
+        tool 사용시 검색어는 "{main_location} 카페"로 입력해주세요
         tool output을 참고하여 카페의 특징을 분석하고 description을 작성해주세요
         description에는 카페의 리뷰를 분석해 사람들이 공통적으로 좋아했던 카페의 주요 특징과 메뉴 이름을 포함해 간략히 적어주세요.
         description에는 절대 나이, 연령대에 대한 언급을 하지마세요.
@@ -124,7 +124,3 @@ async def cafe_agent(user_input, user_prompt=""):
         # 오류가 발생한 경우 Observation을 직접 확인
         if hasattr(e, 'Observation'):
             print(f"Tool Output (Observation): {e.Observation}")
-
-
-
-    
