@@ -117,7 +117,7 @@ async def cafe_agent(user_input, user_prompt=""):
     try:
         result = await crew.kickoff_async(inputs=user_input)
         print(result)
-        return result
+        return result.json_dict.get("spots",[])
     except Exception as e:
         print(f"Error during execution: {e}")
 
