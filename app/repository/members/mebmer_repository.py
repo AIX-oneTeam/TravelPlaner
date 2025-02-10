@@ -6,7 +6,6 @@ from app.data_models.data_model import Member
 def save_member(member: Member, session:Session) -> int:
     try:
         session.add(member)
-        session.commit()
         return member.id
     except Exception as e:
         print("[ memberRepository ] save_member() 에러 : ", e)
