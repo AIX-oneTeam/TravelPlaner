@@ -44,6 +44,7 @@ def get_session_sync():
         print(f"💡[ 세션 생성 ] {filename} - {function_name}")
 
         yield session
+        session.commit()
     except Exception as e:
         logging.debug(f"💡logger: 데이터 베이스 예외 발생: {e}")
         session.rollback()
