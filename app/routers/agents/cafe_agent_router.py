@@ -21,7 +21,17 @@ async def get_cafes(user_input: TravelPlanRequest):
         execution_time = (end_time - start_time).total_seconds()
         
         if not result:
-            print("결과값이 없습니다")
+            print("결과값이 없습니다. 실행 시간: {execution_time:.4f}초")
+
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "status": "error",
+                    "message": "카페 검색 결과가 없습니다.",
+                    "execution_time": execution_time
+                }
+            )    
+
         print(f"`cafe_agent()` 실행 시간: {execution_time:.4f}초")
         
         return {
