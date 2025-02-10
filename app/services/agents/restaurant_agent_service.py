@@ -145,7 +145,7 @@ class RestaurantBasicSearchTool(BaseTool):
                                 params["pagetoken"] = next_page_token
                                 async with session.get(url, params=params) as response:
                                     data = await response.json()
-                                    second_results = data.get("results", [])[:10]
+                                    second_results = data.get("results", [])
                                     print(
                                         f"두 번째 요청 결과 수: {len(second_results)}"
                                     )
