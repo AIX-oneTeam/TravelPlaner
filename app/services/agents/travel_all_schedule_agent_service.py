@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from app.utils.time_check import time_check
+
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
     eng_name: str = Field(default=None, max_length=255)
@@ -91,10 +93,17 @@ def calculate_trip_days(start_date_str, end_date_str):
     end_dt = datetime.strptime(end_date_str, fmt)
     delta = end_dt - start_dt
     return delta.days + 1
+
 # ──────────────────────────────
 # 최종 일정 생성 함수 (Aggregator)
 # ──────────────────────────────
+
+
+
+# 시간 측정용 데코레이터
+@time_check
 async def create_plan(user_input: dict):
+
     try:
         main_location = user_input.get("main_location", "Unknown Location")
         trip_days = calculate_trip_days(user_input["start_date"], user_input["end_date"])
@@ -102,25 +111,37 @@ async def create_plan(user_input: dict):
         from app.services.agents.site_agent import create_tourist_plan
         from app.services.agents.cafe_agent_service import cafe_agent
         from app.services.agents.restaurant_agent_service import create_recommendation
+        from app.services.agents.accommodation_agent_4 import run
 
         # 외부 에이전트 호출
         agent_type = user_input.get("agent_type", [])
         
         tasks = {}
         if "restaurant" in agent_type:
-            tasks["restaurant"] = asyncio.to_thread(create_recommendation,user_input)
+            tasks["restaurant"] = create_recommendation(user_input)
         if "site" in agent_type:
-            tasks["site"] = asyncio.to_thread(create_tourist_plan,user_input)
+            tasks["site"] = create_tourist_plan(user_input)
         if "cafe" in agent_type:
             tasks["cafe"] = cafe_agent(user_input)
+        if "accommodation" in agent_type:
+            tasks["accommodation"] = run(user_input)
+
+# 동기적으로 외부 데이터 처리
+
+
+        print("=======================딕셔너리 값 ",type(tasks))
 
         # 비동기 병렬 호출
-        results = await asyncio.gather(*tasks.values())
-        external_data = {key: result for key, result in zip(tasks.keys(), results)}
+        results = list(tasks.values())
+        print("result ========", results)
+        external_data = {key: value for key, value in tasks.items() if value is not None}
+        print("data------------------------", external_data)
+
+
         # 통합 입력 데이터에 외부 데이터를 추가 (후속 작업에서 모두 참조할 수 있도록)
         user_input["external_data"] = external_data
 
-        print("외부데이터 타입  =====================",type(tasks))
+        print("외부데이터 타입  =====================",type(external_data))
 
         # Task 생성: description 필드에 모든 지시문을 포함 (플레이스홀더 사용)
         planning_agent = Agent(
@@ -154,13 +175,13 @@ async def create_plan(user_input: dict):
             output_pydantic=spots_pydantic,
         )
         # Crew 실행: planning_agent를 사용하여 최종 일정 생성
-        Crew(agents=[planning_agent], tasks=[planning_task], verbose=True).kickoff(inputs=user_input)
+        await Crew(agents=[planning_agent], tasks=[planning_task], verbose=True).kickoff(inputs=user_input)
      
         response_json = {
             "message": "요청이 성공적으로 처리되었습니다.",
             "plan": {
-                "name": user_input.get("name", "여행 일정"),
-                "start_date": user_input["start_date"],
+                    "name": user_input.get("name", "여행 일정"),
+                    "start_date": user_input["start_date"],
                 "end_date": user_input["end_date"],
                 "main_location": main_location,
                 "created_at": datetime.now().strftime("%Y-%m-%d"),

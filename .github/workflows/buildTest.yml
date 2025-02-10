@@ -1,0 +1,23 @@
+name: Docker image build Test
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: branch checkout
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: docker build -t app-test .
+
+      - name: delete docker image
+        run: docker rmi -f app-test || true
+
+      - name: clean docker cache
+        run: docker system prune -af --volumes

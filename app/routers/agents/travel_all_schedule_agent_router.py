@@ -32,9 +32,7 @@ async def generate_plan(
         
         input_dict = user_input.model_dump()
         input_dict["agent_type"] = agent_type  
-        
-
-        
+             
         # cafe_result = None
         # restaurant_result = None
         # site_result = None
@@ -60,7 +58,6 @@ async def generate_plan(
         #     "accommodation":accommodation_result
         # }
         # user_input["external_data"] = external_data
-
 
         print("Python dict 변환:", input_dict)
 

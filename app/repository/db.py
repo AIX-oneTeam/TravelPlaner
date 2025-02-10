@@ -1,5 +1,8 @@
 from contextlib import asynccontextmanager
+import logging
 import os
+import inspect
+import traceback
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from sqlalchemy import create_engine, text
@@ -35,13 +38,20 @@ async def lifespan(app: FastAPI):
 def get_session_sync():
     session = SessionLocal()
     try:
-        print("세션을 생성합니다.")
+        frame = inspect.stack()[2]
+        filename = frame.filename
+        function_name = frame.function
+        print(f"💡[ 세션 생성 ] {filename} - {function_name}")
+
         yield session
+        session.commit()
     except Exception as e:
-        print(f"[Error] 세션 생성 중 예외 발생: {e}")
+        logging.debug(f"💡logger: 데이터 베이스 예외 발생: {e}")
+        session.rollback()
         raise RuntimeError("데이터베이스 연결 실패") from e
     finally:
-        print("세션을 종료합니다.")
+        print(f"💡[ 세션 종료 ] {filename} - {function_name}")
+
         session.close()
 
 def init_table_by_SQLModel(): 
