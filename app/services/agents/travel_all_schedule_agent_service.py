@@ -1,37 +1,12 @@
+# app/services/agents/travel_all_schedule_agent_service.py
 import json
 import os
-import asyncio
 from crewai import Agent, Task, Crew, LLM
-from datetime import datetime
 from dotenv import load_dotenv
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
-
+from app.dtos.spot_models import spots_pydantic, calculate_trip_days
+from datetime import datetime
 from app.utils.time_check import time_check
-
-class spot_pydantic(BaseModel):
-    kor_name: str = Field(max_length=255)
-    eng_name: str = Field(default=None, max_length=255)
-    address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
-    url: str = Field(default=None, max_length=2083)
-    image_url: str = Field(max_length=2083)
-    map_url: str = Field(max_length=2083)
-    likes: int = None
-    satisfaction: float = None
-    spot_category: int
-    phone_number: str = Field(default=None, max_length=300)
-    business_status: bool = None
-    business_hours: str = Field(default=None, max_length=255)
-    order: int
-    day_x: int
-    spot_time: str = None
-    latitude: float = None  
-    longitude: float = None  
-    distance_from_prev: float = None  
-
-class spots_pydantic(BaseModel):
-    spots: list[spot_pydantic]
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -87,61 +62,18 @@ class KakaoMapRouteTool(BaseTool):
         except Exception as e:
             return f"[KakaoMapRouteTool] 에러: {str(e)}"
 
-def calculate_trip_days(start_date_str, end_date_str):
-    fmt = "%Y-%m-%d"
-    start_dt = datetime.strptime(start_date_str, fmt)
-    end_dt = datetime.strptime(end_date_str, fmt)
-    delta = end_dt - start_dt
-    return delta.days + 1
-
-# ──────────────────────────────
-# 최종 일정 생성 함수 (Aggregator)
-# ──────────────────────────────
-
-
 
 # 시간 측정용 데코레이터
 @time_check
 async def create_plan(user_input: dict):
-
     try:
         main_location = user_input.get("main_location", "Unknown Location")
         trip_days = calculate_trip_days(user_input["start_date"], user_input["end_date"])
         user_input["trip_days"] = trip_days
-        from app.services.agents.site_agent import create_tourist_plan
-        from app.services.agents.cafe_agent_service import cafe_agent
-        from app.services.agents.restaurant_agent_service import create_recommendation
-        from app.services.agents.accommodation_agent_4 import run
 
-        # 외부 에이전트 호출
-        agent_type = user_input.get("agent_type", [])
-        
-        tasks = {}
-        if "restaurant" in agent_type:
-            tasks["restaurant"] = create_recommendation(user_input)
-        if "site" in agent_type:
-            tasks["site"] = create_tourist_plan(user_input)
-        if "cafe" in agent_type:
-            tasks["cafe"] = cafe_agent(user_input)
-        if "accommodation" in agent_type:
-            tasks["accommodation"] = run(user_input)
-
-# 동기적으로 외부 데이터 처리
-
-
-        print("=======================딕셔너리 값 ",type(tasks))
-
-        # 비동기 병렬 호출
-        results = list(tasks.values())
-        print("result ========", results)
-        external_data = {key: value for key, value in tasks.items() if value is not None}
-        print("data------------------------", external_data)
-
-
-        # 통합 입력 데이터에 외부 데이터를 추가 (후속 작업에서 모두 참조할 수 있도록)
-        user_input["external_data"] = external_data
-
-        print("외부데이터 타입  =====================",type(external_data))
+        # 이제 외부 에이전트 호출은 이미 라우터에서 처리한 상태라고 가정
+        external_data = user_input.get("external_data", {})
+        print("create_plan 내부에서 받은 external_data:", external_data)
 
         # Task 생성: description 필드에 모든 지시문을 포함 (플레이스홀더 사용)
         planning_agent = Agent(
@@ -159,13 +91,13 @@ async def create_plan(user_input: dict):
             - 위의 JSON 데이터를 그대로 활용하여, 날짜별로 최적의 순서로 재배열하고,
               각 장소의 방문 순서를 지정하세요.
             - 이동 거리와 시간을 고려하여 효율적인 동선을 구성하세요.
-            -외부 데이터 : {external_data} <-- 반드시 사용 
+            - 외부 데이터 : {external_data} <-- 반드시 사용 
             - {external_data} 안에 restaurant, site, cafe 키가 있고, 각각이 장소 목록을 담고 있다.
             - 아침 slot은 site(관광지)에서 1개, cafe에서 1개를 골라라.
             - 점심 slot은 restaurant(맛집)에서 1개, site(관광지)에서 2개를 골라라.
             - 저녁 slot은 restaurant(맛집)에서 1개, 그리고 숙소()는 external_data에 있다면 사용하고, 없으면 생략한다.
             - 만약 필요한 카테고리(restaurant, site, cafe)에 장소가 부족하면, 그 slot은 비워둔다(새로운 장소를 임의로 만들지 않는다).
-            -여기서 외부 데이터만 가지고 위도 경도를 계산후 최적의 동선을 위에 일정 조율 .
+            - 여기서 외부 데이터만 가지고 위도 경도를 계산 후 최적의 동선을 위에 일정 조율.
             - day_x: 방문 날짜
             - order: 해당 날짜의 방문 순서
             - 나머지 필드는 그대로 유지
@@ -175,13 +107,13 @@ async def create_plan(user_input: dict):
             output_pydantic=spots_pydantic,
         )
         # Crew 실행: planning_agent를 사용하여 최종 일정 생성
-        await Crew(agents=[planning_agent], tasks=[planning_task], verbose=True).kickoff(inputs=user_input)
+        Crew(agents=[planning_agent], tasks=[planning_task], verbose=True).kickoff(inputs=user_input)
      
         response_json = {
             "message": "요청이 성공적으로 처리되었습니다.",
             "plan": {
-                    "name": user_input.get("name", "여행 일정"),
-                    "start_date": user_input["start_date"],
+                "name": user_input.get("name", "여행 일정"),
+                "start_date": user_input["start_date"],
                 "end_date": user_input["end_date"],
                 "main_location": main_location,
                 "created_at": datetime.now().strftime("%Y-%m-%d"),

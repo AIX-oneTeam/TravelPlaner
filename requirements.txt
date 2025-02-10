@@ -36,6 +36,7 @@ docker==7.1.0
 docstring_parser==0.16
 durationpy==0.9
 embedchain==0.1.126
+emoji==2.14.1
 et_xmlfile==2.0.0
 executing==2.2.0
 fastapi==0.115.8
@@ -184,6 +185,7 @@ rich==13.9.4
 rpds-py==0.22.3
 rsa==4.9
 schema==0.7.7
+selenium==4.28.1
 setuptools==75.8.0
 shapely==2.0.7
 shellingham==1.5.4
