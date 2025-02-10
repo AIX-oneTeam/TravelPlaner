@@ -40,7 +40,6 @@ def save_plan(plan: Plan, session: Session, plan_id: int = None):
             plan_id = plan.id
             print("[ plan_repository ] 새로운 plan 생성 완료 : ", plan_id)
             
-        session.commit()
         return plan_id
     except Exception as e:
         print("[ plan_repository ] save_plan() 에러 : ", e)
@@ -50,7 +49,6 @@ def save_plan(plan: Plan, session: Session, plan_id: int = None):
 def get_plan(plan_id: int, session: Session):
     try:
         plan = session.get(Plan, plan_id)
-        session.commit()
         return plan if plan is not None else None
 
     except Exception as e:
@@ -73,7 +71,6 @@ def get_member_plans(member_id: int, session: Session):
         
         print("[ plan_repository ] get_member_plans() 결과 : ", plans)
         print("[ plan_repository ] get_member_plans() 결과 타입 : ", type(plans))
-        session.commit()
         return plans
     except Exception as e:
         print("[ plan_repository ] get_member_plans() 에러 : ", e)
@@ -85,7 +82,6 @@ def delete_plan(plan_id: int, session: Session):
         if plan is None:
             raise ValueError(f"ID가 {plan_id}인 Plan을 찾을 수 없습니다.")
         session.delete(plan)
-        session.commit()
         return True
     except Exception as e:
         print("[ plan_repository ] delete_plan() 에러 : ", e)

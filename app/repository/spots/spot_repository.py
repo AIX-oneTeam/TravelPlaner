@@ -5,7 +5,6 @@ def save_spot(spot: Spot, session:Session):
     try:
         session.add(spot)
         session.flush()
-        session.commit()
         return spot.id
     except Exception as e:
         session.rollback()  # 트랜잭션 롤백
@@ -16,7 +15,6 @@ def get_spot(spot_id: int, session:Session) -> Spot:
     try:
         query = select(Spot).where(Spot.id == spot_id)
         spot = session.exec(query).first()
-        session.commit()
         return spot if spot is not None else None
     except Exception as e:
         print("[ spotRepository ] get_spot() 에러 : ", e)
@@ -27,7 +25,6 @@ def delete_spot(spot_id: int, session:Session):
         query = select(Spot).where(Spot.id == spot_id)
         spot = session.exec(query).first()
         session.delete(spot)
-        session.commit()
         return spot.id
     except Exception as e:
         print("[ spotRepository ] delete_spot() 에러 : ", e)
