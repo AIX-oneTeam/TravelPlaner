@@ -19,13 +19,26 @@ class WebDriver:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            if cls._driver is None:
-                options = webdriver.ChromeOptions()
-                options.add_argument("--headless") # 크롬창 안보이게
-                # options.add_experimental_option("detach", True) # 확인용(크롬창 열림)
-                options.add_argument("user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36")
-                cls._driver = webdriver.Chrome(options=options)
-        return cls._driver
+            cls._instance._initialize_driver()
+        return cls._instance
+        
+    def _initialize_driver(self):
+        """WebDriver를 한 번만 초기화"""
+        if WebDriver._driver is None:
+            options = webdriver.ChromeOptions()
+            options.add_argument("--headless")
+            options.add_argument("user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36")
+            WebDriver._driver = webdriver.Chrome(options=options)    
+
+    def get_driver(self):
+        """WebDriver 인스턴스를 반환하는 메서드"""
+        return WebDriver._driver        
+
+    def quit_driver(self):
+        """WebDriver 종료 메서드"""
+        if WebDriver._driver:
+            WebDriver._driver.quit()
+            WebDriver._driver = None
          
 def cafe_list_crawler(query):
     """
@@ -35,7 +48,8 @@ def cafe_list_crawler(query):
     Returns:
         list: 카페 정보 리스트
     """
-    driver = WebDriver()
+    web_driver_instance = WebDriver()
+    driver = web_driver_instance.get_driver() 
     spots_info = []
     
     try:
@@ -49,10 +63,7 @@ def cafe_list_crawler(query):
       
         spots = WebDriverWait(driver, 10).until(
             EC.visibility_of_all_elements_located((By.CSS_SELECTOR, "li._lazyImgContainer")))
-        
-        if not spots:  # 검색 결과가 없으면 예외를 발생시키지 않음 (정상적인 흐름)
-            return "검색어를 변경해주세요"
-
+                
         for spot in spots:
             # if len(spots_info) >= 15:  # 15개까지만 수집
             #     break
@@ -61,12 +72,22 @@ def cafe_list_crawler(query):
             url = f"https://m.place.naver.com/restaurant/{place_id}/home"
             # 테스트 : https://m.place.naver.com/restaurant/1932943275/location?reviewSort=recent&filter=location&selected_place_id=1932943275
 
+            try:
+                address = spot.find_element(By.CLASS_NAME, "item_address").text.strip().replace("주소보기\n", "")
+            except:
+                address = "주소 없음"
+
+            try:
+                image_url = spot.find_element(By.CLASS_NAME, "_itemThumb").find_element(By.TAG_NAME, "img").get_attribute("src")
+            except:
+                image_url = "이미지 없음"
+                
             spot_info = {
                 "place_id": str(place_id),
                 "kor_name": spot.get_attribute("data-title"),
-                "address": spot.find_element(By.CLASS_NAME, "item_address").text.strip().replace("주소보기\n", ""),
+                "address": address,
                 "url": url,
-                "image_url": spot.find_element(By.CLASS_NAME, "_itemThumb").find_element(By.TAG_NAME, "img").get_attribute("src"),
+                "image_url": image_url,
                 "map_url" : map_url,
                 "latitude": spot.get_attribute("data-latitude"),
                 "longitude": spot.get_attribute("data-longitude"),
@@ -79,7 +100,11 @@ def cafe_list_crawler(query):
 
     except Exception as e:
         print(f"검색 오류 : {e}")
-
+        return []
+    
+    finally:
+        WebDriver().quit_driver()    
+        
 async def fetch_review(session, place_id):
     """
     비동기 리뷰 스크래퍼. 네이버 지도에서 카페를 정적 크롤링을 통해 검색하고 리뷰를 가져오는 도구.
@@ -166,11 +191,7 @@ class GetCafeListTool(BaseTool):
             asyncio.set_event_loop(self._loop)
     
     # 리소스 정리        
-    def __del__(self):
-        if WebDriver._driver:
-            WebDriver._driver.quit()
-            WebDriver._driver = None        
-            
+    def __del__(self):            
         if self._loop and not self._loop.is_closed():
             self._loop.close()
 
