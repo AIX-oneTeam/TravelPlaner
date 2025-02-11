@@ -48,15 +48,6 @@ class CafeAgentService:
             stop_on_failure=True
         )
         
-        self.checker = Agent(
-        role="카페 검증 전문가",
-        goal="researcher가 분석한 데이터를 기반으로 정보를 수집하고 입력하세요.",
-        backstory="resercher가 준 카페리스트를 토대로 정확한 정보를 찾아주세요",
-        max_iter=1,
-        allow_delegation=False,
-        llm=self.llm,
-        verbose=True,
-    )
         self.crew = None   
         
     async def cafe_agent(self, user_input, user_prompt=""):
@@ -91,20 +82,6 @@ class CafeAgentService:
             agent=self.researcher,
             output_json=spots_pydantic
         )
-
-        checker_task = Task(
-            description="""
-            researcher가 반환한 카페들의 정보에 추가로 운영시간, 웹사이트 정보를 수집하고 수정해주세요.
-            tool 사용시 입력값은 researcher가 반환한 카페들의 place_id들을 묶어 list형태로 변환해 입력해주세요.
-            """,
-            expected_output="""
-            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
-            """,
-            context=[researcher_task],
-            output_json=spots_pydantic,
-            agent=self.checker
-        )
-
 
         # 멀티 에이전트 시스템 설정
         crew = Crew(
