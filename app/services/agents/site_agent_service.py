@@ -1,7 +1,7 @@
 import traceback
 import os
 from dotenv import load_dotenv
-
+import asyncio
 
 from crewai import Agent, Task, Crew, LLM
 from crewai.tools import BaseTool
@@ -12,6 +12,7 @@ from app.services.agents.site_tool import (
     NaverWebSearchTool,
     extract_recommendations_from_output,
     add_images_to_recommendations,
+    get_lat_lon_for_place_kakao,  # 카카오 API 함수 임포트
 )
 
 load_dotenv()
@@ -90,18 +91,20 @@ class TravelPlanAgentService:
 
         user_input 예시:
         {
-          "main_location": "서울",
+          "main_location": "부산",
           "start_date": "2024-03-01",
           "end_date": "2024-03-03",
           "ages": "20-30",
           "companion_count": [2, 1],
           "concepts": ["문화", "역사"],
-          "prompt": "좀 더 이색적인 장소 위주로 추천해줘!"
+          "prompt": "다른 관광지 추천해줘!"
         }
         """
         try:
             extra_prompt = user_input.pop("prompt", "")
-            location = user_input["main_location"]
+            location = user_input[
+                "main_location"
+            ]  # 원래 사용자가 입력한 지역 (예: 부산)
             start_date = user_input["start_date"]
             end_date = user_input["end_date"]
             ages = user_input["ages"]
@@ -110,11 +113,12 @@ class TravelPlanAgentService:
 
             extra_text = f" 추가 요청: {extra_prompt}" if extra_prompt else ""
 
-            # 에이전트의 목표(goal)를 업데이트
+            # 에이전트의 목표(goal)는 원래의 main_location (예: 부산)을 그대로 사용하고,
+            # 프롬프트가 있으면 추가 요청으로 반영합니다.
             self.tourist_agent.goal = (
                 f"사용자에게 {location} 지역에서 {start_date}부터 {end_date}까지 여행하는 여행객의 정보를 바탕으로, "
-                f"연령대 {ages}, 동반자 수 {companion_count}명, 여행 컨셉 {concepts}을 고려하여 관광지 정보를 추천하라."
-                f"{extra_text} "
+                f"연령대 {ages}, 동반자 수 {companion_count}명, 여행 컨셉 {concepts}을 고려하여 관광지 정보를 추천하라. "
+                f"추천은 반드시 사용자가 처음에 입력한 지역인 {location}을 기준으로 해야 하며, 다른 지역으로 변경하지 말 것. "
                 "각 관광지는 반드시 아래 JSON 객체 형식을 준수해야 하며, 다른 텍스트는 포함하지 말라.\n"
                 "{\n"
                 '  "kor_name": string,\n'
@@ -151,7 +155,6 @@ class TravelPlanAgentService:
                 verbose=True,
             )
 
-            
             await crew.kickoff_async()
             raw_output = tourist_task.output
 
@@ -163,13 +166,25 @@ class TravelPlanAgentService:
             spots_list = []
             for idx, rec in enumerate(recommendations_with_images, start=1):
                 orig_map_url = rec.get("map_url", "").strip()
-                if not orig_map_url or "map.naver.com" not in orig_map_url:
-                    # 기존 방식: 추천 결과에 포함된 위도/경도 정보를 그대로 사용 (정확하지 않아도 됨)
-                    longitude = rec.get("longitude", 0.0)
-                    latitude = rec.get("latitude", 0.0)
-                    map_url = f"https://map.naver.com/v5/?c={longitude},{latitude},15,0,0,0,dh"
+                # 만약 응답에 위도, 경도 정보가 없거나 map_url에 네이버 맵 URL이 있다면,
+                # 카카오 API를 사용하여 주소 기반 좌표 조회 후 카카오 지도 링크 생성
+                if (
+                    not rec.get("latitude")
+                    or not rec.get("longitude")
+                    or "map.naver.com" in orig_map_url
+                ):
+                    latitude, longitude = await get_lat_lon_for_place_kakao(
+                        rec.get("address", "")
+                    )
+                    map_url = f"https://map.kakao.com/link/map/{rec.get('kor_name', '')},{latitude},{longitude}"
                 else:
-                    map_url = orig_map_url
+                    latitude = rec.get("latitude", 0.0)
+                    longitude = rec.get("longitude", 0.0)
+                    map_url = (
+                        orig_map_url
+                        if orig_map_url
+                        else f"https://map.kakao.com/link/map/{rec.get('kor_name', '')},{latitude},{longitude}"
+                    )
 
                 spot = spot_pydantic(
                     kor_name=rec.get("kor_name", ""),
@@ -185,8 +200,8 @@ class TravelPlanAgentService:
                     order=idx,
                     day_x=1,
                     spot_time=rec.get("spot_time", None),
-                    latitude=rec.get("latitude", 0.0),
-                    longitude=rec.get("longitude", 0.0),
+                    latitude=latitude,
+                    longitude=longitude,
                 )
                 spots_list.append(spot)
 

@@ -9,9 +9,12 @@ import os
 
 load_dotenv()
 
-
+# 네이버 API 관련 환경변수
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
+
+# 카카오 API 키 (카카오 지도 API에 사용 중인 REST API 키)
+KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
 
 
 async def check_url_openable_async(url: str) -> bool:
@@ -161,3 +164,28 @@ async def add_images_to_recommendations(recommendations: list) -> list:
         else:
             place["image_url"] = image_url
     return recommendations
+
+
+# ---- 카카오 API를 이용한 주소 기반 위도/경도 변환 함수 ----
+async def get_lat_lon_for_place_kakao(address: str) -> (float, float):
+    """
+    카카오 주소-좌표 변환 API를 호출하여 주어진 주소의 위도와 경도를 반환합니다.
+    API 문서: https://apis.map.kakao.com/web/guide/#addressCoord
+    """
+    url = "https://dapi.kakao.com/v2/local/search/address.json"
+    headers = {"Authorization": f"KakaoAK {KAKAO_API_KEY}"}
+    params = {"query": address}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+        documents = data.get("documents", [])
+        if documents:
+            # 첫 번째 결과의 좌표 정보를 사용 (경도: x, 위도: y)
+            x = float(documents[0]["address"].get("x", 0.0))
+            y = float(documents[0]["address"].get("y", 0.0))
+            return y, x  # (위도, 경도)
+    except Exception as e:
+        print(f"카카오 API 위도/경도 조회 에러: {e}")
+    return 0.0, 0.0
