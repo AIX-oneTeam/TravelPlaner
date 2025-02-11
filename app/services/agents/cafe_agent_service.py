@@ -2,7 +2,7 @@ import asyncio
 from crewai import Agent, Task, Crew, LLM, Process
 from crewai_tools import SerperDevTool
 from app.services.agents.naver_map_crawler import GetCafeInfoTool
-from app.services.agents.travel_all_schedule_agent_service import spots_pydantic, calculate_trip_days
+from app.dtos.spot_models import spots_pydantic,calculate_trip_days
 import os
 from dotenv import load_dotenv
 load_dotenv()
