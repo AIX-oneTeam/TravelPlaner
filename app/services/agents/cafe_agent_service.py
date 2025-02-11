@@ -91,21 +91,10 @@ class CafeAgentService:
             모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요.
             """,
             expected_output="""
-            다음과 같은 형식으로 데이터를 반환하세요.
-            rank: "추천 우선순위" 
-            reason: "해당 우선순위를 정한 이유, 다른 카페들보다 추천하는 이유"
-            place_id: "네이버 place_id"
-            kor_name: "카페 이름"
-            description: "카페 주요 특징 및 시그니처 메뉴"
-            address: "주소"
-            url: "홈페이지 주소"
-            image_url: "이미지 주소" 
-            map_url: "지도 주소"
-            latitude: "위도" 
-            longitude: "경도" 
-            phone_number: "전화번호"
+            서로 다른 {n}개의 카페 정보를 반환하세요.
             """,        
-            agent=self.researcher
+            agent=self.researcher,
+            output_json=spots_pydantic
         )
 
         checker_task = Task(
@@ -124,11 +113,10 @@ class CafeAgentService:
 
         # 멀티 에이전트 시스템 설정
         crew = Crew(
-            agents=[self.researcher, self.checker],
-            tasks=[researcher_task, checker_task],
+            agents=[self.researcher],
+            tasks=[researcher_task],
             process=Process.sequential,
-            verbose=True,
-            context=[researcher_task]  
+            verbose=True
         )
 
         # 실행

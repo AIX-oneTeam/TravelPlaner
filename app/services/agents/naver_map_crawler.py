@@ -212,6 +212,12 @@ class GetCafeListTool(BaseTool):
             for cafe, review in zip(cafe_list, reviews):
                 cafe['reviews'] = review.get('reviews', [])
 
+            business_info = self._loop.run_until_complete(self._collect_business_info(cafe_list))
+            
+            for cafe, info in zip(cafe_list, business_info):
+                cafe['url'] = info.get('url', '')
+                cafe['business_hour'] = info.get('business_hour', '')    
+            
             return json.dumps({
                 "status": "success",
                 "count": len(cafe_list),
