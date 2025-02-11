@@ -65,8 +65,6 @@ def cafe_list_crawler(query):
             EC.visibility_of_all_elements_located((By.CSS_SELECTOR, "li._lazyImgContainer")))
                 
         for spot in spots:
-            # if len(spots_info) >= 15:  # 15개까지만 수집
-            #     break
             place_id = spot.get_attribute("data-id")
             map_url = f"https://m.place.naver.com/restaurant/{place_id}/location?filter=location&selected_place_id={place_id}"
             url = f"https://m.place.naver.com/restaurant/{place_id}/home"
@@ -170,7 +168,7 @@ async def fetch_business(session, place_id):
                          
 class QuerySchema(BaseModel):
     query: str = Field(
-        ..., description="여행 지역, 취향 등 조건이 포함된 카페 검색어"
+        ..., description="여행 지역 + 카페"
     )
     
 class GetCafeListTool(BaseTool):
@@ -208,31 +206,17 @@ class GetCafeListTool(BaseTool):
     def _run(self, query: str) -> str:
         try:
             cafe_list = cafe_list_crawler(query)
+
+            reviews = self._loop.run_until_complete(self._collect_reviews(cafe_list))
             
-            if not cafe_list:
-                return json.dumps({
-                    "status": "no_results",
-                    "message": "검색 결과가 없습니다."
-                })
+            for cafe, review in zip(cafe_list, reviews):
+                cafe['reviews'] = review.get('reviews', [])
 
-            try:
-                reviews = self._loop.run_until_complete(self._collect_reviews(cafe_list))
-                
-                for cafe, review in zip(cafe_list, reviews):
-                    cafe['reviews'] = review.get('reviews', [])
-
-                return json.dumps({
-                    "status": "success",
-                    "count": len(cafe_list),
-                    "cafe_list": cafe_list
-                }, ensure_ascii=False)
-
-            except Exception as e:
-                print(f"Review collection error: {e}")
-                return json.dumps({
-                    "status": "error",
-                    "message": str(e)
-                })
+            return json.dumps({
+                "status": "success",
+                "count": len(cafe_list),
+                "cafe_list": cafe_list
+            }, ensure_ascii=False)
 
         except Exception as e:
             print(f"Execution error: {e}")
