@@ -15,6 +15,7 @@ class UserInputData(BaseModel):
     adults: int
     children: int
     keyword: List[str]
+    prompt : str  = None   #프롬프트는 수정에서만 사용
   
 
 @router.post("/accommodations")
@@ -31,10 +32,15 @@ async def get_accommodations(user_input: UserInputData):
             age_group=user_input.age_group,
             adults=user_input.adults,
             children=user_input.children,
-            keyword=user_input.keyword
+            keyword=user_input.keyword,
+            prompt =user_input.prompt
         )
 
-        return {crew_output}
+        # json 문자열을 객체로 변환
+        parsed_output = json.loads(crew_output)
+        
+        
+        return {"result": parsed_output}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"[숙소 추천 API] 에러: {str(e)}")

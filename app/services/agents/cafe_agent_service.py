@@ -121,9 +121,10 @@ async def cafe_agent(user_input, user_prompt=""):
 
         # 실행
         try:
-            result = crew.kickoff(inputs=user_input)
-            print(result)
-            return result
+            crew.kickoff(inputs=user_input)
+            final_pydantic_output = checker_task.output_pydantic
+            final_dict = final_pydantic_output.model_dump()
+            return final_dict
         except Exception as e:
             print(f"Error during execution: {e}")
 
