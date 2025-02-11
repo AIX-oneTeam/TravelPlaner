@@ -1,12 +1,10 @@
-import json
 import os
 from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
-from crewai.tools import BaseTool
 from app.dtos.spot_models import spots_pydantic, calculate_trip_days
 from datetime import datetime
 from app.utils.time_check import time_check
-from app.services.agents.tools.all_schedule_agent_tool import KakaoMapRouteTool
+from app.services.agents.tools.all_schedule_agent_tool import HaversineRouteOptimizer
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -27,7 +25,7 @@ class TravelScheduleAgentService:
     def initialize(self):
         print("TravelScheduleAgentService 초기화 중...")
         self.llm = llm
-        self.route_tool = KakaoMapRouteTool()
+        self.route_tool = HaversineRouteOptimizer()
         
         self.planner = Agent(
             role="여행 일정 최적화 플래너",
