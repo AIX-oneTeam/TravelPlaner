@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-import asyncio
-from app.services.agents.site_agent import create_tourist_plan
+from app.services.agents.site_agent_service import TravelPlanAgentService
 
 router = APIRouter()
 
@@ -20,12 +19,12 @@ async def get_site_plan(request: Request):
         if prompt:
             plan_data["prompt"] = prompt
 
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, create_tourist_plan, plan_data)
+        travel_service = TravelPlanAgentService()
+        result = await travel_service.create_tourist_plan(plan_data)
         return {
             "status": "success",
             "message": "관광지 추천 결과가 생성되었습니다.",
-            "data": result.dict(),  # Pydantic 모델을 dict로 변환하여 반환
+            "data": result,  # 이미 dict 또는 JSON 직렬화 가능한 형태라고 가정
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
