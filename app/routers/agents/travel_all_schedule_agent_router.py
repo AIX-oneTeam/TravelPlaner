@@ -2,16 +2,14 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from app.services.agents.travel_all_schedule_agent_service import create_plan
-
+from app.services.agents.travel_all_schedule_agent_service import TravelScheduleAgentService
 from app.services.agents.site_agent_service import TravelPlanAgentService
-
-
 from app.services.agents.accommodation_agent_4 import run
 from app.services.agents.cafe_agent_service import CafeAgentService
 from app.services.agents.restaurant_agent_service import RestaurantAgentService
-
 router = APIRouter()
+
+travel_schedule_agent_service=TravelScheduleAgentService()
 
 class Companion(BaseModel):
     label: str
@@ -62,7 +60,7 @@ async def generate_plan(
         print("집계된 external_data:", external_data)
 
         # 최종 여행 일정 생성 함수 호출 (외부 데이터가 포함된 상태)
-        result = await create_plan(input_dict)
+        result = await travel_schedule_agent_service.create_plan(input_dict)
 
         return {
             "status": "success",
