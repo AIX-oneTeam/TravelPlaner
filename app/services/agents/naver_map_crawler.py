@@ -7,7 +7,6 @@ import asyncio
 import aiohttp       
 import emoji
 from crewai.tools import BaseTool
-from typing import Any
 import json
 from crewai.tools import BaseTool
 from typing import Type
@@ -63,7 +62,7 @@ def cafe_list_crawler(query):
             # 테스트 : https://m.place.naver.com/restaurant/1932943275/location?reviewSort=recent&filter=location&selected_place_id=1932943275
 
             spot_info = {
-                "place_id": place_id,
+                "place_id": str(place_id),
                 "kor_name": spot.get_attribute("data-title"),
                 "address": spot.find_element(By.CLASS_NAME, "item_address").text.strip().replace("주소보기\n", ""),
                 "url": url,
@@ -106,15 +105,52 @@ async def fetch_review(session, place_id):
             "reviews": reviews_list
         }
 
+async def fetch_business(session, place_id):
+    """
+    비동기 정보 스크래퍼. 네이버 지도에서 카페를 정적 크롤링을 통해 검색하고 정보를 가져오는 도구.
+    """
+
+    url = f"https://m.place.naver.com/restaurant/{place_id}/home"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+        "Referer": "https://m.place.naver.com/"
+    }
+    
+    async with session.get(url, headers=headers) as response:
+        if response.status != 200:
+            print(f"{place_id} 요청 실패: {response.status}")
+            return {"place_id": place_id, "reviews": []}
+
+        html = await response.text()
+        soup = BeautifulSoup(html, "html.parser")
+        
+        try:
+            div_tag = soup.find("div", class_="jO09N")
+            a_tag = div_tag.find("a") if div_tag else None
+            url = a_tag["href"] if a_tag else "정보 없음"
+
+            business_span = soup.find("span", class_="U7pYf")
+            business_hour = business_span.find("span").text if business_span and business_span.find("span") else "정보 없음"
+
+        except Exception as e:
+            print(f"Parsing error: {e}")
+            url = "정보 없음"
+            business_hour = "정보 없음"
+        
+        return {
+            "place_id": place_id,
+            "url": url,
+            "business_hour": business_hour
+        }
                          
 class QuerySchema(BaseModel):
     query: str = Field(
         ..., description="여행 지역, 취향 등 조건이 포함된 카페 검색어"
     )
     
-class GetCafeInfoTool(BaseTool):
+class GetCafeListTool(BaseTool):
     """네이버 크롤링을 통해 카페 정보 수집"""
-    name: str = "Cafe Information Tool"
+    name: str = "Cafe List and Information Tool"
     description: str = """
     네이버 지도에서 카페를 검색하고 정보를 가져오는 도구입니다.
     검색이 완료되면 카페 목록을 반환하고 작업을 종료합니다.
@@ -191,7 +227,6 @@ class GetCafeInfoTool(BaseTool):
             
         reviews = await self._collect_reviews([cafe['place_id'] for cafe in cafe_list])
 
-
         for cafe in cafe_list:
             cafe_reviews = next((r for r in reviews if r['place_id'] == cafe['place_id']), None)
             if cafe_reviews:
@@ -199,6 +234,69 @@ class GetCafeInfoTool(BaseTool):
             else:
                 cafe['reviews'] = []
 
-        return json.dumps(cafe_list, ensure_ascii=False)
-
+        return json.dumps({
+            "status": "success",
+            "count": len(cafe_list),
+            "cafe_list": cafe_list
+        }, ensure_ascii=False)
+                         
+class PlaceIdListSchema(BaseModel):
+    place_id_list: list[str]
     
+class GetCafeBusinessTool(BaseTool):
+    """네이버 크롤링을 통해 카페 운영 정보, 웹사이트 수집"""
+    name: str = "Cafe Business Information Tool"
+    description: str = """
+    네이버 지도에서 카페를 검색하고 운영 정보와 웹사이트를 수집하는 도구입니다.
+    검색이 완료되면 카페 목록을 반환하고 작업을 종료합니다.
+    한 번의 검색으로 충분한 정보를 제공합니다.
+    """
+    args_schema: Type[BaseModel] = PlaceIdListSchema
+    _loop = None
+    
+    def __init__(self):
+        super().__init__()
+        if self._loop is None:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+    
+    # 리소스 정리        
+    def __del__(self):
+        if self._loop and not self._loop.is_closed():
+            self._loop.close()
+
+    async def _collect_business(self, place_id_list):
+        async with aiohttp.ClientSession() as session:
+            tasks = [fetch_business(session, place_id) for place_id in place_id_list]
+            return await asyncio.gather(*tasks)
+        
+    def _run(self, place_id_list: list) -> str:
+        """동기 실행을 위한 메서드"""
+        try:
+            business_info = self._loop.run_until_complete(self._collect_business(place_id_list))
+
+            return json.dumps({
+                "cafe_business_info": business_info
+            }, ensure_ascii=False)
+
+        except Exception as e:
+            print(f"Review collection error: {e}")
+            return json.dumps({
+                "status": "error",
+                "message": str(e)
+            })
+             
+    async def _arun(self, place_id_list: list) -> str:
+        """비동기 실행을 위한 메서드"""
+        try:
+            business_info = await self._collect_business(place_id_list)
+            return json.dumps({
+                "cafe_business_info": business_info
+            }, ensure_ascii=False)
+       
+        except Exception as e:
+            print(f"Review collection error: {e}")
+            return json.dumps({
+                "status": "error",
+                "message": str(e)
+            })

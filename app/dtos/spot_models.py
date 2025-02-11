@@ -20,7 +20,6 @@ class spot_pydantic(BaseModel):
     day_x: int
     spot_time: str = None
 
-
 class spots_pydantic(BaseModel):
     spots: list[spot_pydantic]
 
