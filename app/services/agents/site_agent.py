@@ -323,7 +323,7 @@ def create_tourist_plan(user_input: dict):
             spots_list.append(spot)
 
         site_response = spots_pydantic(spots=spots_list)
-        return site_response
+        return site_response.model_dump()
 
     except Exception as e:
         print(f"[ERROR] {e}")

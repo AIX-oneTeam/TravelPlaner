@@ -227,14 +227,14 @@ async def create_plan(user_input: dict):
 
         context_tasks = []
         if "site" in selected:
-            site_result = create_tourist_plan(user_input)
+            site_result =  create_tourist_plan(user_input)
             context_tasks.append({
                 "site_result": serialize_service_result(site_result),
                 "description": "Tourist site recommendations",
                 "expected_output": json.dumps(serialize_service_result(site_result), ensure_ascii=False)
             })
         if "accommodation" in selected:
-            accomodation_result = run_accommodation(user_input)
+            accomodation_result =  run_accommodation(user_input)
             context_tasks.append({
                 "accomodation_result": serialize_service_result(accomodation_result),
                 "description": "Accommodation recommendations",
@@ -248,7 +248,7 @@ async def create_plan(user_input: dict):
                 "expected_output": json.dumps(serialize_service_result(cafe_result), ensure_ascii=False)
             })
         if "restaurant" in selected:
-            recommendation_result = create_recommendation(user_input)
+            recommendation_result = await create_recommendation(user_input)
             context_tasks.append({
                 "recommendation_result": serialize_service_result(recommendation_result),
                 "description": "recommendation",
