@@ -8,23 +8,6 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-class CafeReasearcherOutput(BaseModel):
-    rank: int 
-    reason: str 
-    place_id: str
-    kor_name: str
-    description: str 
-    address: str 
-    url: str 
-    image_url: str 
-    map_url: str 
-    latitude: float 
-    longitude: float 
-    phone_number: str
-    
-class CafeReasearcherOutputList(BaseModel):
-    cafe_list: list[CafeReasearcherOutput]
         
 class CafeAgentService:
     """
@@ -92,43 +75,46 @@ class CafeAgentService:
         # 태스크 정의(user_input에 다라 값이 바뀌므로 __init__밖에 설정)
         researcher_task = Task(
             description="""
-            고객이 최고의 여행을 할 수 있도록 고객의 상황과 취향에 맞는 카페를 고르기 위해 카페를 조사하고 최종적으로 고객의 needs를 만족하는 {n}개의 카페 정보를 반환해주세요.
-            tool 사용시 검색어는 "{main_location} 카페"를 입력해주세요
+            주요 목표:
+            - {main_location} 지역의 카페 {n}개 선정
+            - 고객 선호도: {concepts}
+            - 특별 요구사항: {user_prompt}
+            - 주 연령대: {ages}
 
-            tool output을 참고하여 카페의 특징을 분석하고 description을 작성해주세요
-            description에는 카페의 리뷰를 분석해 사람들이 공통적으로 좋아했던 카페의 주요 특징과 메뉴 이름을 포함해 간략히 적어주세요.
-            description에는 절대 나이, 연령대에 대한 언급을 하지마세요.
+            분석 요구사항:
+            1. 카페 특징 분석
+            2. 주요 메뉴 확인
+            3. 긍정적 리뷰 중심 분석
             
-            카페는 반드시 고객의 여행 지역인 {main_location}에 위치해야하고, 폐업 또는 휴업하지 않은 카페여야합니다. 
-            고객의 선호도({concepts})와 요구사항({user_prompt})에 "프랜차이즈"가 포함되지 않는 경우, 프랜차이즈 카페는 제외해주세요.
-            프랜차이즈 카페 : 스타벅스, 투썸플레이스, 이디야, 빽다방, 메가커피 등 전국에 매장이 5개 이상인 커피 전문점 
- 
-            {n}개의 카페를 선정시 고객의 요구사항({user_prompt}), 여행 컨셉({concepts}), 주 연령대({ages})를 우선적으로 반영해주세요.    
-            부정적인 의견이 있으면 선택하지 마세요.
-            rank에는 추천 우선 순위를 적어주세요.
-            reason에는 해당 우선순위를 준 이유와, 다른 카페들을 선택하지 않고, 해당 카페를 선택한 이유를 적어주세요. 
-            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
+            tool 사용시 "{main_location} 카페"로 검색
+            반드시 서로 다른 이름의 {n}개의 카페를 반환해주세요.
+            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요.
             """,
             expected_output="""
-            반드시 서로 다른 이름의 {n}개의 카페를 반환해주세요.
+            다음과 같은 형식으로 데이터를 반환하세요.
+            rank: "추천 우선순위" 
+            reason: "해당 우선순위를 정한 이유, 다른 카페들보다 추천하는 이유"
+            place_id: "네이버 place_id"
+            kor_name: "카페 이름"
+            description: "카페 주요 특징 및 시그니처 메뉴"
+            address: "주소"
+            url: "홈페이지 주소"
+            image_url: "이미지 주소" 
+            map_url: "지도 주소"
+            latitude: "위도" 
+            longitude: "경도" 
+            phone_number: "전화번호"
             """,        
-            agent=self.researcher,
-            output_json=CafeReasearcherOutputList,
+            agent=self.researcher
         )
 
         checker_task = Task(
             description="""
             researcher가 반환한 카페들의 정보에 추가로 운영시간, 웹사이트 정보를 수집하고 수정해주세요.
-            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
             tool 사용시 입력값은 researcher가 반환한 카페들의 place_id들을 묶어 list형태로 변환해 입력해주세요.
             """,
             expected_output="""
-            반드시 서로 다른 이름의 {n}개의 카페를 반환해주세요.  
-            다음 4가지 필드는 항상 해당 값으로 고정해주세요
-            spot_category: 3
-            order: 0
-            day_x: 0
-            spot_time: null 
+            모르는 정보는 지어내지 말고 "정보 없음"으로 작성하세요. 
             """,
             context=[researcher_task],
             output_json=spots_pydantic,
