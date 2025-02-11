@@ -3,10 +3,13 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.services.agents.travel_all_schedule_agent_service import create_plan
+
 from app.services.agents.site_agent_service import TravelPlanAgentService
-from app.services.agents.restaurant_agent_service import create_recommendation
+
+
 from app.services.agents.accommodation_agent_4 import run
 from app.services.agents.cafe_agent_service import CafeAgentService
+from app.services.agents.restaurant_agent_service import RestaurantAgentService
 
 router = APIRouter()
 
@@ -39,7 +42,10 @@ async def generate_plan(
         external_data = {}
         if "restaurant" in agent_type:
             # 맛집 에이전트 호출 (동기 또는 비동기 여부에 따라 처리)
-            external_data["restaurant"] = create_recommendation(input_dict)
+            restaurant_service=RestaurantAgentService()
+            external_data["restaurant"] = await restaurant_service.create_recommendation(
+                input_dict
+            )
         if "site" in agent_type:
             site_agent_service = TravelPlanAgentService()
             external_data["site"] = await site_agent_service.create_tourist_plan(

@@ -5,12 +5,15 @@ from typing import Optional
 
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
-    eng_name: Optional[str] = Field(default=None, max_length=255)
-    address: str = Field(max_length=255)
 
-    url: Optional[str] = Field(default=None, max_length=2083)
+    eng_name: str = Field(default=None, max_length=255)
+    description: str = Field(max_length=255)
+    address: str = Field(max_length=255)
+    url: str = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
+    latitude: float = None
+    longitude: float = None
 
     spot_category: int
     phone_number: Optional[str] = Field(default=None, max_length=300)  # Optional로 변경
@@ -18,9 +21,11 @@ class spot_pydantic(BaseModel):
     business_hours: Optional[str] = Field(default=None, max_length=255)
     order: int
     day_x: int
+
     spot_time: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
 
 
 class spots_pydantic(BaseModel):
