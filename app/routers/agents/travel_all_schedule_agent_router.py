@@ -7,10 +7,9 @@ from app.services.agents.site_agent_service import TravelPlanAgentService
 from app.services.agents.accommodation_agent_4 import run
 from app.services.agents.cafe_agent_service import CafeAgentService
 from app.services.agents.restaurant_agent_service import RestaurantAgentService
-
 router = APIRouter()
 
-travel_schedule_agent_service = TravelScheduleAgentService()
+travel_schedule_agent_service=TravelScheduleAgentService()
 
 class Companion(BaseModel):
     label: str
