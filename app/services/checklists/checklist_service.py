@@ -7,11 +7,11 @@ from sqlmodel import Session
 async def save_checklist(checklist_items: List[ChecklistCreate], session: Session):
     try:
         saved_checklist_items = save_checklist_item(checklist_items, session)
-        return [ChecklistResponse.model_validate(item) for item in saved_checklist_items]
+        return [ChecklistResponse.model_validate(item.dict()) for item in saved_checklist_items]
     except Exception as e:
         print(f"Error in save_checklist service: {e}")
 
-#읽기 서비스 
+#읽기 서비스 g
 async def read_checklist(plan_id : int, session:Session):
     try: 
         got_checklist = read_checklist_item(plan_id, session)
