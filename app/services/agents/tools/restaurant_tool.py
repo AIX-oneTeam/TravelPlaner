@@ -4,6 +4,7 @@ from crewai.tools import BaseTool
 from typing import List, Dict
 from dotenv import load_dotenv
 import os
+import re
 
 # 환경 변수 로드
 load_dotenv()
@@ -11,6 +12,30 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
+
+
+def clean_query(query: str) -> str:
+    """
+    입력 문자열이 여러 줄일 경우, 각 줄에 대해
+    1. 파이프(|) 이후 내용 제거
+    2. 괄호와 괄호 안의 내용 제거
+    3. 한글, 영어, 숫자, 공백, 하이픈(-)만 남기고 나머지 제거
+    4. 앞뒤 공백 제거
+    를 수행하고, 각 줄의 결과를 하나의 문자열로 반환합니다.
+    """
+    clean_lines = []
+    for line in query.splitlines():
+        # 1. 파이프(|)가 있는 경우, 파이프와 그 이후의 모든 내용을 제거합니다.
+        line = line.split("|")[0]
+        # 2. 괄호 ()와 그 안의 내용을 모두 제거합니다.
+        line = re.sub(r"\([^)]*\)", "", line)
+        # 3. 한글(가-힣), 영어(a-z, A-Z), 숫자(0-9), 공백(\s), 하이픈(-) 외의 모든 문자를 제거합니다.
+        line = re.sub(r"[^\uAC00-\uD7A3a-zA-Z0-9\s\-]", "", line)
+        # 4. 양쪽 공백 제거
+        line = line.strip()
+        if line:
+            clean_lines.append(line)
+    return " ".join(clean_lines)
 
 # 1. Google Geocoding API를 사용하여 좌표를 조회하는 Tool
 class GeocodingTool(BaseTool):
@@ -151,7 +176,11 @@ class NaverWebSearchTool(BaseTool):
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
+
+        # 입력 문자열을 clean_query 함수를 통해 정리합니다.
+        query = clean_query(query)
         print(f"[네이버 세부정부 검색어]: {query}")
+
         params = {
             "query": query,
             "display": 3,
@@ -206,7 +235,10 @@ class NaverImageSearchTool(BaseTool):
             "X-Naver-Client-Id": AGENT_NAVER_CLIENT_ID,
             "X-Naver-Client-Secret": AGENT_NAVER_CLIENT_SECRET,
         }
+
+        query = clean_query(query)
         print(f"[네이버 이미지 검색어]: {query}")
+
         params = {
             "query": query,
             "display": 5,
