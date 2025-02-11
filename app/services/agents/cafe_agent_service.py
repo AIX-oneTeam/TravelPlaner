@@ -1,11 +1,11 @@
 from typing import List
 from crewai import Agent, Task, Crew, LLM, Process
+from app.dtos.spot_models import spots_pydantic,calculate_trip_days
 from app.services.agents.naver_map_crawler import GetCafeListTool, GetCafeBusinessTool
 from app.services.agents.travel_all_schedule_agent_service import spots_pydantic, calculate_trip_days
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
-from typing import Literal
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -51,7 +51,7 @@ class CafeAgentService:
         self.get_cafe_list_tool = GetCafeListTool()
         self.get_cafe_business_tool = GetCafeBusinessTool()
 
-        # 에이전트 정의(재사용)
+        # 에이전트 정의
         self.researcher = Agent(
             role="카페 정보 검색 및 분석 전문가",
             goal="고객 선호도를 분석해 최적의 카페를 찾을 수 있는 검색어를 추출하고, 정보 수집 후 각 카페의 주요 특징 분석",
@@ -60,7 +60,7 @@ class CafeAgentService:
             """,
             tools=[self.get_cafe_list_tool],
             allow_delegation=False,
-            max_iter=2,
+            max_iter=1,
             llm=self.llm,
             verbose=True,
             stop_on_failure=True
@@ -70,7 +70,7 @@ class CafeAgentService:
         role="카페 검증 전문가",
         goal="researcher가 분석한 데이터를 기반으로 정보를 수집하고 입력하세요.",
         backstory="resercher가 준 카페리스트를 토대로 정확한 정보를 찾아주세요",
-        max_iter=2,
+        max_iter=1,
         allow_delegation=False,
         tools=[self.get_cafe_business_tool],
         llm=self.llm,

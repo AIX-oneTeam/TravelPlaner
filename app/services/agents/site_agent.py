@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from app.services.agents.travel_all_schedule_agent_service import spots_pydantic
+
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -55,8 +57,6 @@ class spot_pydantic(BaseModel):
     day_x: int
     spot_time: Optional[str] = None
 
-class spots_pydantic(BaseModel):
-    spots: List[spot_pydantic]
 
 # ──────────────────────────────
 # 헬퍼 함수 및 API 도구 (네이버 웹/이미지 검색 등)
@@ -319,7 +319,7 @@ def create_tourist_plan(user_input: dict):
             spots_list.append(spot)
 
         site_response = spots_pydantic(spots=spots_list)
-        return site_response
+        return site_response.model_dump()
 
     except Exception as e:
         print(f"[ERROR] {e}")
