@@ -51,9 +51,10 @@ CREATE TABLE `spot_tag` (
 -- 연결 테이블
 
 CREATE TABLE `checklist` (
-    `plan_id` INT NOT NULL PRIMARY KEY,
-    `item` VARCHAR(255) NULL,
-    `state` BOOL NULL,
+    `id`INT NOT NULL PRIMARY KEY,
+    `plan_id` INT NOT NULL,
+    `text` VARCHAR(255) NULL,
+    `checked` BOOL NULL,
     CONSTRAINT `FK_checklist_plan_id` FOREIGN KEY (`plan_id`) REFERENCES `plan` (`id`)
 );
 
