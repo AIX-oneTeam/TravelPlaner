@@ -1,19 +1,11 @@
 from fastapi import APIRouter, HTTPException, Query, Body
-from pydantic import BaseModel
-from typing import List, Optional
-from app.services.agents.restaurant_agent_service import (
-    create_recommendation,
-)
+from typing import Optional
 from app.routers.agents.travel_all_schedule_agent_router import TravelPlanRequest
+from app.services.agents.restaurant_agent_service import RestaurantAgentService
 
 router = APIRouter()
 
-
-# Pydantic 모델 정의 (prompt 포함)
-class Companion(BaseModel):
-    label: str
-    count: int
-
+restaurant_service = RestaurantAgentService()
 
 @router.post("/restaurant")
 async def get_restaurants(
@@ -24,18 +16,15 @@ async def get_restaurants(
     맛집 추천 엔드포인트
     """
     try:
-        # `model_dump()`로 변환
-        user_data = user_input.model_dump()
+        # model_dump()를 사용하여 입력 데이터를 dict 형태로 변환
+        input_data = user_input.model_dump()
 
         # prompt 값이 있을 경우, 딕셔너리에 추가 (user_input에는 직접 할당 불가)
         if prompt:
-            user_data["prompt"] = prompt
+            input_data["prompt"] = prompt
 
-        print("프론트에서 받은 데이터:", user_data)
-
-        # create_recommendation 호출 (에러 핸들링 추가)
         try:
-            result = create_recommendation(user_data, prompt)
+            result = await restaurant_service.create_recommendation(input_data, prompt)
         except Exception as e:
             print(f"[ERROR] create_recommendation() 오류 발생: {e}")
             raise HTTPException(status_code=500, detail="추천 생성 중 오류 발생")

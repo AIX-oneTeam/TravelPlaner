@@ -5,13 +5,13 @@ from datetime import datetime
 class spot_pydantic(BaseModel):
     kor_name: str = Field(max_length=255)
     eng_name: str = Field(default=None, max_length=255)
+    description: str = Field(max_length=255)
     address: str = Field(max_length=255)
-    zip: str = Field(max_length=10)
     url: str = Field(default=None, max_length=2083)
     image_url: str = Field(max_length=2083)
     map_url: str = Field(max_length=2083)
-    likes: int = None
-    satisfaction: float = None
+    latitude: float = None
+    longitude: float = None
     spot_category: int
     phone_number: str = Field(default=None, max_length=300)
     business_status: bool = None
@@ -19,13 +19,10 @@ class spot_pydantic(BaseModel):
     order: int
     day_x: int
     spot_time: str = None
-    latitude: float = None  
-    longitude: float = None  
-    distance_from_prev: float = None  
+
 
 class spots_pydantic(BaseModel):
     spots: list[spot_pydantic]
-
 
 
 def calculate_trip_days(start_date_str: str, end_date_str: str) -> int:
