@@ -88,7 +88,7 @@ class RestaurantAgentService:
             "restaurant_search": Agent(
                 role="맛집 기본 조회 전문가",
                 goal="좌표 정보를 활용하여 식당의 기본 정보를 조회한다.",
-                backstory="나는 맛집 데이터 분석 전문가로, Google Maps API를 사용하여 특정 위치의 식당 정보를 최대 40개까지 조회한다.",
+                backstory="나는 맛집 데이터 분석 전문가로, Google Maps API를 사용하여 특정 위치의 식당 정보를 조회한다.",
                 tools=[self.restaurant_search_tool],
                 llm=self.llm,
                 verbose=True,
@@ -152,7 +152,6 @@ class RestaurantAgentService:
                     "map_url": "string (map_url, 최대 2083자)",
                     "latitude": "number (위도)",
                     "longitude": "number (경도)",
-                    "spot_category": "2",
                     "phone_number": "string 또는 null (전화번호, 최대 300자)",
                     "business_status": "string 또는 null (영업 상태)",
                     "business_hours": "string 또는 null (영업시간, 최대 255자)"

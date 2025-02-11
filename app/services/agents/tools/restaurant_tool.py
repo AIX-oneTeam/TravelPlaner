@@ -13,6 +13,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
+KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
 
 
 def clean_query(query: str) -> str:
@@ -53,7 +54,6 @@ async def check_url_openable_async(url: str) -> bool:
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             response = await client.head(url, follow_redirects=True)
-            # 상태 코드가 200 이상 400 미만인지 확인
             if 200 <= response.status_code < 400:
                 return True
             else:
@@ -116,8 +116,8 @@ class RestaurantBasicSearchTool(BaseTool):
                     "title": result.get("name"),
                     "rating": result.get("rating", 0),
                     "reviews": result.get("user_ratings_total", 0),
-                    "latitude": result["geometry"]["location"]["lat"],
-                    "longitude": result["geometry"]["location"]["lng"],
+                    # "latitude": result["geometry"]["location"]["lat"],
+                    # "longitude": result["geometry"]["location"]["lng"],
                 }
         except Exception as e:
             print(f"[RestaurantBasicSearchTool] Details Error: {e}")
