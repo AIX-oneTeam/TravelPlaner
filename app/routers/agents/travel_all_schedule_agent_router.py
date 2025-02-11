@@ -1,15 +1,18 @@
-# app/routers/agents/travel_all_schedule_agent_router.py
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional
+import asyncio
+
+# 서비스 클래스 임포트
 from app.services.agents.travel_all_schedule_agent_service import TravelScheduleAgentService
 from app.services.agents.site_agent_service import TravelPlanAgentService
 from app.services.agents.accommodation_agent_4 import run
 from app.services.agents.cafe_agent_service import CafeAgentService
 from app.services.agents.restaurant_agent_service import RestaurantAgentService
+
 router = APIRouter()
 
-travel_schedule_agent_service=TravelScheduleAgentService()
+travel_schedule_agent_service = TravelScheduleAgentService()
 
 class Companion(BaseModel):
     label: str
@@ -36,26 +39,27 @@ async def generate_plan(
         input_dict = user_input.model_dump()
         input_dict["agent_type"] = agent_type
 
+        # 비동기 작업 딕셔너리 생성
+        tasks = {}
+
         # 각 외부 에이전트 호출 및 결과 집계
-        external_data = {}
         if "restaurant" in agent_type:
-            # 맛집 에이전트 호출 (동기 또는 비동기 여부에 따라 처리)
-            restaurant_service=RestaurantAgentService()
-            external_data["restaurant"] = await restaurant_service.create_recommendation(
-                input_dict
-            )
+            restaurant_service = RestaurantAgentService()
+            tasks["restaurant"] = restaurant_service.create_recommendation(input_dict)
         if "site" in agent_type:
             site_agent_service = TravelPlanAgentService()
-            external_data["site"] = await site_agent_service.create_tourist_plan(
-                input_dict
-            )
+            tasks["site"] = site_agent_service.create_tourist_plan(input_dict)
         if "cafe" in agent_type:
             cafe_agent_service = CafeAgentService()
-            external_data["cafe"] = await cafe_agent_service.cafe_agent(input_dict)
+            tasks["cafe"] = cafe_agent_service.cafe_agent(input_dict)
         if "accommodation" in agent_type:
-            external_data["accommodation"] = run(input_dict)
+            tasks["accommodation"] = run(input_dict)
 
-        # 집계한 외부 데이터를 입력 데이터에 추가합니다.
+        # 비동기 작업 병렬 실행 및 결과 매핑
+        results = await asyncio.gather(*tasks.values())
+        external_data = dict(zip(tasks.keys(), results))
+
+        # 집계한 external_data를 입력 데이터에 추가합니다.
         input_dict["external_data"] = external_data
         print("집계된 external_data:", external_data)
 

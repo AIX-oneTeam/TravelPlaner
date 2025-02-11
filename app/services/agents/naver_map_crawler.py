@@ -212,6 +212,12 @@ class GetCafeListTool(BaseTool):
             for cafe, review in zip(cafe_list, reviews):
                 cafe['reviews'] = review.get('reviews', [])
 
+            business_info = self._loop.run_until_complete(self._collect_business_info(cafe_list))
+            
+            for cafe, info in zip(cafe_list, business_info):
+                cafe['url'] = info.get('url', '')
+                cafe['business_hour'] = info.get('business_hour', '')    
+            
             return json.dumps({
                 "status": "success",
                 "count": len(cafe_list),
@@ -224,49 +230,3 @@ class GetCafeListTool(BaseTool):
                 "status": "error",
                 "message": str(e)
             })        
-                         
-class PlaceIdListSchema(BaseModel):
-    place_id_list: list[str]
-    
-class GetCafeBusinessTool(BaseTool):
-    """네이버 크롤링을 통해 카페 운영 정보, 웹사이트 수집"""
-    name: str = "Cafe Business Information Tool"
-    description: str = """
-    네이버 지도에서 카페를 검색하고 운영 정보와 웹사이트를 수집하는 도구입니다.
-    검색이 완료되면 카페 목록을 반환하고 작업을 종료합니다.
-    한 번의 검색으로 충분한 정보를 제공합니다.
-    """
-    args_schema: Type[BaseModel] = PlaceIdListSchema
-    _loop = None
-    
-    def __init__(self):
-        super().__init__()
-        if self._loop is None:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-    
-    # 리소스 정리        
-    def __del__(self):
-        if self._loop and not self._loop.is_closed():
-            self._loop.close()
-
-    async def _collect_business(self, place_id_list):
-        async with aiohttp.ClientSession() as session:
-            tasks = [fetch_business(session, place_id) for place_id in place_id_list]
-            return await asyncio.gather(*tasks)
-        
-    def _run(self, place_id_list: list) -> str:
-        try:
-            business_info = self._loop.run_until_complete(self._collect_business(place_id_list))
-
-            return json.dumps({
-                "cafe_business_info": business_info
-            }, ensure_ascii=False)
-
-        except Exception as e:
-            print(f"Review collection error: {e}")
-            return json.dumps({
-                "status": "error",
-                "message": str(e)
-            })
-             
