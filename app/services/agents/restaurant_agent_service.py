@@ -7,10 +7,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, LLM
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
-from sqlalchemy import Column, Double
 from typing import List, Dict, Optional
 from fastapi import HTTPException
+from app.dtos.spot_models import spots_pydantic
 
 # 환경 변수 로드
 load_dotenv()
@@ -20,31 +19,6 @@ AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
 
 llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
-
-
-# ------------------------- Pydantic Models -------------------------
-class spot_pydantic(BaseModel):
-    kor_name: str = Field(max_length=255)
-    eng_name: Optional[str] = Field(default=None, max_length=255)
-    description: str = Field(max_length=255)
-    address: str = Field(max_length=255)
-    url: Optional[str] = Field(default=None, max_length=2083)
-    image_url: str = Field(max_length=2083)
-    map_url: str = Field(max_length=2083)
-    latitude: float = Field(...)
-    longitude: float = Field(...)
-    spot_category: int
-    phone_number: Optional[str] = Field(default=None, max_length=300)
-    business_status: Optional[bool] = None
-    business_hours: Optional[str] = Field(default=None, max_length=255)
-    order: int
-    day_x: int
-    spot_time: Optional[str] = None
-
-
-class spots_pydantic(BaseModel):
-    spots: List[spot_pydantic]
-
 
 # ------------------------- 비동기 Tool 클래스 -------------------------
 # 1. Google Geocoding API를 사용하여 좌표를 조회하는 Tool
@@ -75,7 +49,6 @@ class GeocodingTool(BaseTool):
         return asyncio.run(self._arun(location))
 
 
-# 2. Google Places API를 사용해 맛집 기본 정보를 조회하는 Tool
 # 2. Google Places API를 사용해 맛집 기본 정보를 조회하는 Tool
 class RestaurantBasicSearchTool(BaseTool):
     name: str = "RestaurantBasicSearchTool"
@@ -273,8 +246,34 @@ class NaverImageSearchTool(BaseTool):
         return asyncio.run(self._arun(restaurant_list))
 
 
-async def create_recommendation(input_data: dict, prompt: Optional[str] = None) -> dict:
-    try:
+# ------------------------- Restaurant Agent Service -------------------------
+class RestaurantAgentService:
+    """식당 추천을 위한 Agent 서비스"""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(RestaurantAgentService, cls).__new__(cls)
+            cls._instance.initialize()
+        return cls._instance
+
+    def initialize(self):
+        """서비스 초기화"""
+        self.llm = LLM(model="gpt-4o", temperature=0, api_key=OPENAI_API_KEY)
+        # Tools 초기화
+        self.tools = {
+            "geocoding": GeocodingTool(),
+            "restaurant_search": RestaurantBasicSearchTool(),
+            "web_search": NaverWebSearchTool(),
+            "image_search": NaverImageSearchTool(),
+        }
+        self.agents = self._create_agents()
+
+    def _process_input(
+        self, input_data: dict, prompt: Optional[str] = None
+    ) -> tuple[dict, str]:
+        """입력 데이터 전처리"""
         print(f"[입력 데이터] input_data: {input_data}")
         print(f"[프롬프트 입력] prompt: {prompt}")
 
@@ -296,67 +295,74 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
             filtered_concepts = ["맛집"]
         print(f"[컨셉 필터링] filtered_concepts: {filtered_concepts}")
 
+        input_data["concepts"] = filtered_concepts
         prompt_text = (
             f'추가 참고: "{prompt}" 도 참고하여 추천해주세요.\n' if prompt else ""
         )
 
-        # 에이전트들을 단일 async def 내부에서 모두 생성
-        geocoding_agent = Agent(
-            role="좌표 조회 전문가",
-            goal="사용자가 입력한 location(예: '부산광역시')의 위도와 경도를 조회하며, location 값은 그대로 유지한다.",
-            backstory="나는 위치 데이터 전문가로, 입력된 location 값을 변경하지 않고 Google Geocoding API를 통해 좌표를 조회한다.",
-            tools=[GeocodingTool()],
-            llm=llm,
-            verbose=True,
-            async_execution=True,
-        )
-        restaurant_basic_search_agent = Agent(
-            role="맛집 기본 조회 전문가",
-            goal="좌표 정보를 활용하여 식당의 기본 정보(구글맵의 title, rating, reviews, 위도, 경도)를 조회한다.",
-            backstory="나는 맛집 데이터 분석 전문가로, Google Maps API를 사용하여 특정 위치의 식당 정보를 최대 40개까지 조회한다.",
-            tools=[RestaurantBasicSearchTool()],
-            llm=llm,
-            verbose=True,
-            async_execution=True,
-        )
-        naver_web_search_agent = Agent(
-            role="네이버 웹 검색 에이전트",
-            goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
-            backstory="나는 네이버 웹 검색 전문가로, 식당의 상세 텍스트 정보를 제공합니다. 최신 검색 기술과 데이터를 활용하여 정확하고 신뢰할 수 있는 식당 정보를 제공합니다.",
-            tools=[NaverWebSearchTool()],
-            llm=llm,
-            verbose=True,
-            async_execution=True,
-        )
-        naver_image_search_agent = Agent(
-            role="네이버 이미지 검색 에이전트",
-            goal="네이버 이미지 검색 API를 사용해 식당의 이미지 URL을 조회한다.",
-            backstory="나는 네이버 이미지 검색 전문가로, 식당의 정확한 이미지를 제공합니다.",
-            tools=[NaverImageSearchTool()],
-            llm=llm,
-            verbose=True,
-            async_execution=True,
-        )
-        final_recommendation_agent = Agent(
-            role="최종 추천 에이전트",
-            goal="필터링된 맛집 후보와 네이버 텍스트 기반 세부 정보를, 여행 계획을 고려하여 최종 맛집 추천 리스트를 생성한다.",
-            backstory="나는 데이터 구조화 전문가로, 후보 식당의 기본 정보, 네이버에서 수집한 텍스트 세부 정보와 여행 계획 정보를 종합하여 최종 추천 리스트를 구성한다.",
-            tools=[NaverWebSearchTool()],  # 필요에 따라 수정 가능
-            llm=llm,
-            verbose=True,
-            async_execution=True,
-        )
+        return input_data, prompt_text
 
-        # Task 구성
-        tasks = [
+    def _create_agents(self) -> Dict[str, Agent]:
+        """Agent들을 생성하는 메서드"""
+        return {
+            "geocoding": Agent(
+                role="좌표 조회 전문가",
+                goal="사용자가 입력한 location(예: '부산광역시')의 위도와 경도를 조회하며, location 값은 그대로 유지한다.",
+                backstory="나는 위치 데이터 전문가로, 입력된 location 값을 변경하지 않고 Google Geocoding API를 통해 좌표를 조회한다.",
+                tools=[self.tools["geocoding"]],
+                llm=self.llm,
+                verbose=True,
+                async_execution=True,
+            ),
+            "restaurant_search": Agent(
+                role="맛집 기본 조회 전문가",
+                goal="좌표 정보를 활용하여 식당의 기본 정보를 조회한다.",
+                backstory="나는 맛집 데이터 분석 전문가로, Google Maps API를 사용하여 특정 위치의 식당 정보를 최대 40개까지 조회한다.",
+                tools=[self.tools["restaurant_search"]],
+                llm=self.llm,
+                verbose=True,
+                async_execution=True,
+            ),
+            "web_search": Agent(
+                role="네이버 웹 검색 에이전트",
+                goal="네이버 웹 검색 API를 사용해 식당의 텍스트 기반 세부 정보를 조회한다.",
+                backstory="나는 네이버 웹 검색 전문가로, 식당의 상세 텍스트 정보를 제공합니다.",
+                tools=[self.tools["web_search"]],
+                llm=self.llm,
+                verbose=True,
+                async_execution=True,
+            ),
+            "image_search": Agent(
+                role="네이버 이미지 검색 에이전트",
+                goal="네이버 이미지 검색 API를 사용해 식당의 이미지 URL을 조회한다.",
+                backstory="나는 네이버 이미지 검색 전문가로, 식당의 정확한 이미지를 제공합니다.",
+                tools=[self.tools["image_search"]],
+                llm=self.llm,
+                verbose=True,
+                async_execution=True,
+            ),
+            "final_recommendation": Agent(
+                role="최종 추천 에이전트",
+                goal="필터링된 맛집 후보와 네이버 텍스트 기반 세부 정보를, 여행 계획을 고려하여 최종 맛집 추천 리스트를 생성한다.",
+                backstory="나는 데이터 구조화 전문가로, 후보 식당의 기본 정보, 네이버에서 수집한 텍스트 세부 정보와 여행 계획 정보를 종합하여 최종 추천 리스트를 구성한다.",
+                tools=[self.tools["web_search"]],
+                llm=self.llm,
+                verbose=True,
+                async_execution=True,
+            ),
+        }
+
+    def _create_tasks(self, input_data: dict, prompt_text: str) -> List[Task]:
+        """Task들을 생성하는 메서드"""
+        return [
             Task(
                 description=f"{input_data['main_location']}의 좌표 조회",
-                agent=geocoding_agent,
+                agent=self.agents["geocoding"],
                 expected_output="위치 좌표",
             ),
             Task(
                 description="맛집 기본 정보 조회",
-                agent=restaurant_basic_search_agent,
+                agent=self.agents["restaurant_search"],
                 expected_output="맛집 기본 정보 리스트",
             ),
             Task(
@@ -384,7 +390,7 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
                 
                 위 JSON 스키마에 맞추어 모든 필드를 채워서 결과를 반환하라.
                 """,
-                agent=naver_web_search_agent,
+                agent=self.agents["web_search"],
                 expected_output="각 후보 식당의 세부 정보(details_map)",
             ),
             Task(
@@ -393,8 +399,8 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
                 - 반드시 실제 식당의 외관, 내부 또는 음식 사진을 선택할 것.
                 - 이미지의 해상도는 최소 300x300 이상이며, 최신 1년 이내의 고화질 이미지를 우선으로 한다.
                 - 로고, 지도, 텍스트가 포함된 이미지, 메뉴판 등은 제외한다.
-                - 각 식당에 대해 조건을 모두 만족하는 이미지 URL을 반환하라. """,
-                agent=naver_image_search_agent,
+                - 각 식당에 대해 조건을 모두 만족하는 이미지 URL을 반환하라.""",
+                agent=self.agents["image_search"],
                 expected_output="맛집 이미지 URL",
             ),
             Task(
@@ -415,28 +421,14 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
                 - 최종 맛집 리스트의 개수는 하루 3끼 기준으로 결정된다. (예: 1박 2일이면 총 6개 이상, 2박 3일이면 총 9개 이상)
                 - 위도, 경도, 이미지 데이터는 이전 태스크들에서 얻은 정보를 활용한다.
                 """,
-                agent=final_recommendation_agent,
+                agent=self.agents["final_recommendation"],
                 expected_output="최종 추천 맛집 리스트",
                 output_pydantic=spots_pydantic,
             ),
         ]
 
-        # Crew 생성 및 전체 워크플로우 실행 (비동기 방식)
-        crew = Crew(
-            tasks=tasks,
-            agents=[
-                geocoding_agent,
-                restaurant_basic_search_agent,
-                naver_web_search_agent,
-                naver_image_search_agent,
-                final_recommendation_agent,
-            ],
-            verbose=True,
-        )
-
-        result = await crew.kickoff_async()
-
-        # 결과 처리: 마지막 태스크의 결과에서 최종 맛집 리스트 추출
+    def _process_result(self, result, input_data: dict) -> dict:
+        """결과를 처리하는 메서드"""
         if hasattr(result, "tasks_output") and result.tasks_output:
             final_task_output = result.tasks_output[-1]
             if hasattr(final_task_output, "pydantic"):
@@ -446,7 +438,7 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
         else:
             spots_data = {"spots": []}
 
-        restaurant_response = {
+        return {
             "message": "요청이 성공적으로 처리되었습니다.",
             "plan": {
                 "name": input_data.get("name", "여행 일정"),
@@ -466,8 +458,24 @@ async def create_recommendation(input_data: dict, prompt: Optional[str] = None) 
             "spots": spots_data.get("spots", []),
         }
 
-        return restaurant_response
+    async def create_recommendation(
+        self, input_data: dict, prompt: Optional[str] = None
+    ) -> dict:
+        """추천 워크플로우를 실행하는 메서드"""
+        try:
+            # 1. 입력 데이터 전처리
+            processed_input, prompt_text = self._process_input(input_data, prompt)
 
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+            # 2. Task 생성
+            tasks = self._create_tasks(processed_input, prompt_text)
+
+            # 3. Crew 실행
+            crew = Crew(tasks=tasks, agents=list(self.agents.values()), verbose=True)
+
+            # 4. 결과 처리
+            result = await crew.kickoff_async()
+            return self._process_result(result, processed_input)
+
+        except Exception as e:
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
