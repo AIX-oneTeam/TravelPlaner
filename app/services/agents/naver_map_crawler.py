@@ -199,9 +199,13 @@ class GetCafeListTool(BaseTool):
         async with aiohttp.ClientSession() as session:
             tasks = [fetch_review(session, cafe["place_id"]) for cafe in cafe_list]
             return await asyncio.gather(*tasks)
-        
+     
+    async def _collect_business_info(self, cafe_list):
+        async with aiohttp.ClientSession() as session:
+            tasks = [fetch_business(session, cafe["place_id"]) for cafe in cafe_list]
+            return await asyncio.gather(*tasks)
+            
     def _run(self, query: str) -> str:
-        """동기 실행을 위한 메서드"""
         try:
             cafe_list = cafe_list_crawler(query)
             
@@ -236,30 +240,6 @@ class GetCafeListTool(BaseTool):
                 "status": "error",
                 "message": str(e)
             })        
-        
-    async def _arun(self, query: str) -> str:
-        """비동기 실행을 위한 메서드"""
-        cafe_list = cafe_list_crawler(query)
-        if not cafe_list:
-            return json.dumps({
-                "status": "no_results",
-                "message": "검색 결과가 없습니다."
-            })
-            
-        reviews = await self._collect_reviews([cafe['place_id'] for cafe in cafe_list])
-
-        for cafe in cafe_list:
-            cafe_reviews = next((r for r in reviews if r['place_id'] == cafe['place_id']), None)
-            if cafe_reviews:
-                cafe['reviews'] = cafe_reviews['reviews']
-            else:
-                cafe['reviews'] = []
-
-        return json.dumps({
-            "status": "success",
-            "count": len(cafe_list),
-            "cafe_list": cafe_list
-        }, ensure_ascii=False)
                          
 class PlaceIdListSchema(BaseModel):
     place_id_list: list[str]
@@ -292,7 +272,6 @@ class GetCafeBusinessTool(BaseTool):
             return await asyncio.gather(*tasks)
         
     def _run(self, place_id_list: list) -> str:
-        """동기 실행을 위한 메서드"""
         try:
             business_info = self._loop.run_until_complete(self._collect_business(place_id_list))
 
@@ -307,17 +286,3 @@ class GetCafeBusinessTool(BaseTool):
                 "message": str(e)
             })
              
-    async def _arun(self, place_id_list: list) -> str:
-        """비동기 실행을 위한 메서드"""
-        try:
-            business_info = await self._collect_business(place_id_list)
-            return json.dumps({
-                "cafe_business_info": business_info
-            }, ensure_ascii=False)
-       
-        except Exception as e:
-            print(f"Review collection error: {e}")
-            return json.dumps({
-                "status": "error",
-                "message": str(e)
-            })
