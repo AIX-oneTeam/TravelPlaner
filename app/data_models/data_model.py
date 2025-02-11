@@ -139,8 +139,9 @@ class PlanSpotTagMap(SQLModel, table=True):
 
 class Checklist(SQLModel, table=True):
     __tablename__ = "checklist"
-    plan_id: int = Field(primary_key=True, foreign_key="plan.id")
-    item: Optional[str] = Field(default=None, max_length=255)
-    state: Optional[bool] = None
+    id:  int = Field(primary_key=True)
+    plan_id: int = Field(foreign_key="plan.id")
+    text: Optional[str] = Field(default=None, max_length=255)
+    checked: Optional[bool] = None
 
     plan: Plan = Relationship(back_populates="checklist")
