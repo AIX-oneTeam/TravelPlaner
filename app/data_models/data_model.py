@@ -68,7 +68,7 @@ class Plan(SQLModel, table=True):
     updated_at: Optional[datetime] = None
     
     member: Member = Relationship(back_populates="plans")
-    checklist: Optional["Checklist"] = Relationship(back_populates="plan", cascade_delete=True)
+    checklists: Optional[List["Checklist"]]= Relationship(back_populates="plan", cascade_delete=True)
     plan_spots: List["PlanSpotMap"] = Relationship(back_populates="plan", cascade_delete=True)
 
 class Spot(SQLModel, table=True):
