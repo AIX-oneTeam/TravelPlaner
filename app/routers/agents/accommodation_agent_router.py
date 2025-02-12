@@ -1,11 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
-import asyncio
-from app.services.agents.accommodation_agent_4 import run
-import json
-from datetime import datetime
-from app.services.agents.accommodation_agent_service import AccommodationAgentService
+from app.services.agents.accommodation_agent_service2 import AccommodationAgentService
 
 router = APIRouter()
 
@@ -23,33 +19,22 @@ class TravelPlanRequest(BaseModel):
     prompt: Optional[str] = None
 
 
-@router.post("/accommodations")
-async def get_accommodations(user_input: TravelPlanRequest):
-    """
-    숙소 추천 API
-    """
+@router.post("/accommodation")
+async def get_accommodation(user_input: TravelPlanRequest ):
+    """숙소 추천 엔드포인트"""
+    
+    print("프런트에서 데이터 받음")
+    
     try:
-        start_time = datetime.now()
+        # model_dump()를 사용하여 입력 데이터를 dict 형태로 변환
+        input_data = user_input.model_dump()
+        try:
+            result = await AccommodationAgentService.create_recommendation(input_data)
+        except Exception as e:
+            print(f"[ERROR] accommodationagentservie create_recommendation() 오류 발생: {e}")
+            raise HTTPException(status_code=500, detail="추천 생성 중 오류 발생")
 
-        instance = AccommodationAgentService()
-        result = await instance.accommodation_agent(user_input.model_dump())
-
-        end_time = datetime.now()
-        execution_time = (end_time - start_time).total_seconds()
-
-        if not result:
-            print("결과값이 없습니다. 실행 시간: {execution_time:.4f}초")
-
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "status": "error",
-                    "message": "카페 검색 결과가 없습니다.",
-                    "execution_time": execution_time
-                }
-            )
-
-        print(f"cafe_agent() 실행 시간: {execution_time:.4f}초")
+        print("accommodation_response:", result)
 
         return {
             "status": "success",
@@ -58,7 +43,5 @@ async def get_accommodations(user_input: TravelPlanRequest):
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"숙소 추천 처리 중 오류가 발생했습니다: {str(e)}"
-        )
+        print(f"[ERROR] 숙소 추천 요청 처리 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
