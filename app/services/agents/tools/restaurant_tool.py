@@ -1,19 +1,21 @@
 import asyncio
 import aiohttp
-from crewai.tools import BaseTool
-from typing import List, Dict
-from dotenv import load_dotenv
+import httpx
+import datetime
 import os
 import re
-import httpx
+from crewai.tools import BaseTool
+from typing import List, Dict, Type
+from pydantic import BaseModel, create_model
+from dotenv import load_dotenv
+
 
 # 환경 변수 로드
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 AGENT_NAVER_CLIENT_ID = os.getenv("AGENT_NAVER_CLIENT_ID")
 AGENT_NAVER_CLIENT_SECRET = os.getenv("AGENT_NAVER_CLIENT_SECRET")
-KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
+KAKAO_MAP_API_KEY = os.getenv("KAKAO_MAP_API_KEY")
 
 
 def clean_query(query: str) -> str:
@@ -303,3 +305,95 @@ class NaverImageSearchTool(BaseTool):
 
     def _run(self, restaurant_list: List[str]) -> Dict[str, str]:
         return asyncio.run(self._arun(restaurant_list))
+
+
+# 5. 카카오 로컬 API를 사용해 식당의 상세 정보를 조회하는 Tool
+class KakaoLocalSearchTool(BaseTool):
+    name: str = "KakaoLocalSearch"
+    description: str = "카카오 로컬 API를 사용해 식당의 위치 정보를 검색합니다."
+
+    async def fetch(self, session: aiohttp.ClientSession, name: str, location: str):
+        url = "https://dapi.kakao.com/v2/local/search/keyword.json"
+        headers = {"Authorization": f"KakaoAK {KAKAO_MAP_API_KEY}"}
+
+        # 검색어 변형 리스트 생성 (location 포함)
+        search_queries = [
+            f"{location} {name}",  # 예: "해운대 할매집 돼지국밥 본점"
+            (
+                f"{location} {name.split()[-2]} {name.split()[-1]}"
+                if len(name.split()) > 2
+                else f"{location} {name}"
+            ),  # "해운대 돼지국밥 본점"
+            (
+                f"{location} {' '.join(name.split()[:-1])}"
+                if len(name.split()) > 1
+                else f"{location} {name}"
+            ),  # "해운대 할매집 돼지국밥"
+            f"{location} {name.split()[0]}",  # "해운대 할매집"
+        ]
+
+        for query in search_queries:
+            print(f"[카카오 로컬 검색어 시도]: {query}")
+            params = {
+                "query": query,
+                "category_group_code": "FD6",
+                "size": 1,
+            }
+
+            try:
+                async with session.get(url, headers=headers, params=params) as response:
+                    data = await response.json()
+                    documents = data.get("documents", [])
+
+                    if documents:
+                        place = documents[0]
+                        place_id = place.get("id")
+
+                        result = {
+                            "kor_name": name,
+                            "address": place.get("road_address_name")
+                            or place.get("address_name", ""),
+                            "latitude": float(place.get("y", 0)) or None,
+                            "longitude": float(place.get("x", 0)) or None,
+                            "map_url": (
+                                f"https://map.kakao.com/link/map/{place_id}"
+                                if place_id
+                                else ""
+                            ),
+                            "phone_number": place.get("phone", ""),
+                            # "category_name": place.get("category_name", ""),
+                        }
+                        print(
+                            f"[카카오 로컬 검색 성공] 검색어: {query}, 결과: {result}"
+                        )
+                        return result
+
+            except Exception as e:
+                print(f"카카오 로컬 검색 오류: {str(e)}")
+                continue
+
+        print(f"[카카오 로컬 검색 실패] 모든 검색어 시도 실패: {search_queries}")
+        return self._get_empty_result(name)
+
+    def _get_empty_result(self, name: str) -> dict:
+        """검색 실패 시 기본값 반환"""
+        return {
+            "kor_name": name,
+            "address": "",
+            "latitude": None,
+            "longitude": None,
+            "map_url": "",
+            "phone_number": "",
+            # "category_name": "",
+        }
+
+    async def _arun(self, restaurant_names: List[str], location: str) -> List[Dict]:
+        """모든 식당 정보를 병렬로 처리"""
+        results = []
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.fetch(session, name, location) for name in restaurant_names]
+            results = await asyncio.gather(*tasks)
+        return results
+
+    def _run(self, restaurant_names: List[str], location: str) -> List[Dict]:
+        return asyncio.run(self._arun(restaurant_names, location))
