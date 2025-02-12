@@ -1,46 +1,64 @@
-from pydantic import BaseModel
-from typing import List, Dict, Any
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
 import asyncio
 from app.services.agents.accommodation_agent_4 import run
 import json
+from datetime import datetime
+from app.services.agents.accommodation_agent_service import AccommodationAgentService
 
 router = APIRouter()
 
-class UserInputData(BaseModel):
-    location: str
-    check_in_date: str
-    check_out_date: str
-    age_group: int
-    adults: int
-    children: int
-    keyword: List[str]
-    prompt : str  = None   #프롬프트는 수정에서만 사용
-  
+class Companion(BaseModel):
+    label: str
+    count: int
+
+class TravelPlanRequest(BaseModel):
+    ages: str
+    companion_count: List[Companion]
+    start_date: str
+    end_date: str
+    concepts: List[str]
+    main_location: str
+    prompt: Optional[str] = None
+
 
 @router.post("/accommodations")
-async def get_accommodations(user_input: UserInputData):
+async def get_accommodations(user_input: TravelPlanRequest):
     """
     숙소 추천 API
     """
     try:
-        crew_output = await asyncio.to_thread(
-            run,
-            location=user_input.location,
-            check_in_date=user_input.check_in_date,
-            check_out_date=user_input.check_out_date,
-            age_group=user_input.age_group,
-            adults=user_input.adults,
-            children=user_input.children,
-            keyword=user_input.keyword,
-            prompt =user_input.prompt
-        )
+        start_time = datetime.now()
 
-        # json 문자열을 객체로 변환
-        parsed_output = json.loads(crew_output)
-        
-        
-        return {"result": parsed_output}
-        
+        instance = AccommodationAgentService()
+        result = await instance.accommodation_agent(user_input.model_dump())
+
+        end_time = datetime.now()
+        execution_time = (end_time - start_time).total_seconds()
+
+        if not result:
+            print("결과값이 없습니다. 실행 시간: {execution_time:.4f}초")
+
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "status": "error",
+                    "message": "카페 검색 결과가 없습니다.",
+                    "execution_time": execution_time
+                }
+            )
+
+        print(f"cafe_agent() 실행 시간: {execution_time:.4f}초")
+
+        return {
+            "status": "success",
+            "message": "숙소 리스트가 생성되었습니다.",
+            "data": result,
+        }
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"[숙소 추천 API] 에러: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"숙소 추천 처리 중 오류가 발생했습니다: {str(e)}"
+        )

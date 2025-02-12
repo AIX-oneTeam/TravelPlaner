@@ -15,7 +15,7 @@ async def save_checklist(checklist_items: List[ChecklistCreate], session: Sessio
 async def read_checklist(plan_id : int, session:Session):
     try: 
         got_checklist = read_checklist_item(plan_id, session)
-        return [ChecklistResponse.model_validate(item) for item in got_checklist]
+        return [ChecklistResponse.model_validate(item.dict()) for item in got_checklist]
     except Exception as e:
         print(f"Error in read_checklis service: {e}")
 
@@ -25,7 +25,7 @@ async def read_checklist(plan_id : int, session:Session):
 async def delete_checklist(plan_id : int, session:Session):
     try: 
         deleted_checklist_item = delete_checklist_item(plan_id, session)
-        return [PlanId.model_validate(item) for item in deleted_checklist_item]
+        return [PlanId.model_validate(item.dict()) for item in deleted_checklist_item]
     except Exception as e :
         print(f"Error in delete_checklist service: {e}")
 
