@@ -1,12 +1,11 @@
 import os
 import traceback
-import json
 from datetime import datetime
 from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
 from typing import List, Dict
 from fastapi import HTTPException
-from app.dtos.spot_models import spots_pydantic, calculate_trip_days
+from app.dtos.spot_models import spots_pydantic
 from app.utils.time_check import time_check
 from app.services.agents.tools.all_schedule_agent_tool import HaversineRouteOptimizer
 
@@ -52,6 +51,10 @@ class TravelScheduleAgentService:
         1. restaurant: 맛집 목록
         2. cafe: 카페 목록
         3. site: 관광지 목록
+        
+        - day_x: 방문 날짜
+        - order: 해당 날짜의 방문 순서
+        -spot_time: 해당 스팟의 방문 추천 시간.
 
         일정 구성 필수 규칙:
         1. 아침 일정 (08:00)
@@ -79,6 +82,7 @@ class TravelScheduleAgentService:
             agent=self.agents["planner"],
             expected_output="pydantic 형식의 여행 일정 데이터",
             output_pydantic=spots_pydantic,
+            async_execution=True,
         )]
 
     def _process_result(self, result, input_dict: dict) -> dict:
