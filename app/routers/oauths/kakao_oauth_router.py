@@ -1,6 +1,5 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Response
-
 from app.data_models.data_model import Member
 from app.repository.db import get_async_session
 from app.repository.members.mebmer_repository import is_exist_member_by_email, save_member
@@ -68,8 +67,8 @@ async def kakao_callback(code: str, state: str, response: Response, session: Asy
         try:
             logger.info("[Kakao Callback] 회원 정보 데이터 베이스 시작")
 
-            if not is_exist_member_by_email(user_data["email"], "kakao", session):
-                save_member(Member(
+            if not await is_exist_member_by_email(user_data["email"], "kakao", session):
+                await save_member(Member(
                     email=user_data["email"],
                     name=user_data["nickname"],
                     nickname=user_data["nickname"],

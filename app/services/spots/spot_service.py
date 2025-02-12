@@ -7,12 +7,12 @@ from datetime import datetime
 from app.utils.serialize_time import serialize_time
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-def reg_spot(spot: Spot, session: AsyncSession):
-    spot_id = save_spot(spot, session)
+async def reg_spot(spot: Spot, session: AsyncSession):
+    spot_id = await save_spot(spot, session)
     return spot_id
 
-def find_spot(spot_id: int, session: AsyncSession):
-    spot = get_spot(spot_id, session)
+async def find_spot(spot_id: int, session: AsyncSession):
+    spot = await get_spot(spot_id, session)
     serialized_spot = serialize_time(spot,  ["created_at", "updated_at"])
     return serialized_spot
 

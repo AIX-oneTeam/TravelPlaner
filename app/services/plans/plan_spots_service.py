@@ -5,8 +5,8 @@ from app.repository.plans.plan_spots_repository import get_plan_spots
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 
-def find_plan_spots(plan_id: int, session: AsyncSession):
-    plan_spots_with_spot_info = get_plan_spots(plan_id, session)
+async def find_plan_spots(plan_id: int, session: AsyncSession):
+    plan_spots_with_spot_info = await get_plan_spots(plan_id, session)
     logging.debug(f"💡[ plan_spots_service ] plan_spots_with_spot_info : {plan_spots_with_spot_info}")
     print(f"💡[ plan_spots_service ] plan_spots_with_spot_info : {plan_spots_with_spot_info}")
     

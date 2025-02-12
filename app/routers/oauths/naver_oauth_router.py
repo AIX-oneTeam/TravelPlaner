@@ -42,8 +42,8 @@ async def naver_callback(code: str, state: str, response: Response, session: Asy
             samesite="None",
         )
 
-        if not is_exist_member_by_email(user_data["email"], "naver", session):
-            save_member(Member(
+        if not await is_exist_member_by_email(user_data["email"], "naver", session):
+            await save_member(Member(
                 email=user_data["email"],
                 name=user_data["nickname"],
                 nickname=user_data["nickname"],

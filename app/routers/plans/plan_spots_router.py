@@ -21,7 +21,7 @@ async def read_plan_spots(plan_id: int, request: Request, session: AsyncSession 
         #     return ErrorResponse(message="로그인이 필요합니다.")
         
         #1. 일정_장소 조회
-        plan_spots = find_plan_spots(plan_id, session)
+        plan_spots = await find_plan_spots(plan_id, session)
         logging.debug(f"💡[ plan_spots_router ] plan_spots : {plan_spots}")
         print(f"💡[ plan_spots_router ] plan_spots : {plan_spots}")
 

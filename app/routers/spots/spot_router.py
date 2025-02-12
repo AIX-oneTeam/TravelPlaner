@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("")
 async def create_spot(spot: Spot, session: AsyncSession = Depends(get_async_session)):
     try:
-        spot_id = reg_spot(spot, session)
+        spot_id = await reg_spot(spot, session)
         return SuccessResponse(data={"spot_id": spot_id}, message="장소가 성공적으로 등록되었습니다.")
     except Exception as e:
         return ErrorResponse(message="일정 등록에 실패했습니다.", error_detail=e)
@@ -21,7 +21,7 @@ async def create_spot(spot: Spot, session: AsyncSession = Depends(get_async_sess
 @router.get("/{spot_id}")
 async def read_spot(spot_id: int, session: AsyncSession = Depends(get_async_session)):
     try:
-        spot = find_spot(spot_id, session)
+        spot = await find_spot(spot_id, session)
         return SuccessResponse(data={"spot": spot}, message="장소가 성공적으로 조회되었습니다.")
     except Exception as e:
         return ErrorResponse(message="등록되지 않은 장소입니다.", error_detail=e)

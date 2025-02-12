@@ -10,9 +10,9 @@ router = APIRouter()
 
 # 모든 행정구역 데이터 조회
 @router.get("/all")
-def fetch_all_divisions(session: AsyncSession = Depends(get_async_session)):
+async def fetch_all_divisions(session: AsyncSession = Depends(get_async_session)):
     try:
-        divisions = get_all_divisions_service(session)
+        divisions = await get_all_divisions_service(session)
         return SuccessResponse(
             data={"divisions": divisions},
             message="전체 지역 정보가 성공적으로 조회되었습니다.",
