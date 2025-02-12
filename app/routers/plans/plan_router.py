@@ -126,20 +126,17 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
             print("💡[ plan_router ] spot : ", spot)
             await delete_spot(spot["spot"]["id"], session)
 
-        # 2. 일정 삭제
+        # 2. 일정 삭제 -> 체크리스트도 삭제됨(캐스캐이딩)
         await delete_plan(plan_id, session)
 
-        # 3. 체크리스트 삭제
-        await delete_checklist(plan_id, session)
-
-        # 4. 새로운 일정 등록
+        # 2. 새로운 일정 등록
         plan_id = await reg_plan(request_data.plan, member_id, session)
         for spot in request_data.spots:
             spot_id = await reg_spot(Spot(**spot.model_dump(exclude={"order", "day_x", "spot_time"})), session)
             # 3. 일정-장소 매핑 저장
             await save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
         
-        # 5. 체크리스트 등록(없다면 무시)
+        # 3. 체크리스트 등록(없다면 무시)
         if(request_data.checklist is not None):
             await save_checklist(request_data.checklist, session)
         
@@ -164,18 +161,15 @@ async def erase_plan(plan_id: int, request: Request, session: AsyncSession = Dep
         if(plan.member_id != member_id):
             return ErrorResponse(message="일정 삭제 권한이 없습니다.")
         
-        #1. 장소 삭제
+        #2. 장소 삭제
         plan_spots = await find_plan_spots(plan_id, session)
         print("💡[ plan_router ] plan_spots : ", plan_spots)
         for spot in plan_spots["detail"]:
             print("💡[ plan_router ] spot : ", spot)
             await delete_spot(spot["spot"]["id"], session)
 
-        # 2. 일정 삭제
+        #3. 일정 삭제
         await delete_plan(plan_id, session)
-
-        # 3. 체크리스트 삭제
-        await delete_checklist(plan_id, session)
 
         return SuccessResponse(message="일정이 성공적으로 삭제되었습니다.")
     except Exception as e:
