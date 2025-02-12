@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from app.repository.db import get_async_session
-from app.data_models.data_model import Plan, Spot
+from app.data_models.data_model import Checklist, Plan, Spot
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.repository.plans.plan_spots_repository import save_plan_spots
@@ -51,6 +51,7 @@ class PlanRequest(BaseModel):
     plan: Plan
     spots: list[spot_request]
     email: str
+    checklist: Checklist | None = None
 
 # 일정 저장
 @router.post("")
@@ -103,15 +104,18 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
         if(request.state.user is not None):
             member_email = request.state.user.get("email")
             member_id = await get_memberId_by_email(member_email, session)
+            print("💡[ plan_router ] member_id : ", member_id)
         # local 테스트용
         elif(request_data.email is not None):
             member_id = await get_memberId_by_email(request_data.email, session)
+            print("💡[ plan_router ] member_id : ", member_id)
         else:
             return ErrorResponse(message="로그인이 필요합니다.")
         
 
         # 1. 소유자 확인
         plan = await find_plan(plan_id, session)
+        print("💡[ plan_router ] plan : ", plan)
         if(plan.member_id != member_id):
             return ErrorResponse(message="일정 수정 권한이 없습니다.")
         
@@ -142,6 +146,7 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 수정되었습니다.")
     except Exception as e:
         logging.debug(f"💡logger: 일정 수정 오류: {e}")
+        print("💡[ plan_router ] error : ", e)
         return ErrorResponse(message="일정 수정에 실패했습니다.", error_detail=e)
 
 # 일정 삭제
