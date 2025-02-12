@@ -8,6 +8,7 @@ from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.repository.plans.plan_spots_repository import save_plan_spots
 from app.repository.spots.spot_repository import delete_spot
+from app.services.checklists.checklist_service import delete_checklist, save_checklist
 from app.services.plans.plan_service import edit_plan, find_member_plans, find_plan, reg_plan
 from app.services.plans.plan_spots_service import find_plan_spots
 from app.services.spots.spot_service import reg_spot
@@ -124,14 +125,19 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
         # 2. 일정 삭제
         await delete_plan(plan_id, session)
 
-        
-        #3. 새로운 일정 등록
+        # 3. 체크리스트 삭제
+        await delete_checklist(plan_id, session)
+
+        # 4. 새로운 일정 등록
         plan_id = await reg_plan(request_data.plan, member_id, session)
         for spot in request_data.spots:
             spot_id = await reg_spot(Spot(**spot.model_dump(exclude={"order", "day_x", "spot_time"})), session)
             # 3. 일정-장소 매핑 저장
             await save_plan_spots(plan_id, spot_id, spot.order, spot.day_x, spot.spot_time, session)
         
+        # 5. 체크리스트 등록(없다면 무시)
+        if(request_data.checklist is not None):
+            await save_checklist(request_data.checklist, session)
         
         return SuccessResponse(data={"plan_id": plan_id}, message="일정이 성공적으로 수정되었습니다.")
     except Exception as e:
@@ -162,6 +168,10 @@ async def erase_plan(plan_id: int, request: Request, session: AsyncSession = Dep
 
         # 2. 일정 삭제
         await delete_plan(plan_id, session)
+
+        # 3. 체크리스트 삭제
+        await delete_checklist(plan_id, session)
+
         return SuccessResponse(message="일정이 성공적으로 삭제되었습니다.")
     except Exception as e:
         logging.debug(f"💡logger: 일정 삭제 오류: {e}")

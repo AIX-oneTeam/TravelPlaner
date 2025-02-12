@@ -61,7 +61,6 @@ async def generate_plan(
 
         # 집계한 external_data를 입력 데이터에 추가합니다.
         input_dict["external_data"] = external_data
-        print("집계된 external_data:", external_data)
 
         # 최종 여행 일정 생성 함수 호출 (외부 데이터가 포함된 상태)
         result = await travel_schedule_agent_service.create_plan(input_dict)
