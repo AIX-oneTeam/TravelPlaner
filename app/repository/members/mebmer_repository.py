@@ -6,7 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 async def save_member(member: Member, session: AsyncSession) -> int:
     try:
-        await session.add(member)
+        session.add(member)
         return member.id
     except Exception as e:
         print("[ memberRepository ] save_member() 에러 : ", e)
@@ -33,7 +33,7 @@ async def is_exist_member_by_email(email: str, oauth: str, session: AsyncSession
         print("session type : ", type(session))
         query = select(Member).where((Member.email == email) & (Member.oauth == oauth))
         result = await session.exec(query)
-        member = result.scalars().first()
+        member = result.first()
         return True if not member == None else False
     except Exception as e:
         print("[ memberRepository ] is_exist_member_by_email() 에러 : ", e)
