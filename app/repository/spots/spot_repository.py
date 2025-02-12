@@ -1,30 +1,31 @@
 from sqlmodel import Session, select
 from app.data_models.data_model import Spot
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-def save_spot(spot: Spot, session:Session):
+async def save_spot(spot: Spot, session:AsyncSession):
     try:
-        session.add(spot)
-        session.flush()
+        await session.add(spot)
+        await session.flush()
         return spot.id
     except Exception as e:
-        session.rollback()  # 트랜잭션 롤백
+        await session.rollback()  # 트랜잭션 롤백
         print("[ spotRepository ] save_spot() 에러 : ", e)
         raise e  # 예외 다시 던지기
 
-def get_spot(spot_id: int, session:Session) -> Spot:
+async def get_spot(spot_id: int, session:AsyncSession) -> Spot:
     try:
         query = select(Spot).where(Spot.id == spot_id)
-        spot = session.exec(query).first()
+        spot = await session.exec(query).first()
         return spot if spot is not None else None
     except Exception as e:
         print("[ spotRepository ] get_spot() 에러 : ", e)
         raise e
     
-def delete_spot(spot_id: int, session:Session):
+async def delete_spot(spot_id: int, session:AsyncSession):
     try:
         query = select(Spot).where(Spot.id == spot_id)
-        spot = session.exec(query).first()
-        session.delete(spot)
+        spot = await session.exec(query).first()
+        await session.delete(spot)
         return spot.id
     except Exception as e:
         print("[ spotRepository ] delete_spot() 에러 : ", e)

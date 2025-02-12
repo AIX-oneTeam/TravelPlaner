@@ -2,20 +2,21 @@ from contextlib import asynccontextmanager
 import logging
 import os
 import inspect
-import traceback
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel, Session
+from sqlmodel import SQLModel
 
 # 환경 변수 로드
 print("--------------------db.py---------------------")
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session) # SQL모델의 세션 사용하도록 설정(exec()메서드 사용위함.)
+engine = create_async_engine(DATABASE_URL, echo=True)
+AsyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession) # SQL모델의 세션 사용하도록 설정(exec()메서드 사용위함.)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,13 +31,14 @@ async def lifespan(app: FastAPI):
         print("Shutting down application...")
         
         # 1. 데이터베이스 연결 정리
-        app.state.engine.dispose()
+        await app.state.engine.dispose()
         print("Database connection closed.")
         
 # 동기식 연결
 # SQLAlchemy 세션을 생성하고 반환하는 제너레이터
-def get_session_sync():
-    session = SessionLocal()
+@asynccontextmanager
+async def get_session_async():
+    session = AsyncSessionLocal()
     try:
         frame = inspect.stack()[2]
         filename = frame.filename
@@ -44,30 +46,36 @@ def get_session_sync():
         print(f"💡[ 세션 생성 ] {filename} - {function_name}")
 
         yield session
-        session.commit()
+        await session.commit()
     except Exception as e:
         logging.debug(f"💡logger: 데이터 베이스 예외 발생: {e}")
-        session.rollback()
+        await session.rollback()
         raise RuntimeError("데이터베이스 연결 실패") from e
     finally:
         print(f"💡[ 세션 종료 ] {filename} - {function_name}")
 
-        session.close()
+        await session.close()
 
-def init_table_by_SQLModel(): 
-    with engine.connect() as connection:
+async def init_table_by_SQLModel(): 
+    async with engine.begin() as conn:
         print("테이블을 삭제합니다.")
-        SQLModel.metadata.drop_all(connection)
+        await conn.run_sync(SQLModel.metadata.drop_all)
         print("테이블 삭제 완료")
         print("테이블을 생성합니다.")
-        SQLModel.metadata.create_all(connection)
+        await conn.run_sync(SQLModel.metadata.create_all)
         print("테이블 생성 완료")
         
     # 테이블 초기화 시 행정구역 CSV 데이터 삽입
     try:
         import pandas as pd
         data = pd.read_csv('administrative_division.csv')
-        data.to_sql('administrative_division', con=engine, if_exists='append', index=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(
+                data.to_sql,
+                'administrative_division',
+                if_exists='append',
+                index=False
+            )
         print(f"총 {len(data)}개의 행 삽입 완료.")
     except Exception as e:
         print(f"CSV 데이터 삽입 실패: {e}")
@@ -78,21 +86,25 @@ def check_table_exists_by_SQLModel():
     print("--------------------------------------")
 
 if __name__ == "__main__":
-    print("MySQL 연결 테스트를 시작합니다...")
-    try:
+    import asyncio
+    
+    async def main():
+    
+        print("MySQL 연결 테스트를 시작합니다...")
+        try:
 
-        load_dotenv()
-        DATABASE_URL = os.getenv("DATABASE_URL")
-        engine = create_engine(DATABASE_URL, echo=True)
-        # 엔진으로 직접 연결 테스트
-        with engine.connect() as connection:
-            print("MySQL 연결 성공!")
+            load_dotenv()
+            DATABASE_URL = os.getenv("DATABASE_URL")
+            engine = create_async_engine(DATABASE_URL, echo=True)
+            # 엔진으로 직접 연결 테스트
+            async with engine.connect() as connection:
+                print("MySQL 연결 성공!")
+                print("테이블 목록을 출력합니다.")
+                result = await connection.execute(text("SHOW TABLES;"))
 
-            print("테이블 목록을 출력합니다.")
-            result = connection.execute(text("SHOW TABLES;"))
+                async for row in result:
+                    print(row)
+        except Exception as e:
+            print(f"MySQL 연결 실패: {e}")
 
-            for row in result:
-                print(row)
-    except Exception as e:
-        print(f"MySQL 연결 실패: {e}")
-
+    asyncio.run(main())

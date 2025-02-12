@@ -1,13 +1,16 @@
 from typing import List
 from crewai import Agent, Task, Crew, LLM, Process
 from app.dtos.spot_models import spots_pydantic,calculate_trip_days
-from app.services.agents.naver_map_crawler import GetCafeListTool
+from app.services.agents.tools.cafe_tool import GetCafeListTool
 from app.services.agents.travel_all_schedule_agent_service import spots_pydantic, calculate_trip_days
-from pydantic import BaseModel
+
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# ------------------------- 카페 추천 에이전트 -------------------------
         
 class CafeAgentService:
     """
@@ -18,12 +21,12 @@ class CafeAgentService:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(CafeAgentService, cls).__new__(cls)
-            cls._instance.initialize()  # 최초 한 번만 초기화
-        return cls._instance  # 동일한 인스턴스 반환
+            cls._instance.initialize()  
+        return cls._instance  
 
     def initialize(self):
         """CrewAI 관련 객체들을 한 번만 생성"""
-        print("cafe agent를 초기화합니다")
+        # print("cafe agent를 초기화합니다")
                 
         self.llm = LLM(
             model="gpt-4o-mini",

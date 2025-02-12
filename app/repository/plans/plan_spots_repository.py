@@ -1,9 +1,10 @@
-from sqlmodel import Session, select
+from sqlmodel import select
 from app.data_models.data_model import PlanSpotMap, Plan, Spot
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-def save_plan_spots (plan_id:int, spot_id:int, order:int, day_x:str, spot_time:str, session:Session):
+async def save_plan_spots (plan_id:int, spot_id:int, order:int, day_x:str, spot_time:str, session:AsyncSession):
     try:
-        session.add(PlanSpotMap(
+        await session.add(PlanSpotMap(
             plan_id=plan_id,
             spot_id=spot_id,
             order=order,
@@ -14,10 +15,10 @@ def save_plan_spots (plan_id:int, spot_id:int, order:int, day_x:str, spot_time:s
         print("[ planSpotRepository ] save_plan_spots() 에러 : ", e)
         raise e
 
-def get_plan_spots(plan_id: int, session:Session):
+async def get_plan_spots(plan_id: int, session:AsyncSession):
     try:
         plan_stmt = select(Plan).where(Plan.id == plan_id)
-        plan = session.exec(plan_stmt).first()
+        plan = await session.exec(plan_stmt).first()
 
         print(f"💡[ plan_spots_repository ] plan : {plan}")
 
@@ -26,7 +27,7 @@ def get_plan_spots(plan_id: int, session:Session):
             .join(Spot, PlanSpotMap.spot_id == Spot.id)  
             .where(PlanSpotMap.plan_id == plan_id)  
         )
-        spots = session.exec(spot_stmt).all() 
+        spots = await session.exec(spot_stmt).all() 
 
         print(f"💡[ plan_spots_repository ] spots : {spots}")
 
