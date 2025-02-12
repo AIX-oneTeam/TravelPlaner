@@ -4,7 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 async def save_plan_spots (plan_id:int, spot_id:int, order:int, day_x:str, spot_time:str, session:AsyncSession):
     try:
-        await session.add(PlanSpotMap(
+        session.add(PlanSpotMap(
             plan_id=plan_id,
             spot_id=spot_id,
             order=order,
@@ -18,8 +18,8 @@ async def save_plan_spots (plan_id:int, spot_id:int, order:int, day_x:str, spot_
 async def get_plan_spots(plan_id: int, session:AsyncSession):
     try:
         plan_stmt = select(Plan).where(Plan.id == plan_id)
-        plan = await session.exec(plan_stmt).first()
-
+        plans = await session.exec(plan_stmt)
+        plan = plans.first()
         print(f"💡[ plan_spots_repository ] plan : {plan}")
 
         spot_stmt = (
@@ -27,7 +27,8 @@ async def get_plan_spots(plan_id: int, session:AsyncSession):
             .join(Spot, PlanSpotMap.spot_id == Spot.id)  
             .where(PlanSpotMap.plan_id == plan_id)  
         )
-        spots = await session.exec(spot_stmt).all() 
+        result = await session.exec(spot_stmt)
+        spots = result.all() 
 
         print(f"💡[ plan_spots_repository ] spots : {spots}")
 

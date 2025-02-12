@@ -6,7 +6,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 async def get_all_divisions(session: AsyncSession):
     try:
         statement = select(AdministrativeDivision)
-        results = await session.exec(statement).all()
+        query = await session.exec(statement)
+        results = query.all()
         return [
             {"city_province": r.city_province, "city_county": r.city_county}
             for r in results

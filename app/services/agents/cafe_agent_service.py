@@ -81,6 +81,11 @@ class CafeAgentService:
             """,
             expected_output="""
             서로 다른 {n}개의 카페 정보를 반환하세요.
+            다음 4가지 필드는 항상 해당 값으로 고정해주세요
+            spot_category: 3
+            order: 0
+            day_x: 0
+            spot_time: null 
             """,        
             agent=self.researcher,
             output_json=spots_pydantic

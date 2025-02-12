@@ -34,9 +34,7 @@ async def lifespan(app: FastAPI):
         await app.state.engine.dispose()
         print("Database connection closed.")
         
-# 동기식 연결
-# SQLAlchemy 세션을 생성하고 반환하는 제너레이터
-@asynccontextmanager
+
 async def get_session_async():
     session = AsyncSessionLocal()
     try:
@@ -49,7 +47,7 @@ async def get_session_async():
         await session.commit()
     except Exception as e:
         logging.debug(f"💡logger: 데이터 베이스 예외 발생: {e}")
-        await session.rollback()
+        session.rollback()
         raise RuntimeError("데이터베이스 연결 실패") from e
     finally:
         print(f"💡[ 세션 종료 ] {filename} - {function_name}")

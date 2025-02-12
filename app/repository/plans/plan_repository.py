@@ -32,11 +32,11 @@ async def save_plan(plan: Plan, session: AsyncSession, plan_id: int = None):
             existing_plan.companion_count = plan.companion_count
             existing_plan.concepts = plan.concepts
             existing_plan.updated_at = datetime.now()
-            await session.add(existing_plan)
+            session.add(existing_plan)
             print("[ plan_repository ] plan 업데이트 완료 : ", plan_id)
         else:
             # 새로운 plan 생성
-            await session.add(plan)
+            session.add(plan)
             await session.flush()
             plan_id = plan.id
             print("[ plan_repository ] 새로운 plan 생성 완료 : ", plan_id)
@@ -59,7 +59,8 @@ async def get_plan(plan_id: int, session: AsyncSession):
 # 회원의 모든 일정 리스트 조회
 async def get_member_plans(member_id: int, session: AsyncSession):
     try:
-        result = await session.exec(select(Plan).where(Plan.member_id == member_id)).all()
+        all_plans = await session.exec(select(Plan).where(Plan.member_id == member_id))
+        result = all_plans.all()
 
         # serialize_time 유틸리티를 사용하여 변환
         plans = [

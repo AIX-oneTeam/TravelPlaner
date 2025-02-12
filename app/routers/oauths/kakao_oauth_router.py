@@ -68,7 +68,7 @@ async def kakao_callback(code: str, state: str, response: Response, session: Asy
         try:
             logger.info("[Kakao Callback] 회원 정보 데이터 베이스 시작")
 
-            if not is_exist_member_by_email(user_data["email"], "kakao", session):
+            if not await is_exist_member_by_email(user_data["email"], "kakao", session):
                 await save_member(Member(
                     email=user_data["email"],
                     name=user_data["nickname"],
