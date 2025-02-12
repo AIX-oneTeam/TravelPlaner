@@ -2,7 +2,6 @@ from typing import List
 from crewai import Agent, Task, Crew, LLM, Process
 from app.dtos.spot_models import spots_pydantic,calculate_trip_days
 from app.services.agents.naver_map_crawler import GetCafeListTool
-from app.services.agents.travel_all_schedule_agent_service import spots_pydantic, calculate_trip_days
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
