@@ -19,7 +19,7 @@ async def get_plan_spots(plan_id: int, session: AsyncSession):
     try:
         plan_stmt = select(Plan).where(Plan.id == plan_id)
         result = await session.exec(plan_stmt)
-        plan = result.scalars().first()
+        plan = result.first()
 
         print(f"💡[ plan_spots_repository ] plan : {plan}")
 
@@ -29,7 +29,7 @@ async def get_plan_spots(plan_id: int, session: AsyncSession):
             .where(PlanSpotMap.plan_id == plan_id)  
         )
         result = await session.exec(spot_stmt)
-        spots = result.scalars().all()
+        spots = result.all()
 
         print(f"💡[ plan_spots_repository ] spots : {spots}")
 

@@ -20,6 +20,8 @@ async def find_plan(plan_id: int, session: AsyncSession):
     return plan
 
 async def find_member_plans(member_id: int, session: AsyncSession):
+    print("💡[ plan_service ] find_member_plans() 호출 : ", member_id)
     plans = await get_member_plans(member_id, session)
+    print("💡[ plan_service ] find_member_plans() 결과 : ", plans)
     return plans
 

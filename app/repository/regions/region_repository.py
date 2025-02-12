@@ -7,7 +7,7 @@ async def get_all_divisions(session: AsyncSession):
     try:
         statement = select(AdministrativeDivision)
         results = await session.exec(statement)
-        divisions = results.scalars().all()
+        divisions = results.all()
         return [
             {"city_province": d.city_province, "city_county": d.city_county}
             for d in divisions
