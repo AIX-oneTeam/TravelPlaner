@@ -59,7 +59,9 @@ async def get_plan(plan_id: int, session: AsyncSession):
 # 회원의 모든 일정 리스트 조회
 async def get_member_plans(member_id: int, session: AsyncSession):
     try:
-        result = await session.exec(select(Plan).where(Plan.member_id == member_id)).all()
+        query = select(Plan).where(Plan.member_id == member_id)
+        result = await session.exec(query)
+        plans = result.all()
 
         # serialize_time 유틸리티를 사용하여 변환
         plans = [

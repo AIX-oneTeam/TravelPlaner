@@ -21,20 +21,20 @@ async def save_checklist_item(checklist_items: List[ChecklistCreate], session: A
 
 
 #읽기
-def read_checklist_item(plan_id: int, session: AsyncSession):
+async def read_checklist_item(plan_id: int, session: AsyncSession):
     try:
-        got_checklist = session.exec(Checklist).filter(Checklist.plan_id == plan_id).all()
+        result = await session.exec(Checklist)
+        got_checklist = result.filter(Checklist.plan_id == plan_id).all()
         return got_checklist
     except Exception as e:
         print(f"Error in read_checklist_item reposotiry: {e}")
 
 
 #삭제
-def delete_checklist_item(plan_id : int, session: AsyncSession):
+async def delete_checklist_item(plan_id : int, session: AsyncSession):
     try:
-        session.exec(Checklist).filter(Checklist.plan_id == plan_id).delete()
-        session.commit()
-        
+        result = await session.exec(Checklist)
+        result.filter(Checklist.plan_id == plan_id).delete()
         return plan_id
     except Exception as e:
         print(f"Error int delete_checklist_item repository: {e}")

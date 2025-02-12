@@ -6,10 +6,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 async def get_all_divisions(session: AsyncSession):
     try:
         statement = select(AdministrativeDivision)
-        results = await session.exec(statement).all()
+        results = await session.exec(statement)
+        divisions = results.scalars().all()
         return [
-            {"city_province": r.city_province, "city_county": r.city_county}
-            for r in results
+            {"city_province": d.city_province, "city_county": d.city_county}
+            for d in divisions
         ]
     except Exception as e:
         print("[ administrativeDivisionRepository ] get_all_divisions() 에러 : ", e)
