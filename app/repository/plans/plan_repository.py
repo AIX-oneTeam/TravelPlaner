@@ -1,12 +1,13 @@
 from fastapi import Depends
-from sqlmodel import Session, select
+from sqlmodel import select
 from app.data_models.data_model import Plan
 from datetime import datetime
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.utils import serialize_time
 
 # plan을 저장하거나 수정하고 id를 반환함. (CQS 고려하지 않음.)
-def save_plan(plan: Plan, session: Session, plan_id: int = None):
+def save_plan(plan: Plan, session: AsyncSession, plan_id: int = None):
     try:
 
         # ISO 형식의 문자열을 datetime 객체로 변환 후 MySQL 형식으로 변환
@@ -46,7 +47,7 @@ def save_plan(plan: Plan, session: Session, plan_id: int = None):
         raise e
 
 
-def get_plan(plan_id: int, session: Session):
+def get_plan(plan_id: int, session: AsyncSession):
     try:
         plan = session.get(Plan, plan_id)
         return plan if plan is not None else None
@@ -56,7 +57,7 @@ def get_plan(plan_id: int, session: Session):
         raise e
 
 # 회원의 모든 일정 리스트 조회
-def get_member_plans(member_id: int, session: Session):
+def get_member_plans(member_id: int, session: AsyncSession):
     try:
         result = session.exec(select(Plan).where(Plan.member_id == member_id)).all()
 
@@ -76,7 +77,7 @@ def get_member_plans(member_id: int, session: Session):
         print("[ plan_repository ] get_member_plans() 에러 : ", e)
         raise e
 
-def delete_plan(plan_id: int, session: Session):
+def delete_plan(plan_id: int, session: AsyncSession):
     try:
         plan = session.get(Plan, plan_id)
         if plan is None:

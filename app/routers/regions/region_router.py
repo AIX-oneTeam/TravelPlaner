@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends
-from sqlmodel import Session
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.services.regions.region_service import (
     get_all_divisions_service,
 )
-from app.repository.db import get_session_sync
+from app.repository.db import get_async_session
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 router = APIRouter()
 
 # 모든 행정구역 데이터 조회
 @router.get("/all")
-def fetch_all_divisions(session: Session = Depends(get_session_sync)):
+def fetch_all_divisions(session: AsyncSession = Depends(get_async_session)):
     try:
         divisions = get_all_divisions_service(session)
         return SuccessResponse(

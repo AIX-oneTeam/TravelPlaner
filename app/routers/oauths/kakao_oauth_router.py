@@ -1,11 +1,11 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlmodel import Session
 
 from app.data_models.data_model import Member
-from app.repository.db import get_session_sync
+from app.repository.db import get_async_session
 from app.repository.members.mebmer_repository import is_exist_member_by_email, save_member
 from app.services.oauths.kakao_oauth_service import handle_kakao_callback
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @router.get("/callback")
-async def kakao_callback(code: str, state: str, response: Response, session: Session = Depends(get_session_sync)):
+async def kakao_callback(code: str, state: str, response: Response, session: AsyncSession = Depends(get_async_session)):
     """
     카카오 인증 콜백: 인증 코드를 받아 JWT와 Refresh Token을 쿠키에 저장.
     """

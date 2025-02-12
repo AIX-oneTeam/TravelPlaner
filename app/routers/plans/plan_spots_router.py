@@ -1,18 +1,17 @@
 
 import logging
 from fastapi import APIRouter, Depends, Request
-from sqlmodel import Session
 from app.dtos.common.response import ErrorResponse, SuccessResponse
-from app.repository.members.mebmer_repository import get_memberId_by_email
 from app.services.plans.plan_spots_service import find_plan_spots
-from app.repository.db import get_session_sync
+from app.repository.db import get_async_session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 router = APIRouter()
 
 
 # 일정_장소 조회
 @router.get("/{plan_id}")
-async def read_plan_spots(plan_id: int, request: Request, session: Session = Depends(get_session_sync)):
+async def read_plan_spots(plan_id: int, request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
         # #0. 사용자 권한 확인
         # if(request.state.user is not None):

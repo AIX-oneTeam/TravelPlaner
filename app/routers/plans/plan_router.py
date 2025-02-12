@@ -2,9 +2,7 @@ from datetime import time
 from typing import List
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
-from requests import request
-from app.repository.db import get_session_sync
-from sqlmodel import Session
+from app.repository.db import get_async_session
 from app.data_models.data_model import Plan, Spot
 from app.dtos.common.response import ErrorResponse, SuccessResponse
 from app.repository.members.mebmer_repository import get_memberId_by_email
@@ -15,6 +13,7 @@ from app.services.plans.plan_spots_service import find_plan_spots
 from app.services.spots.spot_service import reg_spot
 from app.repository.plans.plan_repository import delete_plan
 import logging
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
@@ -54,7 +53,7 @@ class PlanRequest(BaseModel):
 
 # 일정 저장
 @router.post("")
-async def create_plan(request_data: PlanRequest, request: Request, session: Session = Depends(get_session_sync)):
+async def create_plan(request_data: PlanRequest, request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
         # 0. memberid 획득
         if(request.state.user is not None):
@@ -82,7 +81,7 @@ async def create_plan(request_data: PlanRequest, request: Request, session: Sess
 # 일정 조회
 # 회원의 모든 일정만 리스트 조회
 @router.get("")
-async def read_member_plans(request: Request, session: Session = Depends(get_session_sync)):
+async def read_member_plans(request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
         if(request.state.user is not None):
             member_email = request.state.user.get("email")
@@ -96,7 +95,7 @@ async def read_member_plans(request: Request, session: Session = Depends(get_ses
 
 # 일정 수정
 @router.post("/{plan_id}")
-async def update_plan(plan_id: int, request_data: PlanRequest, request: Request, session: Session = Depends(get_session_sync)):
+async def update_plan(plan_id: int, request_data: PlanRequest, request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
         if(request.state.user is not None):
             member_email = request.state.user.get("email")
@@ -139,7 +138,7 @@ async def update_plan(plan_id: int, request_data: PlanRequest, request: Request,
 
 # 일정 삭제
 @router.delete("/{plan_id}")
-async def erase_plan(plan_id: int, request: Request, session: Session = Depends(get_session_sync)):
+async def erase_plan(plan_id: int, request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
         if(request.state.user is not None):
             member_email = request.state.user.get("email")
