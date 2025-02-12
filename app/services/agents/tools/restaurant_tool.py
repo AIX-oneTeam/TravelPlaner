@@ -41,7 +41,6 @@ def clean_query(query: str) -> str:
             clean_lines.append(line)
     return " ".join(clean_lines)
 
-
 async def check_url_openable_async(url: str) -> bool:
     """
     주어진 URL에 대해 HEAD 요청을 보내어 접근 가능한지 확인합니다.
@@ -118,8 +117,6 @@ class RestaurantBasicSearchTool(BaseTool):
                     "title": result.get("name"),
                     "rating": result.get("rating", 0),
                     "reviews": result.get("user_ratings_total", 0),
-                    # "latitude": result["geometry"]["location"]["lat"],
-                    # "longitude": result["geometry"]["location"]["lng"],
                 }
         except Exception as e:
             print(f"[RestaurantBasicSearchTool] Details Error: {e}")
@@ -137,54 +134,74 @@ class RestaurantBasicSearchTool(BaseTool):
             "radius": "5000",
             "key": GOOGLE_MAP_API_KEY,
         }
-        try:
+
+        async def fetch_places(filter_rating: float, filter_reviews: int):
+            """특정 필터링 기준으로 Google Places API에서 식당 정보를 가져오는 함수"""
+            candidates = []
             async with aiohttp.ClientSession() as session:
-                # 첫 번째 요청
                 async with session.get(url, params=params) as response:
                     data = await response.json()
-                    print(f"첫 요청 결과 수: {len(data.get('results', []))}")
-                    for place in data.get("results", []):
+                    results = data.get("results", [])
+                    print(
+                        f"첫 요청 결과 수: {len(results)} (필터 기준: 평점 {filter_rating} 이상, 리뷰 {filter_reviews}개 이상)"
+                    )
+
+                    for place in results:
                         place_id = place.get("place_id")
                         if place_id:
                             details = await self.get_place_details(session, place_id)
                             if (
                                 details
-                                and details["rating"] >= 4.0
-                                and details["reviews"] >= 500
+                                and details["rating"] >= filter_rating
+                                and details["reviews"] >= filter_reviews
                             ):
-                                all_candidates.append(details)
+                                candidates.append(details)
+
                     next_page_token = data.get("next_page_token")
 
-                # 추가 요청: 후보 수가 10개 미만이면 추가로 요청
-                while next_page_token and len(all_candidates) < 15:
-                    try:
-                        await asyncio.sleep(3)  # next_page_token 유효 대기
-                        params["pagetoken"] = next_page_token
-                        async with session.get(url, params=params) as response:
-                            data = await response.json()
-                            new_results = data.get("results", [])
-                            print(f"추가 요청 결과 수: {len(new_results)}")
-                            for place in new_results:
-                                # 상한선(예: 40개)은 기존 코드와 동일하게 유지
-                                if len(all_candidates) >= 40:
-                                    break
-                                place_id = place.get("place_id")
-                                if place_id:
-                                    details = await self.get_place_details(
-                                        session, place_id
-                                    )
-                                    if (
-                                        details
-                                        and details["rating"] >= 4.0
-                                        and details["reviews"] >= 500
-                                    ):
-                                        all_candidates.append(details)
-                            next_page_token = data.get("next_page_token")
-                    except Exception as e:
-                        print(f"추가 페이지 요청 오류: {e}")
-                        break
+                    # 추가 요청: 후보 수가 15개 미만이면 추가로 요청
+                    while next_page_token and len(candidates) < 15:
+                        try:
+                            await asyncio.sleep(3)  # next_page_token 유효 대기
+                            params["pagetoken"] = next_page_token
+                            async with session.get(url, params=params) as response:
+                                data = await response.json()
+                                new_results = data.get("results", [])
+                                print(f"추가 요청 결과 수: {len(new_results)}")
 
-                print(f"최종 수집된 맛집 수: {len(all_candidates)}")
+                                for place in new_results:
+                                    if len(candidates) >= 40:
+                                        break
+                                    place_id = place.get("place_id")
+                                    if place_id:
+                                        details = await self.get_place_details(
+                                            session, place_id
+                                        )
+                                        if (
+                                            details
+                                            and details["rating"] >= filter_rating
+                                            and details["reviews"] >= filter_reviews
+                                        ):
+                                            candidates.append(details)
+
+                                next_page_token = data.get("next_page_token")
+                        except Exception as e:
+                            print(f"추가 페이지 요청 오류: {e}")
+                            break
+            return candidates
+
+        try:
+            # 1차 필터링: 평점 4.0 이상 & 리뷰 500개 이상
+            all_candidates = await fetch_places(4.0, 500)
+
+            # 첫 번째 결과가 2개 미만이면 기준 완화 (외곽 지역 판단)
+            if len(all_candidates) < 2:
+                print(
+                    "첫 페이지 결과가 2개 미만 → 필터링 조건 완화 (평점 3.5 이상, 리뷰 100개 이상) 후 재요청"
+                )
+                all_candidates = await fetch_places(3.5, 100)
+
+            print(f"최종 수집된 맛집 수: {len(all_candidates)}")
         except Exception as e:
             print(f"[RestaurantBasicSearchTool] Search Error: {e}")
         return all_candidates
