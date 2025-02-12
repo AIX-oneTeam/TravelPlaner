@@ -233,4 +233,4 @@ app.include_router(checklist_router, prefix="/checklist", tags=["checklists"])
 
 
 # 데이터베이스 초기화
-# init_table_by_SQLModel()
+init_table_by_SQLModel()

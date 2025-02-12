@@ -151,7 +151,7 @@ class Checklist(SQLModel, table=True):
     __tablename__ = "checklist"
     id:  int = Field(primary_key=True)
     plan_id: int = Field(foreign_key="plan.id")
-    text: Optional[str] = Field(default=None, max_length=255)
+    item: Optional[str] = Field(default=None, max_length=255)
     checked: Optional[bool] = None
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP"), "nullable": False}
